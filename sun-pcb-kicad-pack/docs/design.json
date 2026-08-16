@@ -1,0 +1,231 @@
+{
+  "project": "led-sun-disc",
+  "generator": "Sun PCB Studio",
+  "units": "mm",
+  "coordinateFrames": {
+    "global": "disc centre = (0,0), y down in CSVs (exported as -y), wedge 0 spans the top",
+    "boardLocal": "origin = LED bounding-box top-left; PosX right, PosY down; outline DXF uses the same numbers with y up"
+  },
+  "disc": {
+    "diameterMM": 1773,
+    "marginMM": 45,
+    "pitchMM": 30,
+    "wedges": 12,
+    "channelMM": 4,
+    "boardInsetMM": 13,
+    "edgeKeepoutMM": 3
+  },
+  "led": {
+    "type": "SK6812 RGBW",
+    "package": "5050 4-pin (VDD, DOUT, GND, DIN)",
+    "volts": 5,
+    "mAFullWhite": 80,
+    "channels": 4,
+    "usPerPx": 40,
+    "suggested": {
+      "name": "SK6812RGBW-NW (OPSCO)",
+      "lcsc": "C5160656",
+      "note": "RGBW 5050, natural-white W — pick -WW/-CW variant to taste and verify JLCPCB stock/loading fee"
+    }
+  },
+  "vinCap": {
+    "value": "100nF X7R",
+    "pkg": "0603",
+    "gapMM": 0.8,
+    "sideAlternates": true,
+    "suggested": {
+      "name": "Samsung CL10B104KB8NNNC 100 nF 50 V X7R 0603",
+      "lcsc": "C1591",
+      "note": "JLCPCB basic part"
+    }
+  },
+  "power": {
+    "wattsFullWhite": 966,
+    "ampsFullWhite": 193.3,
+    "maxAmpsPerFeed": 10,
+    "copperOz": 2
+  },
+  "dmx": {
+    "controller": "PixLite E4-S Mk3",
+    "universes": 20,
+    "pxPerUniverse": 128,
+    "outputsUsed": 4,
+    "packing": "shared",
+    "worstChainFps": 38.7
+  },
+  "designs": [
+    {
+      "letter": "A",
+      "kind": "disc",
+      "boardsUsing": 1,
+      "leds": 172,
+      "ampsFullWhite": 13.76,
+      "powerFeeds": 2,
+      "universeSpans": [
+        {
+          "universe": 1,
+          "chStart": 1,
+          "chEnd": 512,
+          "px": 128
+        },
+        {
+          "universe": 2,
+          "chStart": 1,
+          "chEnd": 176,
+          "px": 44
+        }
+      ],
+      "outline": {
+        "type": "circle",
+        "radiusMM": 223
+      },
+      "dinLocal": {
+        "x": 224.86,
+        "y": 235.98
+      },
+      "doutLocal": {
+        "x": 194.53,
+        "y": 419.44
+      },
+      "files": {
+        "outlineDxf": "designs/design-A-outline.dxf",
+        "placementCsv": "designs/design-A-placement.csv",
+        "routingSvg": "designs/design-A-routing.svg"
+      }
+    },
+    {
+      "letter": "B",
+      "kind": "wedge",
+      "boardsUsing": 12,
+      "leds": 109,
+      "ampsFullWhite": 8.72,
+      "powerFeeds": 1,
+      "universeSpans": [
+        {
+          "universe": 2,
+          "chStart": 177,
+          "chEnd": 512,
+          "px": 84
+        },
+        {
+          "universe": 3,
+          "chStart": 1,
+          "chEnd": 100,
+          "px": 25
+        }
+      ],
+      "outline": {
+        "type": "annularSector",
+        "rInnerMM": 227,
+        "rOuterMM": 673,
+        "spanDeg": 30,
+        "radialEdgeOffsetMM": 2,
+        "outerIsRim": false
+      },
+      "dinLocal": {
+        "x": 0,
+        "y": 24.24
+      },
+      "doutLocal": {
+        "x": 300.61,
+        "y": 364.02
+      },
+      "files": {
+        "outlineDxf": "designs/design-B-outline.dxf",
+        "placementCsv": "designs/design-B-placement.csv",
+        "routingSvg": "designs/design-B-routing.svg"
+      }
+    },
+    {
+      "letter": "C",
+      "kind": "wedge",
+      "boardsUsing": 12,
+      "leds": 78,
+      "ampsFullWhite": 6.24,
+      "powerFeeds": 1,
+      "universeSpans": [
+        {
+          "universe": 13,
+          "chStart": 285,
+          "chEnd": 512,
+          "px": 57
+        },
+        {
+          "universe": 14,
+          "chStart": 1,
+          "chEnd": 84,
+          "px": 21
+        }
+      ],
+      "outline": {
+        "type": "annularSector",
+        "rInnerMM": 677,
+        "rOuterMM": 853,
+        "spanDeg": 30,
+        "radialEdgeOffsetMM": 2,
+        "outerIsRim": true
+      },
+      "dinLocal": {
+        "x": 0,
+        "y": 84.89
+      },
+      "doutLocal": {
+        "x": 0.65,
+        "y": 234.91
+      },
+      "files": {
+        "outlineDxf": "designs/design-C-outline.dxf",
+        "placementCsv": "designs/design-C-placement.csv",
+        "routingSvg": "designs/design-C-routing.svg"
+      }
+    }
+  ],
+  "chainOrder": [
+    {
+      "output": 1,
+      "boards": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "output": 2,
+      "boards": [
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "output": 3,
+      "boards": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    {
+      "output": 4,
+      "boards": [
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25
+      ]
+    }
+  ],
+  "mounting": "out of scope — no holes/hardware; standoff pads added in a later revision"
+}
