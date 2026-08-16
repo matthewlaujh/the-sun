@@ -1,0 +1,10 @@
+Item,Type,Length_mm,Radius_mm,Qty,Member_width_mm
+1,curved,20,224,3,21
+2,curved,255,674,2,21
+3,curved,610,676,1,21
+4,curved,710,226,2,21
+5,curved,835,676,2,21
+6,curved,965,676,1,21
+7,curved,1070,850,5,21
+8,curved,1110,764,4,21
+9,straight,380,,12,21
