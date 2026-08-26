@@ -1,0 +1,1811 @@
+** Drc report for sun-B.kicad_pcb **
+** Created on 2026-08-23T16:02:53+0800 **
+
+** Found 357 DRC violations **
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2500 mm; actual 0.0000 mm)
+    Rule: board setup constraints hole; error
+    @(-9.4468 mm, -16.7505 mm): Pad 1 on B.Cu
+    @(-9.4468 mm, -16.7505 mm): NPTH pad
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2500 mm; actual 0.0000 mm)
+    Rule: board setup constraints hole; error
+    @(-9.4468 mm, -452.7505 mm): Pad 1 on B.Cu
+    @(-9.4468 mm, -452.7505 mm): NPTH pad
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2500 mm; actual 0.0000 mm)
+    Rule: board setup constraints hole; error
+    @(-7.6968 mm, -158.5905 mm): Pad 1 on B.Cu
+    @(-7.6968 mm, -158.5905 mm): NPTH pad
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2500 mm; actual 0.0000 mm)
+    Rule: board setup constraints hole; error
+    @(-7.6968 mm, -306.4305 mm): Pad 1 on B.Cu
+    @(-7.6968 mm, -306.4305 mm): NPTH pad
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2500 mm; actual 0.0000 mm)
+    Rule: board setup constraints hole; error
+    @(94.8906 mm, 11.2066 mm): Pad 1 on B.Cu
+    @(94.8906 mm, 11.2066 mm): NPTH pad
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2500 mm; actual 0.0000 mm)
+    Rule: board setup constraints hole; error
+    @(164.2950 mm, -112.5055 mm): Pad 1 on B.Cu
+    @(164.2950 mm, -112.5055 mm): NPTH pad
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2500 mm; actual 0.0000 mm)
+    Rule: board setup constraints hole; error
+    @(238.2150 mm, -240.5387 mm): Pad 1 on B.Cu
+    @(238.2150 mm, -240.5387 mm): NPTH pad
+[hole_clearance]: Hole clearance violation (board setup constraints hole clearance 0.2500 mm; actual 0.0000 mm)
+    Rule: board setup constraints hole; error
+    @(312.8906 mm, -366.3805 mm): Pad 1 on B.Cu
+    @(312.8906 mm, -366.3805 mm): NPTH pad
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(126.8904 mm, -179.8274 mm): Footprint C35
+    @(123.0205 mm, -181.1815 mm): Footprint LED35
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(131.8301 mm, -335.3283 mm): Footprint LED74
+    @(127.8698 mm, -336.3894 mm): Footprint C74
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(97.6759 mm, -373.9563 mm): Footprint C82
+    @(93.6446 mm, -374.7035 mm): Footprint LED82
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(154.7125 mm, -360.0424 mm): Footprint LED84
+    @(158.6436 mm, -358.8779 mm): Footprint C84
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(98.7370 mm, -94.3014 mm): Footprint C15
+    @(102.5647 mm, -92.8321 mm): Footprint LED15
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(4.1062 mm, -264.3594 mm): Footprint C45
+    @(0.0084 mm, -264.4935 mm): Footprint LED45
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(62.2215 mm, -136.2171 mm): Footprint LED21
+    @(66.2243 mm, -135.3297 mm): Footprint C21
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(124.0655 mm, -306.3505 mm): Footprint LED65
+    @(128.0258 mm, -305.2893 mm): Footprint C65
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(92.5573 mm, -128.0886 mm): Footprint LED22
+    @(96.4676 mm, -126.8558 mm): Footprint C22
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(212.5171 mm, -274.1567 mm): Footprint LED68
+    @(216.2330 mm, -272.4240 mm): Footprint C68
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(32.9564 mm, -50.3624 mm): Footprint C7
+    @(36.9776 mm, -49.5626 mm): Footprint LED7
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(154.1574 mm, -297.3416 mm): Footprint LED66
+    @(158.0493 mm, -296.0519 mm): Footprint C66
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(159.3018 mm, -389.9714 mm): Footprint C93
+    @(163.2329 mm, -388.8070 mm): Footprint LED93
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(63.9349 mm, -227.6677 mm): Footprint C42
+    @(67.9635 mm, -226.9055 mm): Footprint LED42
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(93.5007 mm, -313.5945 mm): Footprint LED64
+    @(97.5160 mm, -312.7654 mm): Footprint C64
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(300.6076 mm, -364.0187 mm): Footprint LED109
+    @(304.2061 mm, -362.0538 mm): Footprint C109
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(224.7156 mm, -234.5304 mm): Footprint LED53
+    @(221.0997 mm, -236.4631 mm): Footprint C53
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(93.2999 mm, -252.2115 mm): Footprint LED48
+    @(97.2928 mm, -251.2805 mm): Footprint C48
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(159.7019 mm, -327.1085 mm): Footprint C73
+    @(163.5938 mm, -325.8188 mm): Footprint LED73
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(96.9675 mm, -189.3782 mm): Footprint C34
+    @(93.0072 mm, -190.4394 mm): Footprint LED34
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(67.3799 mm, -287.9386 mm): Footprint LED58
+    @(63.3347 mm, -288.6065 mm): Footprint C58
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(214.9496 mm, -403.1374 mm): Footprint LED106
+    @(218.7911 mm, -401.7046 mm): Footprint C106
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(62.3861 mm, -197.4285 mm): Footprint LED33
+    @(66.4146 mm, -196.6662 mm): Footprint C33
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(213.9133 mm, -339.0783 mm): Footprint LED86
+    @(217.7012 mm, -337.5093 mm): Footprint C86
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(0.0094 mm, -384.5449 mm): Footprint LED79
+    @(4.1080 mm, -384.4376 mm): Footprint C79
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(31.3674 mm, -322.6957 mm): Footprint LED62
+    @(35.4517 mm, -322.3383 mm): Footprint C62
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(69.7135 mm, -103.5061 mm): Footprint LED16
+    @(65.7532 mm, -104.5672 mm): Footprint C16
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(31.1435 mm, -171.9492 mm): Footprint C29
+    @(35.2085 mm, -171.4140 mm): Footprint LED29
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(66.6839 mm, -379.0823 mm): Footprint C81
+    @(62.6190 mm, -379.6175 mm): Footprint LED81
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(274.2017 mm, -310.0845 mm): Footprint C88
+    @(270.5985 mm, -312.0408 mm): Footprint LED88
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(31.3871 mm, -443.0689 mm): Footprint LED100
+    @(35.4767 mm, -442.7764 mm): Footprint C100
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(190.7367 mm, -379.9833 mm): Footprint C92
+    @(194.6016 mm, -378.6147 mm): Footprint LED92
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(187.4849 mm, -285.0845 mm): Footprint C67
+    @(183.6746 mm, -286.5982 mm): Footprint LED67
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(31.3515 mm, -262.4392 mm): Footprint LED46
+    @(35.4317 mm, -262.0373 mm): Footprint C46
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(184.1809 mm, -154.1632 mm): Footprint C37
+    @(180.5561 mm, -156.0790 mm): Footprint LED37
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(-3.2167 mm, -354.6287 mm): Footprint C78
+    @(0.8815 mm, -354.5094 mm): Footprint LED78
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(1.5741 mm, -114.2983 mm): Footprint LED18
+    @(-2.5203 mm, -114.5129 mm): Footprint C18
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(284.9133 mm, -338.4053 mm): Footprint LED89
+    @(281.3101 mm, -340.3617 mm): Footprint C89
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(0.0097 mm, -444.5636 mm): Footprint LED99
+    @(4.1086 mm, -444.4661 mm): Footprint C99
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(0.7947 mm, -414.5347 mm): Footprint LED98
+    @(-3.3039 mm, -414.6420 mm): Footprint C98
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(154.1695 mm, -102.1813 mm): Footprint C24
+    @(150.5327 mm, -104.0744 mm): Footprint LED24
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(128.3572 mm, -367.2154 mm): Footprint C83
+    @(124.3705 mm, -368.1725 mm): Footprint LED83
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(160.1136 mm, -263.5068 mm): Footprint C55
+    @(163.9508 mm, -262.0626 mm): Footprint LED55
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(66.7288 mm, -439.5962 mm): Footprint C101
+    @(62.6578 mm, -440.0829 mm): Footprint LED101
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(191.0493 mm, -250.9832 mm): Footprint C54
+    @(194.7838 mm, -249.2911 mm): Footprint LED54
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(94.1297 mm, 1.8134 mm): Footprint C4
+    @(90.4525 mm, 0.0000 mm): Footprint LED4
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(4.1023 mm, -144.2291 mm): Footprint C19
+    @(0.0062 mm, -144.4079 mm): Footprint LED19
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(155.1238 mm, -422.2616 mm): Footprint LED104
+    @(159.0841 mm, -421.2004 mm): Footprint C104
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(132.3484 mm, -272.7901 mm): Footprint LED56
+    @(128.4250 mm, -273.9803 mm): Footprint C56
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(99.1116 mm, -404.2011 mm): Footprint LED95
+    @(95.0803 mm, -404.9483 mm): Footprint C95
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(133.5498 mm, -145.0636 mm): Footprint LED26
+    @(129.7619 mm, -146.6326 mm): Footprint C26
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(97.6683 mm, -157.9330 mm): Footprint C27
+    @(101.5785 mm, -156.7002 mm): Footprint LED27
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(31.2927 mm, -141.6707 mm): Footprint LED20
+    @(35.3576 mm, -141.1355 mm): Footprint C20
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(93.7511 mm, -435.6124 mm): Footprint LED102
+    @(97.7943 mm, -434.9325 mm): Footprint C102
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(152.2579 mm, -169.7067 mm): Footprint LED36
+    @(156.0158 mm, -168.0671 mm): Footprint C36
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(244.1963 mm, -258.1134 mm): Footprint C69
+    @(240.5874 mm, -260.0593 mm): Footprint LED69
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(35.4661 mm, -382.5793 mm): Footprint C80
+    @(31.3787 mm, -382.9009 mm): Footprint LED80
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(125.8572 mm, -115.7782 mm): Footprint C23
+    @(122.0693 mm, -117.3472 mm): Footprint LED23
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(221.6059 mm, -368.3636 mm): Footprint C91
+    @(225.3938 mm, -366.7946 mm): Footprint LED91
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(0.0000 mm, -24.2367 mm): Footprint LED1
+    @(4.0912 mm, -23.9685 mm): Footprint C1
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(1.9621 mm, -54.1725 mm): Footprint LED8
+    @(-2.1291 mm, -54.4406 mm): Footprint C8
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(131.3738 mm, -397.3436 mm): Footprint LED94
+    @(127.3871 mm, -398.3007 mm): Footprint C94
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(124.1535 mm, -50.1911 mm): Footprint C13
+    @(120.5004 mm, -52.0525 mm): Footprint LED13
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(128.6026 mm, -428.7960 mm): Footprint C103
+    @(124.5963 mm, -429.6675 mm): Footprint LED103
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(127.5633 mm, -242.8917 mm): Footprint C49
+    @(123.6399 mm, -244.0819 mm): Footprint LED49
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(100.0440 mm, -28.7196 mm): Footprint C5
+    @(103.7212 mm, -26.9062 mm): Footprint LED5
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(214.1896 mm, -206.1400 mm): Footprint C52
+    @(210.5737 mm, -208.0727 mm): Footprint LED52
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(132.9288 mm, -209.4980 mm): Footprint LED40
+    @(129.0589 mm, -210.8522 mm): Footprint C40
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(33.9820 mm, -352.5815 mm): Footprint LED77
+    @(29.8976 mm, -352.9389 mm): Footprint C77
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(31.1249 mm, -20.1390 mm): Footprint LED2
+    @(35.1461 mm, -19.3391 mm): Footprint C2
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(29.6451 mm, -413.1301 mm): Footprint C97
+    @(33.7325 mm, -412.8085 mm): Footprint LED97
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(160.7485 mm, -132.5779 mm): Footprint C25
+    @(164.3852 mm, -130.6848 mm): Footprint LED25
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(254.8255 mm, -286.4653 mm): Footprint LED70
+    @(251.2166 mm, -288.4112 mm): Footprint C70
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(67.2095 mm, -41.7396 mm): Footprint C6
+    @(71.0919 mm, -40.4217 mm): Footprint LED6
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(251.8246 mm, -355.1444 mm): Footprint C90
+    @(255.5252 mm, -353.3793 mm): Footprint LED90
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(64.7119 mm, -166.3934 mm): Footprint C28
+    @(68.7147 mm, -165.5060 mm): Footprint LED28
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(4.1073 mm, -324.4028 mm): Footprint C61
+    @(0.0090 mm, -324.5221 mm): Footprint LED61
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(65.3311 mm, -10.6959 mm): Footprint C3
+    @(61.4487 mm, -12.0138 mm): Footprint LED3
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(186.1372 mm, -220.2731 mm): Footprint C51
+    @(182.4026 mm, -221.9652 mm): Footprint LED51
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(95.6413 mm, -63.3554 mm): Footprint C12
+    @(91.8136 mm, -64.8247 mm): Footprint LED12
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(30.2117 mm, -292.6966 mm): Footprint C59
+    @(34.2920 mm, -292.2948 mm): Footprint LED59
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(0.9900 mm, -294.4775 mm): Footprint LED60
+    @(-3.1078 mm, -294.6116 mm): Footprint C60
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(1.1293 mm, -234.4359 mm): Footprint LED44
+    @(-2.9678 mm, -234.5892 mm): Footprint C44
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(134.1201 mm, -78.7827 mm): Footprint LED14
+    @(130.4670 mm, -80.6441 mm): Footprint C14
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(-2.7813 mm, -174.5582 mm): Footprint C30
+    @(1.3148 mm, -174.3793 mm): Footprint LED30
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(61.9490 mm, -74.5283 mm): Footprint LED11
+    @(65.9093 mm, -73.4671 mm): Footprint C11
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(246.3105 mm, -324.5366 mm): Footprint C87
+    @(242.6099 mm, -326.3017 mm): Footprint LED87
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(190.9404 mm, -315.9924 mm): Footprint C72
+    @(194.7508 mm, -314.4786 mm): Footprint LED72
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(66.5348 mm, -409.3608 mm): Footprint LED96
+    @(62.4698 mm, -409.8960 mm): Footprint C96
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(184.5874 mm, -350.3354 mm): Footprint LED85
+    @(188.4522 mm, -348.9668 mm): Footprint C85
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(153.3833 mm, -233.9854 mm): Footprint LED50
+    @(157.2205 mm, -232.5412 mm): Footprint C50
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(35.9266 mm, -110.6877 mm): Footprint LED17
+    @(31.8771 mm, -111.3291 mm): Footprint C17
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(62.4931 mm, -258.3393 mm): Footprint LED47
+    @(66.5383 mm, -257.6715 mm): Footprint C47
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(30.6130 mm, -232.3801 mm): Footprint C43
+    @(34.6873 mm, -231.9210 mm): Footprint LED43
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(62.5665 mm, -319.0490 mm): Footprint LED63
+    @(66.6232 mm, -318.4548 mm): Footprint C63
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(185.2643 mm, -413.4115 mm): Footprint LED105
+    @(189.1697 mm, -412.1631 mm): Footprint C105
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(96.8115 mm, -220.4783 mm): Footprint C41
+    @(100.7718 mm, -219.4172 mm): Footprint LED41
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(221.4798 mm, -303.0787 mm): Footprint C71
+    @(225.1957 mm, -301.3460 mm): Footprint LED71
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(4.0984 mm, -84.1248 mm): Footprint C9
+    @(0.0040 mm, -84.3394 mm): Footprint LED9
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(35.2831 mm, -80.4157 mm): Footprint C10
+    @(31.2336 mm, -81.0570 mm): Footprint LED10
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(190.9493 mm, -184.5183 mm): Footprint C38
+    @(194.5741 mm, -182.6025 mm): Footprint LED38
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(247.8814 mm, -389.8484 mm): Footprint C107
+    @(244.1124 mm, -391.4623 mm): Footprint LED107
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(95.5520 mm, -343.8038 mm): Footprint C75
+    @(99.5673 mm, -342.9747 mm): Footprint LED75
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(4.1047 mm, -204.3035 mm): Footprint C31
+    @(0.0076 mm, -204.4568 mm): Footprint LED31
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(276.3745 mm, -376.6215 mm): Footprint C108
+    @(272.6866 mm, -378.4129 mm): Footprint LED108
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(66.9144 mm, -348.7323 mm): Footprint LED76
+    @(62.8577 mm, -349.3265 mm): Footprint C76
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(160.4968 mm, -198.8431 mm): Footprint C39
+    @(164.2547 mm, -197.2036 mm): Footprint LED39
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(96.1192 mm, -282.3588 mm): Footprint C57
+    @(100.1121 mm, -281.4278 mm): Footprint LED57
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error
+    @(35.4025 mm, -201.6506 mm): Footprint C32
+    @(31.3283 mm, -202.1097 mm): Footprint LED32
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(0.0000 mm, -24.2367 mm): Footprint LED1
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(31.1249 mm, -20.1390 mm): Footprint LED2
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(61.4487 mm, -12.0138 mm): Footprint LED3
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(90.4525 mm, 0.0000 mm): Footprint LED4
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(103.7212 mm, -26.9062 mm): Footprint LED5
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(71.0919 mm, -40.4217 mm): Footprint LED6
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(36.9776 mm, -49.5626 mm): Footprint LED7
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(1.9621 mm, -54.1725 mm): Footprint LED8
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(0.0040 mm, -84.3394 mm): Footprint LED9
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(31.2336 mm, -81.0570 mm): Footprint LED10
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(61.9490 mm, -74.5283 mm): Footprint LED11
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(91.8136 mm, -64.8247 mm): Footprint LED12
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(120.5004 mm, -52.0525 mm): Footprint LED13
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(134.1201 mm, -78.7827 mm): Footprint LED14
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(102.5647 mm, -92.8321 mm): Footprint LED15
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(69.7135 mm, -103.5061 mm): Footprint LED16
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(35.9266 mm, -110.6877 mm): Footprint LED17
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(1.5741 mm, -114.2983 mm): Footprint LED18
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(0.0062 mm, -144.4079 mm): Footprint LED19
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(31.2927 mm, -141.6707 mm): Footprint LED20
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(62.2215 mm, -136.2171 mm): Footprint LED21
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(92.5573 mm, -128.0886 mm): Footprint LED22
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(122.0693 mm, -117.3472 mm): Footprint LED23
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(150.5327 mm, -104.0744 mm): Footprint LED24
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(164.3852 mm, -130.6848 mm): Footprint LED25
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(133.5498 mm, -145.0636 mm): Footprint LED26
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(101.5785 mm, -156.7002 mm): Footprint LED27
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(68.7147 mm, -165.5060 mm): Footprint LED28
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(35.2085 mm, -171.4140 mm): Footprint LED29
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(1.3148 mm, -174.3793 mm): Footprint LED30
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(0.0076 mm, -204.4568 mm): Footprint LED31
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(31.3283 mm, -202.1097 mm): Footprint LED32
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(62.3861 mm, -197.4285 mm): Footprint LED33
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(93.0072 mm, -190.4394 mm): Footprint LED34
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(123.0205 mm, -181.1815 mm): Footprint LED35
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(152.2579 mm, -169.7067 mm): Footprint LED36
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(180.5561 mm, -156.0790 mm): Footprint LED37
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(194.5741 mm, -182.6025 mm): Footprint LED38
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(164.2547 mm, -197.2036 mm): Footprint LED39
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(132.9288 mm, -209.4980 mm): Footprint LED40
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(100.7718 mm, -219.4172 mm): Footprint LED41
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(67.9635 mm, -226.9055 mm): Footprint LED42
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(34.6873 mm, -231.9210 mm): Footprint LED43
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(1.1293 mm, -234.4359 mm): Footprint LED44
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(0.0084 mm, -264.4935 mm): Footprint LED45
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(31.3515 mm, -262.4392 mm): Footprint LED46
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(62.4931 mm, -258.3393 mm): Footprint LED47
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(93.2999 mm, -252.2115 mm): Footprint LED48
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(123.6399 mm, -244.0819 mm): Footprint LED49
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(153.3833 mm, -233.9854 mm): Footprint LED50
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(182.4026 mm, -221.9652 mm): Footprint LED51
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(210.5737 mm, -208.0727 mm): Footprint LED52
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(224.7156 mm, -234.5304 mm): Footprint LED53
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(194.7838 mm, -249.2911 mm): Footprint LED54
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(163.9508 mm, -262.0626 mm): Footprint LED55
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(132.3484 mm, -272.7901 mm): Footprint LED56
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(100.1121 mm, -281.4278 mm): Footprint LED57
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(67.3799 mm, -287.9386 mm): Footprint LED58
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(34.2920 mm, -292.2948 mm): Footprint LED59
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(0.9900 mm, -294.4775 mm): Footprint LED60
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(0.0090 mm, -324.5221 mm): Footprint LED61
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(31.3674 mm, -322.6957 mm): Footprint LED62
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(62.5665 mm, -319.0490 mm): Footprint LED63
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(93.5007 mm, -313.5945 mm): Footprint LED64
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(124.0655 mm, -306.3505 mm): Footprint LED65
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(154.1574 mm, -297.3416 mm): Footprint LED66
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(183.6746 mm, -286.5982 mm): Footprint LED67
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(212.5171 mm, -274.1567 mm): Footprint LED68
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(240.5874 mm, -260.0593 mm): Footprint LED69
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(254.8255 mm, -286.4653 mm): Footprint LED70
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(225.1957 mm, -301.3460 mm): Footprint LED71
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(194.7508 mm, -314.4786 mm): Footprint LED72
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(163.5938 mm, -325.8188 mm): Footprint LED73
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(131.8301 mm, -335.3283 mm): Footprint LED74
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(99.5673 mm, -342.9747 mm): Footprint LED75
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(66.9144 mm, -348.7323 mm): Footprint LED76
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(33.9820 mm, -352.5815 mm): Footprint LED77
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(0.8815 mm, -354.5094 mm): Footprint LED78
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(0.0094 mm, -384.5449 mm): Footprint LED79
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(31.3787 mm, -382.9009 mm): Footprint LED80
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(62.6190 mm, -379.6175 mm): Footprint LED81
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(93.6446 mm, -374.7035 mm): Footprint LED82
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(124.3705 mm, -368.1725 mm): Footprint LED83
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(154.7125 mm, -360.0424 mm): Footprint LED84
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(184.5874 mm, -350.3354 mm): Footprint LED85
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(213.9133 mm, -339.0783 mm): Footprint LED86
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(242.6099 mm, -326.3017 mm): Footprint LED87
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(270.5985 mm, -312.0408 mm): Footprint LED88
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(284.9133 mm, -338.4053 mm): Footprint LED89
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(255.5252 mm, -353.3793 mm): Footprint LED90
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(225.3938 mm, -366.7946 mm): Footprint LED91
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(194.6016 mm, -378.6147 mm): Footprint LED92
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(163.2329 mm, -388.8070 mm): Footprint LED93
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(131.3738 mm, -397.3436 mm): Footprint LED94
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(99.1116 mm, -404.2011 mm): Footprint LED95
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(66.5348 mm, -409.3608 mm): Footprint LED96
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(33.7325 mm, -412.8085 mm): Footprint LED97
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(0.7947 mm, -414.5347 mm): Footprint LED98
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(0.0097 mm, -444.5636 mm): Footprint LED99
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(31.3871 mm, -443.0689 mm): Footprint LED100
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(62.6578 mm, -440.0829 mm): Footprint LED101
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(93.7511 mm, -435.6124 mm): Footprint LED102
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(124.5963 mm, -429.6675 mm): Footprint LED103
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(155.1238 mm, -422.2616 mm): Footprint LED104
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(185.2643 mm, -413.4115 mm): Footprint LED105
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(214.9496 mm, -403.1374 mm): Footprint LED106
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(244.1124 mm, -391.4623 mm): Footprint LED107
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(272.6866 mm, -378.4129 mm): Footprint LED108
+[lib_footprint_mismatch]: Footprint 'LED_SKC6812RGBW_5050' does not match copy in library 'sun'.
+    Local override; warning
+    @(300.6076 mm, -364.0187 mm): Footprint LED109
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(4.0912 mm, -23.9685 mm): Footprint C1
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(35.1461 mm, -19.3391 mm): Footprint C2
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(65.3311 mm, -10.6959 mm): Footprint C3
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(94.1297 mm, 1.8134 mm): Footprint C4
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(100.0440 mm, -28.7196 mm): Footprint C5
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(67.2095 mm, -41.7396 mm): Footprint C6
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(32.9564 mm, -50.3624 mm): Footprint C7
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(-2.1291 mm, -54.4406 mm): Footprint C8
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(4.0984 mm, -84.1248 mm): Footprint C9
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(35.2831 mm, -80.4157 mm): Footprint C10
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(65.9093 mm, -73.4671 mm): Footprint C11
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(95.6413 mm, -63.3554 mm): Footprint C12
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(124.1535 mm, -50.1911 mm): Footprint C13
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(130.4670 mm, -80.6441 mm): Footprint C14
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(98.7370 mm, -94.3014 mm): Footprint C15
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(65.7532 mm, -104.5672 mm): Footprint C16
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(31.8771 mm, -111.3291 mm): Footprint C17
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(-2.5203 mm, -114.5129 mm): Footprint C18
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(4.1023 mm, -144.2291 mm): Footprint C19
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(35.3576 mm, -141.1355 mm): Footprint C20
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(66.2243 mm, -135.3297 mm): Footprint C21
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(96.4676 mm, -126.8558 mm): Footprint C22
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(125.8572 mm, -115.7782 mm): Footprint C23
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(154.1695 mm, -102.1813 mm): Footprint C24
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(160.7485 mm, -132.5779 mm): Footprint C25
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(129.7619 mm, -146.6326 mm): Footprint C26
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(97.6683 mm, -157.9330 mm): Footprint C27
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(64.7119 mm, -166.3934 mm): Footprint C28
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(31.1435 mm, -171.9492 mm): Footprint C29
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(-2.7813 mm, -174.5582 mm): Footprint C30
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(4.1047 mm, -204.3035 mm): Footprint C31
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(35.4025 mm, -201.6506 mm): Footprint C32
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(66.4146 mm, -196.6662 mm): Footprint C33
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(96.9675 mm, -189.3782 mm): Footprint C34
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(126.8904 mm, -179.8274 mm): Footprint C35
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(156.0158 mm, -168.0671 mm): Footprint C36
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(184.1809 mm, -154.1632 mm): Footprint C37
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(190.9493 mm, -184.5183 mm): Footprint C38
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(160.4968 mm, -198.8431 mm): Footprint C39
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(129.0589 mm, -210.8522 mm): Footprint C40
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(96.8115 mm, -220.4783 mm): Footprint C41
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(63.9349 mm, -227.6677 mm): Footprint C42
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(30.6130 mm, -232.3801 mm): Footprint C43
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(-2.9678 mm, -234.5892 mm): Footprint C44
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(4.1062 mm, -264.3594 mm): Footprint C45
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(35.4317 mm, -262.0373 mm): Footprint C46
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(66.5383 mm, -257.6715 mm): Footprint C47
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(97.2928 mm, -251.2805 mm): Footprint C48
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(127.5633 mm, -242.8917 mm): Footprint C49
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(157.2205 mm, -232.5412 mm): Footprint C50
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(186.1372 mm, -220.2731 mm): Footprint C51
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(214.1896 mm, -206.1400 mm): Footprint C52
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(221.0997 mm, -236.4631 mm): Footprint C53
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(191.0493 mm, -250.9832 mm): Footprint C54
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(160.1136 mm, -263.5068 mm): Footprint C55
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(128.4250 mm, -273.9803 mm): Footprint C56
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(96.1192 mm, -282.3588 mm): Footprint C57
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(63.3347 mm, -288.6065 mm): Footprint C58
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(30.2117 mm, -292.6966 mm): Footprint C59
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(-3.1078 mm, -294.6116 mm): Footprint C60
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(4.1073 mm, -324.4028 mm): Footprint C61
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(35.4517 mm, -322.3383 mm): Footprint C62
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(66.6232 mm, -318.4548 mm): Footprint C63
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(97.5160 mm, -312.7654 mm): Footprint C64
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(128.0258 mm, -305.2893 mm): Footprint C65
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(158.0493 mm, -296.0519 mm): Footprint C66
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(187.4849 mm, -285.0845 mm): Footprint C67
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(216.2330 mm, -272.4240 mm): Footprint C68
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(244.1963 mm, -258.1134 mm): Footprint C69
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(251.2166 mm, -288.4112 mm): Footprint C70
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(221.4798 mm, -303.0787 mm): Footprint C71
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(190.9404 mm, -315.9924 mm): Footprint C72
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(159.7019 mm, -327.1085 mm): Footprint C73
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(127.8698 mm, -336.3894 mm): Footprint C74
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(95.5520 mm, -343.8038 mm): Footprint C75
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(62.8577 mm, -349.3265 mm): Footprint C76
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(29.8976 mm, -352.9389 mm): Footprint C77
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(-3.2167 mm, -354.6287 mm): Footprint C78
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(4.1080 mm, -384.4376 mm): Footprint C79
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(35.4661 mm, -382.5793 mm): Footprint C80
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(66.6839 mm, -379.0823 mm): Footprint C81
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(97.6759 mm, -373.9563 mm): Footprint C82
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(128.3572 mm, -367.2154 mm): Footprint C83
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(158.6436 mm, -358.8779 mm): Footprint C84
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(188.4522 mm, -348.9668 mm): Footprint C85
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(217.7012 mm, -337.5093 mm): Footprint C86
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(246.3105 mm, -324.5366 mm): Footprint C87
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(274.2017 mm, -310.0845 mm): Footprint C88
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(281.3101 mm, -340.3617 mm): Footprint C89
+[lib_footprint_mismatch]: Footprint 'C_0603_1608Metric' does not match copy in library 'sun'.
+    Local override; warning
+    @(251.8246 mm, -355.1444 mm): Footprint C90
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(0.4032 mm, -30.3885 mm): Footprint text of J_IN (LEVER)
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(6.4879 mm, -42.9525 mm): Footprint text of J_IN (5V)
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(2.9954 mm, -43.1814 mm): Footprint text of J_IN (5V)
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(-0.4971 mm, -43.4103 mm): Footprint text of J_IN (G)
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(-3.9896 mm, -43.6392 mm): Footprint text of J_IN (D)
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(289.1846 mm, -343.0992 mm): Footprint text of J_OUT (LEVER)
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(299.9915 mm, -351.9360 mm): Footprint text of J_OUT (5V)
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(296.9196 mm, -353.6133 mm): Footprint text of J_OUT (5V)
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(293.8477 mm, -355.2907 mm): Footprint text of J_OUT (G)
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(290.7758 mm, -356.9680 mm): Footprint text of J_OUT (D)
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(-9.4468 mm, -21.1505 mm): Reference field of MH1
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(-9.4468 mm, -457.1505 mm): Reference field of MH2
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(-7.6968 mm, -162.9905 mm): Reference field of MH3
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(-7.6968 mm, -310.8305 mm): Reference field of MH4
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(94.8906 mm, 6.8066 mm): Reference field of MH5
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(164.2950 mm, -116.9055 mm): Reference field of MH6
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(238.2150 mm, -244.9387 mm): Reference field of MH7
+[text_height]: Text height out of range (board setup constraints silk text height min height 0.8000 mm; actual 0.7000 mm)
+    Rule: board setup constraints silk text height; warning
+    @(312.8906 mm, -370.7805 mm): Reference field of MH8
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(0.8698 mm, -37.5083 mm): Reference field of J_IN
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(292.6040 mm, -349.3615 mm): Reference field of J_OUT
+[solder_mask_bridge]: Rear solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; error
+    @(-9.4468 mm, -16.7505 mm): NPTH pad
+    @(-9.4468 mm, -16.7505 mm): Pad 1 on B.Cu
+[solder_mask_bridge]: Rear solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; error
+    @(-9.4468 mm, -452.7505 mm): NPTH pad
+    @(-9.4468 mm, -452.7505 mm): Pad 1 on B.Cu
+[solder_mask_bridge]: Rear solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; error
+    @(-7.6968 mm, -158.5905 mm): NPTH pad
+    @(-7.6968 mm, -158.5905 mm): Pad 1 on B.Cu
+[solder_mask_bridge]: Rear solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; error
+    @(-7.6968 mm, -306.4305 mm): NPTH pad
+    @(-7.6968 mm, -306.4305 mm): Pad 1 on B.Cu
+[solder_mask_bridge]: Rear solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; error
+    @(94.8906 mm, 11.2066 mm): NPTH pad
+    @(94.8906 mm, 11.2066 mm): Pad 1 on B.Cu
+[solder_mask_bridge]: Rear solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; error
+    @(164.2950 mm, -112.5055 mm): NPTH pad
+    @(164.2950 mm, -112.5055 mm): Pad 1 on B.Cu
+[solder_mask_bridge]: Rear solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; error
+    @(238.2150 mm, -240.5387 mm): NPTH pad
+    @(238.2150 mm, -240.5387 mm): Pad 1 on B.Cu
+[solder_mask_bridge]: Rear solder mask aperture bridges items with different nets
+    Rule: board setup solder mask min width; error
+    @(312.8906 mm, -366.3805 mm): NPTH pad
+    @(312.8906 mm, -366.3805 mm): Pad 1 on B.Cu
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; warning
+    @(296.4180 mm, -340.1750 mm): Segment on F.Silkscreen
+    @(289.1846 mm, -343.0992 mm): Footprint text of J_OUT (LEVER)
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; warning
+    @(302.5284 mm, -351.3654 mm): Polygon on F.Silkscreen
+    @(289.1846 mm, -343.0992 mm): Footprint text of J_OUT (LEVER)
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; warning
+    @(302.5284 mm, -351.3654 mm): Polygon on F.Silkscreen
+    @(299.9915 mm, -351.9360 mm): Footprint text of J_OUT (5V)
+[silk_overlap]: Silkscreen overlap
+    Rule: board setup constraints silk; warning
+    @(302.5284 mm, -351.3654 mm): Polygon on F.Silkscreen
+    @(296.9196 mm, -353.6133 mm): Footprint text of J_OUT (5V)
+[nonmirrored_text_on_back_layer]: Non-Mirrored text on back layer
+    Local override; warning
+    @(150.0000 mm, -11.5000 mm): PCB text 'sun-B draft3' on B.Silkscreen
+[nonmirrored_text_on_back_layer]: Non-Mirrored text on back layer
+    Local override; warning
+    @(-9.4468 mm, -21.1505 mm): Reference field of MH1
+[nonmirrored_text_on_back_layer]: Non-Mirrored text on back layer
+    Local override; warning
+    @(-9.4468 mm, -457.1505 mm): Reference field of MH2
+[nonmirrored_text_on_back_layer]: Non-Mirrored text on back layer
+    Local override; warning
+    @(-7.6968 mm, -162.9905 mm): Reference field of MH3
+[nonmirrored_text_on_back_layer]: Non-Mirrored text on back layer
+    Local override; warning
+    @(-7.6968 mm, -310.8305 mm): Reference field of MH4
+[nonmirrored_text_on_back_layer]: Non-Mirrored text on back layer
+    Local override; warning
+    @(94.8906 mm, 6.8066 mm): Reference field of MH5
+[nonmirrored_text_on_back_layer]: Non-Mirrored text on back layer
+    Local override; warning
+    @(164.2950 mm, -116.9055 mm): Reference field of MH6
+[nonmirrored_text_on_back_layer]: Non-Mirrored text on back layer
+    Local override; warning
+    @(238.2150 mm, -244.9387 mm): Reference field of MH7
+[nonmirrored_text_on_back_layer]: Non-Mirrored text on back layer
+    Local override; warning
+    @(312.8906 mm, -370.7805 mm): Reference field of MH8
+
+** Found 1 unconnected pads **
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(287.6128 mm, -351.1753 mm): PTH pad 8
+    @(305.7189 mm, -363.0507 mm): Track [D109] on B.Cu, length 17.4027 mm
+
+** Found 199 Footprint errors **
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(0.0000 mm, -24.2367 mm): Footprint LED1
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(31.1249 mm, -20.1390 mm): Footprint LED2
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(61.4487 mm, -12.0138 mm): Footprint LED3
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(90.4525 mm, 0.0000 mm): Footprint LED4
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(103.7212 mm, -26.9062 mm): Footprint LED5
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(71.0919 mm, -40.4217 mm): Footprint LED6
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(36.9776 mm, -49.5626 mm): Footprint LED7
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(1.9621 mm, -54.1725 mm): Footprint LED8
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(0.0040 mm, -84.3394 mm): Footprint LED9
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(31.2336 mm, -81.0570 mm): Footprint LED10
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(61.9490 mm, -74.5283 mm): Footprint LED11
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(91.8136 mm, -64.8247 mm): Footprint LED12
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(120.5004 mm, -52.0525 mm): Footprint LED13
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(134.1201 mm, -78.7827 mm): Footprint LED14
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(102.5647 mm, -92.8321 mm): Footprint LED15
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(69.7135 mm, -103.5061 mm): Footprint LED16
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(35.9266 mm, -110.6877 mm): Footprint LED17
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(1.5741 mm, -114.2983 mm): Footprint LED18
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(0.0062 mm, -144.4079 mm): Footprint LED19
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(31.2927 mm, -141.6707 mm): Footprint LED20
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(62.2215 mm, -136.2171 mm): Footprint LED21
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(92.5573 mm, -128.0886 mm): Footprint LED22
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(122.0693 mm, -117.3472 mm): Footprint LED23
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(150.5327 mm, -104.0744 mm): Footprint LED24
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(164.3852 mm, -130.6848 mm): Footprint LED25
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(133.5498 mm, -145.0636 mm): Footprint LED26
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(101.5785 mm, -156.7002 mm): Footprint LED27
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(68.7147 mm, -165.5060 mm): Footprint LED28
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(35.2085 mm, -171.4140 mm): Footprint LED29
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(1.3148 mm, -174.3793 mm): Footprint LED30
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(0.0076 mm, -204.4568 mm): Footprint LED31
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(31.3283 mm, -202.1097 mm): Footprint LED32
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(62.3861 mm, -197.4285 mm): Footprint LED33
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(93.0072 mm, -190.4394 mm): Footprint LED34
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(123.0205 mm, -181.1815 mm): Footprint LED35
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(152.2579 mm, -169.7067 mm): Footprint LED36
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(180.5561 mm, -156.0790 mm): Footprint LED37
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(194.5741 mm, -182.6025 mm): Footprint LED38
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(164.2547 mm, -197.2036 mm): Footprint LED39
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(132.9288 mm, -209.4980 mm): Footprint LED40
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(100.7718 mm, -219.4172 mm): Footprint LED41
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(67.9635 mm, -226.9055 mm): Footprint LED42
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(34.6873 mm, -231.9210 mm): Footprint LED43
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(1.1293 mm, -234.4359 mm): Footprint LED44
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(0.0084 mm, -264.4935 mm): Footprint LED45
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(31.3515 mm, -262.4392 mm): Footprint LED46
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(62.4931 mm, -258.3393 mm): Footprint LED47
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(93.2999 mm, -252.2115 mm): Footprint LED48
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(123.6399 mm, -244.0819 mm): Footprint LED49
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(153.3833 mm, -233.9854 mm): Footprint LED50
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(182.4026 mm, -221.9652 mm): Footprint LED51
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(210.5737 mm, -208.0727 mm): Footprint LED52
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(224.7156 mm, -234.5304 mm): Footprint LED53
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(194.7838 mm, -249.2911 mm): Footprint LED54
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(163.9508 mm, -262.0626 mm): Footprint LED55
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(132.3484 mm, -272.7901 mm): Footprint LED56
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(100.1121 mm, -281.4278 mm): Footprint LED57
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(67.3799 mm, -287.9386 mm): Footprint LED58
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(34.2920 mm, -292.2948 mm): Footprint LED59
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(0.9900 mm, -294.4775 mm): Footprint LED60
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(0.0090 mm, -324.5221 mm): Footprint LED61
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(31.3674 mm, -322.6957 mm): Footprint LED62
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(62.5665 mm, -319.0490 mm): Footprint LED63
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(93.5007 mm, -313.5945 mm): Footprint LED64
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(124.0655 mm, -306.3505 mm): Footprint LED65
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(154.1574 mm, -297.3416 mm): Footprint LED66
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(183.6746 mm, -286.5982 mm): Footprint LED67
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(212.5171 mm, -274.1567 mm): Footprint LED68
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(240.5874 mm, -260.0593 mm): Footprint LED69
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(254.8255 mm, -286.4653 mm): Footprint LED70
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(225.1957 mm, -301.3460 mm): Footprint LED71
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(194.7508 mm, -314.4786 mm): Footprint LED72
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(163.5938 mm, -325.8188 mm): Footprint LED73
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(131.8301 mm, -335.3283 mm): Footprint LED74
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(99.5673 mm, -342.9747 mm): Footprint LED75
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(66.9144 mm, -348.7323 mm): Footprint LED76
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(33.9820 mm, -352.5815 mm): Footprint LED77
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(0.8815 mm, -354.5094 mm): Footprint LED78
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(0.0094 mm, -384.5449 mm): Footprint LED79
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(31.3787 mm, -382.9009 mm): Footprint LED80
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(62.6190 mm, -379.6175 mm): Footprint LED81
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(93.6446 mm, -374.7035 mm): Footprint LED82
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(124.3705 mm, -368.1725 mm): Footprint LED83
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(154.7125 mm, -360.0424 mm): Footprint LED84
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(184.5874 mm, -350.3354 mm): Footprint LED85
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(213.9133 mm, -339.0783 mm): Footprint LED86
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(242.6099 mm, -326.3017 mm): Footprint LED87
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(270.5985 mm, -312.0408 mm): Footprint LED88
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(284.9133 mm, -338.4053 mm): Footprint LED89
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(255.5252 mm, -353.3793 mm): Footprint LED90
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(225.3938 mm, -366.7946 mm): Footprint LED91
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(194.6016 mm, -378.6147 mm): Footprint LED92
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(163.2329 mm, -388.8070 mm): Footprint LED93
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(131.3738 mm, -397.3436 mm): Footprint LED94
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(99.1116 mm, -404.2011 mm): Footprint LED95
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(66.5348 mm, -409.3608 mm): Footprint LED96
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(33.7325 mm, -412.8085 mm): Footprint LED97
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(0.7947 mm, -414.5347 mm): Footprint LED98
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(0.0097 mm, -444.5636 mm): Footprint LED99
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(31.3871 mm, -443.0689 mm): Footprint LED100
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(62.6578 mm, -440.0829 mm): Footprint LED101
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(93.7511 mm, -435.6124 mm): Footprint LED102
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(124.5963 mm, -429.6675 mm): Footprint LED103
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(155.1238 mm, -422.2616 mm): Footprint LED104
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(185.2643 mm, -413.4115 mm): Footprint LED105
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(214.9496 mm, -403.1374 mm): Footprint LED106
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(244.1124 mm, -391.4623 mm): Footprint LED107
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(272.6866 mm, -378.4129 mm): Footprint LED108
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(300.6076 mm, -364.0187 mm): Footprint LED109
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(4.0912 mm, -23.9685 mm): Footprint C1
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(35.1461 mm, -19.3391 mm): Footprint C2
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(65.3311 mm, -10.6959 mm): Footprint C3
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(94.1297 mm, 1.8134 mm): Footprint C4
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(100.0440 mm, -28.7196 mm): Footprint C5
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(67.2095 mm, -41.7396 mm): Footprint C6
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(32.9564 mm, -50.3624 mm): Footprint C7
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(-2.1291 mm, -54.4406 mm): Footprint C8
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(4.0984 mm, -84.1248 mm): Footprint C9
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(35.2831 mm, -80.4157 mm): Footprint C10
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(65.9093 mm, -73.4671 mm): Footprint C11
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(95.6413 mm, -63.3554 mm): Footprint C12
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(124.1535 mm, -50.1911 mm): Footprint C13
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(130.4670 mm, -80.6441 mm): Footprint C14
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(98.7370 mm, -94.3014 mm): Footprint C15
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(65.7532 mm, -104.5672 mm): Footprint C16
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(31.8771 mm, -111.3291 mm): Footprint C17
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(-2.5203 mm, -114.5129 mm): Footprint C18
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(4.1023 mm, -144.2291 mm): Footprint C19
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(35.3576 mm, -141.1355 mm): Footprint C20
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(66.2243 mm, -135.3297 mm): Footprint C21
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(96.4676 mm, -126.8558 mm): Footprint C22
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(125.8572 mm, -115.7782 mm): Footprint C23
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(154.1695 mm, -102.1813 mm): Footprint C24
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(160.7485 mm, -132.5779 mm): Footprint C25
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(129.7619 mm, -146.6326 mm): Footprint C26
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(97.6683 mm, -157.9330 mm): Footprint C27
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(64.7119 mm, -166.3934 mm): Footprint C28
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(31.1435 mm, -171.9492 mm): Footprint C29
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(-2.7813 mm, -174.5582 mm): Footprint C30
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(4.1047 mm, -204.3035 mm): Footprint C31
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(35.4025 mm, -201.6506 mm): Footprint C32
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(66.4146 mm, -196.6662 mm): Footprint C33
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(96.9675 mm, -189.3782 mm): Footprint C34
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(126.8904 mm, -179.8274 mm): Footprint C35
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(156.0158 mm, -168.0671 mm): Footprint C36
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(184.1809 mm, -154.1632 mm): Footprint C37
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(190.9493 mm, -184.5183 mm): Footprint C38
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(160.4968 mm, -198.8431 mm): Footprint C39
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(129.0589 mm, -210.8522 mm): Footprint C40
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(96.8115 mm, -220.4783 mm): Footprint C41
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(63.9349 mm, -227.6677 mm): Footprint C42
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(30.6130 mm, -232.3801 mm): Footprint C43
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(-2.9678 mm, -234.5892 mm): Footprint C44
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(4.1062 mm, -264.3594 mm): Footprint C45
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(35.4317 mm, -262.0373 mm): Footprint C46
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(66.5383 mm, -257.6715 mm): Footprint C47
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(97.2928 mm, -251.2805 mm): Footprint C48
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(127.5633 mm, -242.8917 mm): Footprint C49
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(157.2205 mm, -232.5412 mm): Footprint C50
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(186.1372 mm, -220.2731 mm): Footprint C51
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(214.1896 mm, -206.1400 mm): Footprint C52
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(221.0997 mm, -236.4631 mm): Footprint C53
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(191.0493 mm, -250.9832 mm): Footprint C54
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(160.1136 mm, -263.5068 mm): Footprint C55
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(128.4250 mm, -273.9803 mm): Footprint C56
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(96.1192 mm, -282.3588 mm): Footprint C57
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(63.3347 mm, -288.6065 mm): Footprint C58
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(30.2117 mm, -292.6966 mm): Footprint C59
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(-3.1078 mm, -294.6116 mm): Footprint C60
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(4.1073 mm, -324.4028 mm): Footprint C61
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(35.4517 mm, -322.3383 mm): Footprint C62
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(66.6232 mm, -318.4548 mm): Footprint C63
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(97.5160 mm, -312.7654 mm): Footprint C64
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(128.0258 mm, -305.2893 mm): Footprint C65
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(158.0493 mm, -296.0519 mm): Footprint C66
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(187.4849 mm, -285.0845 mm): Footprint C67
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(216.2330 mm, -272.4240 mm): Footprint C68
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(244.1963 mm, -258.1134 mm): Footprint C69
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(251.2166 mm, -288.4112 mm): Footprint C70
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(221.4798 mm, -303.0787 mm): Footprint C71
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(190.9404 mm, -315.9924 mm): Footprint C72
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(159.7019 mm, -327.1085 mm): Footprint C73
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(127.8698 mm, -336.3894 mm): Footprint C74
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(95.5520 mm, -343.8038 mm): Footprint C75
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(62.8577 mm, -349.3265 mm): Footprint C76
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(29.8976 mm, -352.9389 mm): Footprint C77
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(-3.2167 mm, -354.6287 mm): Footprint C78
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(4.1080 mm, -384.4376 mm): Footprint C79
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(35.4661 mm, -382.5793 mm): Footprint C80
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(66.6839 mm, -379.0823 mm): Footprint C81
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(97.6759 mm, -373.9563 mm): Footprint C82
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(128.3572 mm, -367.2154 mm): Footprint C83
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(158.6436 mm, -358.8779 mm): Footprint C84
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(188.4522 mm, -348.9668 mm): Footprint C85
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(217.7012 mm, -337.5093 mm): Footprint C86
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(246.3105 mm, -324.5366 mm): Footprint C87
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(274.2017 mm, -310.0845 mm): Footprint C88
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(281.3101 mm, -340.3617 mm): Footprint C89
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(251.8246 mm, -355.1444 mm): Footprint C90
+
+** End of Report **

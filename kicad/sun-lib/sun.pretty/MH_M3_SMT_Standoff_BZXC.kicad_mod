@@ -1,0 +1,119 @@
+	(footprint "MH_M3_SMT_Standoff_BZXC"
+	(version 20240108)
+	(generator "sun-gen")
+		(layer "B.Cu")
+		(uuid "f1a626d2-8552-59f7-ba0c-b0e1adccf232")
+		(attr smd)
+		(property "Reference" "REF**"
+			(at 0 -4.6 0)
+			(layer "B.SilkS")
+			(uuid "6c5068ff-3265-5561-bfb7-2383332001d0")
+			(effects
+				(font
+					(size 0.8 0.8)
+					(thickness 0.12)
+				)
+				(justify mirror)
+			)
+		)
+		(property "Value" "MH_Standoff"
+			(at 0 3.6 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "50d8ff4d-26c6-5f2d-9ff8-117aefe23812")
+			(effects
+				(font
+					(size 0.7 0.7)
+					(thickness 0.1)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "1698b87e-60d2-5a13-ac7f-20f5e0a811e1")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "d3c21961-17ec-52bb-aae5-34f02af665ea")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "91bab42a-11ea-5066-a6d0-9b7e112efa96")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(pad "1" thru_hole circle
+			(at 0 0)
+			(size 6.2 6.2)
+			(drill 4.22)
+			(layers "B.Cu" "B.Paste" "B.Mask")
+			(remove_unused_layers no)
+			(uuid "35b68090-c724-5a64-af39-4226f2c95c3a")
+		)
+		(fp_circle
+			(center 0.0000 0.0000)
+			(end 3.4000 0.0000)
+			(stroke
+				(width 0.15)
+				(type solid)
+			)
+			(fill none)
+			(layer "B.SilkS")
+			(uuid "c3b8ba49-ce1a-5da5-8e67-d9c41850b43f")
+		)
+		(fp_circle
+			(center 0.0000 0.0000)
+			(end 3.4000 0.0000)
+			(stroke
+				(width 0.15)
+				(type solid)
+			)
+			(fill none)
+			(layer "F.SilkS")
+			(uuid "d78c5609-0696-5e32-a6a8-7260804156a3")
+		)
+		(fp_circle
+			(center 0.0000 0.0000)
+			(end 2.7800 0.0000)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(fill none)
+			(layer "B.Fab")
+			(uuid "dbed2a82-19e4-53b2-ba78-5c81b86ebf61")
+		)
+		(fp_circle
+			(center 0.0000 0.0000)
+			(end 3.6000 0.0000)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(fill none)
+			(layer "B.CrtYd")
+			(uuid "63aa7e49-42ec-5ea7-98df-51b33ac86024")
+		)
+	)

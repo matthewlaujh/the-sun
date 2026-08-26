@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "sun")(type "KiCad")(uri "${KIPRJMOD}/../sun-lib/sun.pretty")(options "")(descr "the sun shared footprints"))
+)
