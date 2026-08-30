@@ -20,6 +20,7 @@ Installed need: A×1, B×12, C×12 (2,417 px). Extra assembled boards = spares.
 - NPTH + castellations: none; the Ø4.22 holes on the MH pads are PTH-pad-backed for the standoffs
 
 ## Assembly settings
+- At checkout, tick **"Remove Order Number"** (no JLCJLCJLCJLC placeholder on the boards - we are not printing serials)
 - **Double-sided assembly**: LEDs + caps on TOP, standoffs on BOTTOM
 - When the BOM loads, **WAGO J_IN/J_OUT have no part — mark them "Do Not Place"** (hand-soldered THT)
 - Check the component preview render: LED_SKC6812RGBW_5050 is a custom footprint, so verify LED pin-1 orientation before paying (GND corner = bottom-right radially; first-article check)
@@ -39,4 +40,4 @@ If JLC's library stock of C5348912 is short, use "Order parts" to pre-load the r
   - NOTE: the "30 mm BZXC standoff" in earlier notes was a misread — C20617225 is the 3 mm reflow nut that matches the Ø4.22/Ø6.2 footprint; the 30 mm riser is ordinary hardware threaded into it.
 
 ## Gotcha
-NOTE: after the 2026-08-30 board edits (C WAGO labels moved to back silk, JLCJLCJLCJLC re-added on all backs) RE-EXPORT all three production folders in KiCad before uploading. Re-running Fabrication Toolkit regenerates `bom.csv` and blanks the LCSC column — re-add C1591 / C5348912 / C20617225 (or set an "LCSC Part #" field on the footprints in KiCad).
+NOTE: after the 2026-08-30 board edits (C WAGO labels moved to back silk) RE-EXPORT all three production folders in KiCad before uploading. Re-running Fabrication Toolkit regenerates `bom.csv` and blanks the LCSC column — re-add C1591 / C5348912 / C20617225 (or set an "LCSC Part #" field on the footprints in KiCad).

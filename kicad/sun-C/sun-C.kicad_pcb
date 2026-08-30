@@ -21732,18 +21732,6 @@
 			(justify bottom mirror)
 		)
 	)
-	(gr_text "JLCJLCJLCJLC"
-		(at 177.6800 -119.1700 0)
-		(layer "B.SilkS")
-		(uuid "ea3e4f52-0b2a-449e-91ad-8a87f5fe91af")
-		(effects
-			(font
-				(size 1.5 1.5)
-				(thickness 0.25)
-			)
-			(justify mirror)
-		)
-	)
 	(segment
 		(start 261.2448 -29.0747)
 		(end 262.0553 -30.9168)
