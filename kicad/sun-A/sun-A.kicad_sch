@@ -6,7 +6,7 @@
 	(title_block
 		(title "the sun - design A")
 		(rev "draft3")
-		(comment 1 "172 x SKC6812RGBW chain, WAGO power/data in+out")
+		(comment 1 "173 x SKC6812RGBW chain, WAGO power/data in+out")
 		(comment 2 "LED pinout 1=GND 2=DIN 3=VDD 4=DOUT - UNVERIFIED vs datasheet, check before ordering")
 	)
 	(lib_symbols
@@ -36106,6 +36106,212 @@
 		(uuid "199401fa-2484-5fc7-8b88-4b120b018e8a")
 	)
 	(symbol
+		(lib_id "sun:SKC6812RGBW")
+		(at 609.60 523.24 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2d4d4d9c-1f15-5ad6-b8ca-20ef26b1c766")
+		(property "Reference" "LED173"
+			(at 609.60 520.70 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SKC6812RGBW"
+			(at 609.60 525.78 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "sun:LED_SKC6812RGBW_5050"
+			(at 609.60 523.24 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 609.60 523.24 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C5348912"
+			(at 609.60 523.24 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "322dfd17-100a-5bc9-a18b-8e37c590a037")
+		)
+		(pin "2"
+			(uuid "e1929fac-5d7b-5334-9ebc-b645d4dd24ac")
+		)
+		(pin "3"
+			(uuid "195ea0d0-6363-5586-a4f0-5bf67baf0d9e")
+		)
+		(pin "4"
+			(uuid "f68c768d-a3ad-5125-acda-a7c6997fb092")
+		)
+		(instances
+			(project "sun-A"
+				(path "/e2029498-5864-59ff-a034-209969a4f85d"
+					(reference "LED173")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(global_label "D172"
+		(shape input)
+		(at 601.98 523.24 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "0199d87e-8fc0-5189-9ced-9823b9e13d5d")
+	)
+	(global_label "D173"
+		(shape output)
+		(at 617.22 523.24 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "9db9150c-59ee-56e7-b634-e895ab53260d")
+	)
+	(global_label "+5V"
+		(shape passive)
+		(at 609.60 515.62 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "07f320e4-f638-5832-86a8-ebd7d65718f9")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 609.60 530.86 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "984321a8-4745-59d8-90f4-87667bcee715")
+	)
+	(symbol
+		(lib_id "sun:C_100nF")
+		(at 627.38 523.24 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "38095daf-cfbf-5b9c-bbad-3d4cab80b032")
+		(property "Reference" "C173"
+			(at 627.38 520.70 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100nF"
+			(at 627.38 525.78 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "sun:C_0603_1608Metric"
+			(at 627.38 523.24 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 627.38 523.24 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C1591"
+			(at 627.38 523.24 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "930c6ad7-dfe0-55b5-ae9e-2ef2b2ea67a6")
+		)
+		(pin "2"
+			(uuid "d4070618-5b4e-5dbe-8ee4-78ee58f1e841")
+		)
+		(instances
+			(project "sun-A"
+				(path "/e2029498-5864-59ff-a034-209969a4f85d"
+					(reference "C173")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(global_label "+5V"
+		(shape passive)
+		(at 627.38 519.43 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "6a153f77-aa3a-554d-b41d-96778b53a18a")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 627.38 527.05 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "56455424-f6b4-5fde-9c01-9ec42c57b128")
+	)
+	(symbol
 		(lib_id "sun:WAGO_2601-3104")
 		(at 50.80 591.82 0)
 		(unit 1)
@@ -36411,7 +36617,7 @@
 		)
 		(uuid "ca834cf3-ccc3-5ac4-91d4-29098a3e5466")
 	)
-	(global_label "D172"
+	(global_label "D173"
 		(shape passive)
 		(at 160.32 599.44 180)
 		(effects
@@ -36422,7 +36628,7 @@
 		)
 		(uuid "27a86f04-e7e1-52c9-9e47-b9344053f200")
 	)
-	(global_label "D172"
+	(global_label "D173"
 		(shape passive)
 		(at 160.32 601.98 180)
 		(effects
@@ -36629,16 +36835,9 @@
 			)
 		)
 	)
-	(global_label "GND"
-		(shape passive)
-		(at 350.48 596.90 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "54d5feba-f4be-543e-a397-5c33a5f737b9")
+	(no_connect
+		(at 350.48 596.90)
+		(uuid "3961b259-92cb-5182-bcec-b2a1eee153d6")
 	)
 	(symbol
 		(lib_id "sun:MH_Standoff")
@@ -36704,16 +36903,9 @@
 			)
 		)
 	)
-	(global_label "GND"
-		(shape passive)
-		(at 370.80 596.90 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "e25d354f-7b40-599b-8e34-d30b64776202")
+	(no_connect
+		(at 370.80 596.90)
+		(uuid "6f1deac7-aeec-5f5c-ac1c-02d1a3ed547a")
 	)
 	(symbol
 		(lib_id "sun:MH_Standoff")
@@ -36779,16 +36971,9 @@
 			)
 		)
 	)
-	(global_label "GND"
-		(shape passive)
-		(at 391.12 596.90 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "2e5cd80b-87a8-5075-8410-eac5eefd5556")
+	(no_connect
+		(at 391.12 596.90)
+		(uuid "ae2c7351-91be-56b7-a3dc-9a12fc56e6b8")
 	)
 	(symbol
 		(lib_id "sun:MH_Standoff")
@@ -36854,16 +37039,9 @@
 			)
 		)
 	)
-	(global_label "GND"
-		(shape passive)
-		(at 411.44 596.90 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "8179c6c2-db09-5594-8fc5-8529bd5e7bc3")
+	(no_connect
+		(at 411.44 596.90)
+		(uuid "df06de3b-3ce5-530c-9897-54f7d3725d95")
 	)
 	(symbol
 		(lib_id "sun:MH_Standoff")
@@ -36929,16 +37107,9 @@
 			)
 		)
 	)
-	(global_label "GND"
-		(shape passive)
-		(at 431.76 596.90 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "5edfd2ce-d736-5f69-94cd-d6200c632ab9")
+	(no_connect
+		(at 431.76 596.90)
+		(uuid "85182eb1-2775-5534-a54c-b57424b8b18b")
 	)
 	(symbol
 		(lib_id "sun:MH_Standoff")
@@ -37004,91 +37175,9 @@
 			)
 		)
 	)
-	(global_label "GND"
-		(shape passive)
-		(at 452.08 596.90 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "cc164da4-add1-5d69-94eb-e58fd2477369")
-	)
-	(symbol
-		(lib_id "sun:MH_Standoff")
-		(at 472.40 591.82 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "55b8d3d6-fc9e-5ee7-806c-5e0a5daab234")
-		(property "Reference" "MH7"
-			(at 472.40 589.28 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "MH_Standoff"
-			(at 472.40 594.36 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "sun:MH_M3_SMT_Standoff_BZXC"
-			(at 472.40 591.82 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 472.40 591.82 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "LCSC" "C20617225 (3mm; 30mm variant TBC)"
-			(at 472.40 591.82 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "2a0e19ec-c813-51d8-bda6-a1557b0a24cb")
-		)
-		(instances
-			(project "sun-A"
-				(path "/e2029498-5864-59ff-a034-209969a4f85d"
-					(reference "MH7")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(global_label "GND"
-		(shape passive)
-		(at 472.40 596.90 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "a5c9b824-8b73-50d0-907c-02e765052776")
+	(no_connect
+		(at 452.08 596.90)
+		(uuid "e33abfbe-c3b5-5bf8-9aa3-ac957109825a")
 	)
 	(sheet_instances
 		(path "/"

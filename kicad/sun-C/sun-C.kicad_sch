@@ -17265,16 +17265,9 @@
 			)
 		)
 	)
-	(global_label "GND"
-		(shape passive)
-		(at 350.48 403.86 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "db16ffe4-fb14-527e-8e7f-b48351edaf74")
+	(no_connect
+		(at 350.48 403.86)
+		(uuid "d7b53b11-ab26-555e-8310-d6277e29a342")
 	)
 	(symbol
 		(lib_id "sun:MH_Standoff")
@@ -17340,16 +17333,9 @@
 			)
 		)
 	)
-	(global_label "GND"
-		(shape passive)
-		(at 370.80 403.86 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "2e4825fc-24c7-5193-9471-fb32794ee675")
+	(no_connect
+		(at 370.80 403.86)
+		(uuid "4e92b64e-6c3a-5ed3-8559-9858be6a6b2b")
 	)
 	(symbol
 		(lib_id "sun:MH_Standoff")
@@ -17415,16 +17401,9 @@
 			)
 		)
 	)
-	(global_label "GND"
-		(shape passive)
-		(at 391.12 403.86 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "5ac08308-4827-52ff-8853-827a5de549df")
+	(no_connect
+		(at 391.12 403.86)
+		(uuid "e0c80ad9-f942-59ef-8e29-752ceac7cc3e")
 	)
 	(symbol
 		(lib_id "sun:MH_Standoff")
@@ -17490,16 +17469,9 @@
 			)
 		)
 	)
-	(global_label "GND"
-		(shape passive)
-		(at 411.44 403.86 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "8b383b68-75a5-5555-ba4c-3d8b8f3a7e77")
+	(no_connect
+		(at 411.44 403.86)
+		(uuid "c793e050-ca32-5f6b-887d-f749c1dd7ea1")
 	)
 	(sheet_instances
 		(path "/"

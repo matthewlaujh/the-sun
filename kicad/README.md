@@ -1,11 +1,11 @@
 # the sun — KiCad projects (draft 3)
 
-Generated 2026-08-26 from the 2026-08-17 Studio DXF pack (sun-layout-dxf v2, on-line mounting).
+Generated 2026-08-30 from the 2026-08-17 Studio DXF pack (sun-layout-dxf v2, on-line mounting).
 Format: KiCad 8 s-expressions — KiCad 9 opens these and migrates them on save.
 
 ## Layout
 - `sun-lib/` — shared symbols (`sun.kicad_sym`) + footprints (`sun.pretty/`)
-- `sun-A/` — disc, 172 LEDs, Ø448 mm
+- `sun-A/` — disc, 173 LEDs (172 + centre pixel), Ø448 mm
 - `sun-B/` — wedge, 109 LEDs, r226→674, ×12
 - `sun-C/` — wedge, 78 LEDs, r676→854, ×12
 - per project: `.kicad_pro`, `.kicad_sch`, `.kicad_pcb`, `bom.csv`, `cpl.csv` (JLC format)
@@ -25,6 +25,27 @@ Format: KiCad 8 s-expressions — KiCad 9 opens these and migrates them on save.
 - MH standoff footprints are true back-side footprints (placement side = Bottom).
 - Standoffs: NPTH Ø4.22 + Ø6.2 pad on B.Cu (bottom reflow), net GND.
 - A's DIN feed + C's DOUT return run on B.Cu through the GND pour (via at the LED end).
+
+## Draft 3.13 changes (A chain matches design pack 3)
+- Board A's data chain re-ordered to match **sunleddesignpack 3**: the centre LED
+  is now the FIRST pixel (universe 1, channel 1) and the serpentine runs in the
+  pack-3 (mirrored) direction. LED refs 1..173 = pack3's LED1..173 exactly, so
+  the pack's dmx-patch.csv / led-map.csv apply with no hand edits.
+  Feed: J_IN -> centre on the back layer; return: LED173 (ring 210) -> J_OUT.
+- Only output 1's boards shift in the pack's patch; outputs 2-4 are untouched.
+- Mounting stays the BZXC / Ø4.22 layout (user choice; the pack's SMTSO scheme
+  was NOT adopted) — centre standoff remains deleted (the centre LED sits there).
+
+## Draft 3.12 changes (isolated mounting holes + A centre pixel)
+- **Every mounting hole is now electrically ISOLATED**: the standoff's B.Cu solder
+  pad has no net, and a copper-free moat (Ø9 mm keep-out ring, both layers) keeps
+  the pours away — a screw scratching through the mask can't short 5V/GND.
+  Schematic MH pins carry no-connect markers. Standoffs float (not grounded).
+- **Board A: centre mounting hole removed, LED173 added at the exact centre** as
+  the LAST pixel of the chain (user choice: existing pixel addresses unchanged;
+  the new pixel simply appends as A's pixel #173, channels 689-692 in A's map).
+  LED172→LED173 runs as a 2-via back-side radial drop; the return LED173→J_OUT
+  is a straight back-side shot due west. A now has 173 LEDs, 173 caps, 6 standoffs.
 
 ## Draft 3.11 changes (clearances + standoff keep-away)
 - **Routing clearances raised** (user: safety margin): trace-to-copper routing target
