@@ -47118,6 +47118,18 @@
 			(justify bottom mirror)
 		)
 	)
+	(gr_text "JLCJLCJLCJLC"
+		(at 265.2983 -264.8183 0)
+		(layer "B.SilkS")
+		(uuid "8c022147-6723-4984-909c-a9380a69bc72")
+		(effects
+			(font
+				(size 1.5 1.5)
+				(thickness 0.25)
+			)
+			(justify mirror)
+		)
+	)
 	(gr_text "DO\n"
 		(at 79.84 -290.6491 0)
 		(layer "B.SilkS")

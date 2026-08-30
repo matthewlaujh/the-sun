@@ -39,4 +39,4 @@ If JLC's library stock of C5348912 is short, use "Order parts" to pre-load the r
   - NOTE: the "30 mm BZXC standoff" in earlier notes was a misread — C20617225 is the 3 mm reflow nut that matches the Ø4.22/Ø6.2 footprint; the 30 mm riser is ordinary hardware threaded into it.
 
 ## Gotcha
-Re-running Fabrication Toolkit regenerates `bom.csv` and blanks the LCSC column — re-add C1591 / C5348912 / C20617225 (or set an "LCSC Part #" field on the footprints in KiCad).
+NOTE: after the 2026-08-30 board edits (C WAGO labels moved to back silk, JLCJLCJLCJLC re-added on all backs) RE-EXPORT all three production folders in KiCad before uploading. Re-running Fabrication Toolkit regenerates `bom.csv` and blanks the LCSC column — re-add C1591 / C5348912 / C20617225 (or set an "LCSC Part #" field on the footprints in KiCad).
