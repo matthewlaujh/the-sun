@@ -6,7 +6,7 @@
 		(attr smd)
 		(property "Reference" "REF**"
 			(at 0 -4.6 0)
-			(layer "B.SilkS")
+			(layer "B.Fab")
 			(uuid "6c5068ff-3265-5561-bfb7-2383332001d0")
 			(effects
 				(font
@@ -71,28 +71,6 @@
 			(layers "B.Cu" "B.Paste" "B.Mask")
 			(remove_unused_layers no)
 			(uuid "35b68090-c724-5a64-af39-4226f2c95c3a")
-		)
-		(fp_circle
-			(center 0.0000 0.0000)
-			(end 3.4000 0.0000)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(fill none)
-			(layer "B.SilkS")
-			(uuid "c3b8ba49-ce1a-5da5-8e67-d9c41850b43f")
-		)
-		(fp_circle
-			(center 0.0000 0.0000)
-			(end 3.4000 0.0000)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(fill none)
-			(layer "F.SilkS")
-			(uuid "d78c5609-0696-5e32-a6a8-7260804156a3")
 		)
 		(fp_circle
 			(center 0.0000 0.0000)

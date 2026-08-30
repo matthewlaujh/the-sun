@@ -88,26 +88,6 @@
 			(layer "F.Fab")
 			(uuid "1baa1162-d490-5415-8cf0-66d022fcd4e9")
 		)
-		(fp_line
-			(start -0.1600 0.7350)
-			(end 0.1600 0.7350)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "2f28e027-2b3a-55f9-87b4-1d006472770a")
-		)
-		(fp_line
-			(start -0.1600 -0.7350)
-			(end 0.1600 -0.7350)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "d1672701-0ba4-5f20-939c-07f6577ebd94")
-		)
 		(fp_rect
 			(start -1.4800 0.7300)
 			(end 1.4800 -0.7300)

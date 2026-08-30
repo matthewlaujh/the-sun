@@ -26,6 +26,43 @@ Format: KiCad 8 s-expressions — KiCad 9 opens these and migrates them on save.
 - Standoffs: NPTH Ø4.22 + Ø6.2 pad on B.Cu (bottom reflow), net GND.
 - A's DIN feed + C's DOUT return run on B.Cu through the GND pour (via at the LED end).
 
+## Draft 3.15 changes (A connector centring + uniform standoff radius)
+- **A's WAGO pair recentred**: pin centre moved from r195 to r199.06 so the
+  connector BODY (which extends 10.4mm toward the lever/centre but only 2.3mm
+  outward) sits exactly centred between rings 180 and 210; the pin centre was
+  already the tangential midpoint of the two nearest LEDs. Still exactly
+  opposite on the E-W axis. (Also fixed a sign bug in the placement search
+  that tested the courtyard mirrored to the wrong side of the pins.)
+- **A's six outer standoffs normalised to a common r=215** (slid inward along
+  their radial skeleton members, angles unchanged): the Studio pack had five
+  at ~218.5 with the copper moat ON the board edge and one at 215. Now every
+  hole has the same ~5.9mm pad-to-edge and 3.5mm moat-to-edge margin.
+  WARNING: the matching frame holes move 3.5mm inward on five spokes - update
+  the skeleton drawing.
+
+- **No trace under any LED or cap body — either layer** (3.16): LED/cap
+  courtyards now keep out foreign traces on the BACK copper too, so the long
+  back-layer runs (feeds/returns) weave between footprints instead of passing
+  under them. Verified: zero back-copper crossings of any LED/cap body.
+- **Pad exits run straight before turning** (3.16): exit stubs lengthened to
+  2.5mm from pad centre (~1.75mm beyond the pad edge) and protected from the
+  corner-smoothing pass; wrap/jog hooks land with a 1.5mm straight run into
+  the DIN pad. Applies across all designs.
+- **Fallback links smoothed into curves**: row-to-row jumps and dogleg hops
+  (the paths the generic router produces near connectors and standoffs) now go
+  through a clearance-validated corner-rounding pass, so they flow like the
+  patterned links instead of showing chamfered elbows.
+
+## Draft 3.14 changes (silk-free LED face)
+- **All front silkscreen removed** except one mark per LED: the standard
+  pin-1/GND TRIANGLE (0.7 mm, filled) tucked UNDER the package body with its
+  tip pointing at pad 1 — visible on the bare board for orientation checks,
+  completely hidden once the LED is soldered.
+- Cap outlines, MH rings, and the front board title are gone; the JLC
+  order-number placeholder ("JLCJLCJLCJLC") moved to the BACK silk so JLC's
+  print can't land on the front. Board id stays on the back. WAGO pole labels
+  (5V/G/G/D), lever mark and pin-1 dot stay on the back silk for hand-wiring.
+
 ## Draft 3.13 changes (A chain matches design pack 3)
 - Board A's data chain re-ordered to match **sunleddesignpack 3**: the centre LED
   is now the FIRST pixel (universe 1, channel 1) and the serpentine runs in the
@@ -38,8 +75,9 @@ Format: KiCad 8 s-expressions — KiCad 9 opens these and migrates them on save.
 
 ## Draft 3.12 changes (isolated mounting holes + A centre pixel)
 - **Every mounting hole is now electrically ISOLATED**: the standoff's B.Cu solder
-  pad has no net, and a copper-free moat (Ø9 mm keep-out ring, both layers) keeps
+  pad has no net, and a copper-free moat (Ø11 mm keep-out ring, both layers) keeps
   the pours away — a screw scratching through the mask can't short 5V/GND.
+  Traces additionally keep ≥3.0 mm from every hole edge (verified ≥2.8).
   Schematic MH pins carry no-connect markers. Standoffs float (not grounded).
 - **Board A: centre mounting hole removed, LED173 added at the exact centre** as
   the LAST pixel of the chain (user choice: existing pixel addresses unchanged;
