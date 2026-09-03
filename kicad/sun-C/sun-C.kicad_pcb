@@ -22545,6 +22545,7 @@
 		(property "Reference" "J_IN"
 			(at -5.25 -12.3 0)
 			(layer "B.SilkS")
+			(hide yes)
 			(uuid "2ddf6cd2-289c-5940-9d78-dc921d074aaa")
 			(effects
 				(font
@@ -22670,87 +22671,6 @@
 			(start -13.0000 2.3150)
 			(end 2.5000 -10.4350)
 			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(fill none)
-			(layer "B.SilkS")
-			(uuid "0c551159-1b7f-5ceb-a0fa-b58892f66435")
-		)
-		(fp_line
-			(start 2.5000 -10.4350)
-			(end -13.0000 -10.4350)
-			(stroke
-				(width 0.5)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "9a5b4e2e-1d70-59ef-a855-7753aa280e3f")
-		)
-		(fp_text user "LEVER"
-			(at -5.2500 -8.4000 0)
-			(layer "B.SilkS")
-			(uuid "2b5d156d-4775-598f-a899-ffa2e6e4c85f")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-				(justify mirror)
-			)
-		)
-		(fp_text user "5V"
-			(at 0.0000 1.5500 0)
-			(layer "B.SilkS")
-			(uuid "659bd402-28d9-5a0b-9867-f7f00fc3fd2f")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-				(justify mirror)
-			)
-		)
-		(fp_text user "G"
-			(at -3.5000 1.5500 0)
-			(layer "B.SilkS")
-			(uuid "82bee85a-b188-5b18-900c-06dfb6bb7bdc")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-				(justify mirror)
-			)
-		)
-		(fp_text user "G"
-			(at -7.0000 1.5500 0)
-			(layer "B.SilkS")
-			(uuid "b3d2e10e-6598-5b0d-804a-246a7f6bc59b")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-				(justify mirror)
-			)
-		)
-		(fp_text user "D"
-			(at -10.5000 1.5500 0)
-			(layer "B.SilkS")
-			(uuid "3ef648ef-5fcb-53ef-adfa-e32895e31b55")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-				(justify mirror)
-			)
-		)
-		(fp_rect
-			(start -13.0000 2.3150)
-			(end 2.5000 -10.4350)
-			(stroke
 				(width 0.1)
 				(type solid)
 			)
@@ -22790,6 +22710,7 @@
 		(property "Reference" "J_OUT"
 			(at -5.25 -12.3 0)
 			(layer "B.SilkS")
+			(hide yes)
 			(uuid "0bb8f079-9bd8-566c-aeff-c81a67c1fe40")
 			(effects
 				(font
@@ -22910,87 +22831,6 @@
 			(layers "*.Cu" "*.Mask")
 			(net 81 "D78")
 			(uuid "976dd06a-2549-5d0e-b28c-2519b0335a81")
-		)
-		(fp_rect
-			(start -13.0000 2.3150)
-			(end 2.5000 -10.4350)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(fill none)
-			(layer "B.SilkS")
-			(uuid "35ca2360-8e5d-512b-9a13-841f34581065")
-		)
-		(fp_line
-			(start 2.5000 -10.4350)
-			(end -13.0000 -10.4350)
-			(stroke
-				(width 0.5)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "f7f627c6-78f6-56bf-8252-35379145b28d")
-		)
-		(fp_text user "LEVER"
-			(at -5.2500 -8.4000 0)
-			(layer "B.SilkS")
-			(uuid "44a08ca7-b5fb-5d6e-890c-573bc0b8f1f4")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-				(justify mirror)
-			)
-		)
-		(fp_text user "5V"
-			(at 0.0000 1.5500 0)
-			(layer "B.SilkS")
-			(uuid "f5596a36-e31f-559d-a0a0-b256661dfe5f")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-				(justify mirror)
-			)
-		)
-		(fp_text user "G"
-			(at -3.5000 1.5500 0)
-			(layer "B.SilkS")
-			(uuid "540b9286-1f6a-5046-8f07-0df240ac0376")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-				(justify mirror)
-			)
-		)
-		(fp_text user "G"
-			(at -7.0000 1.5500 0)
-			(layer "B.SilkS")
-			(uuid "35cf9dd5-e718-5ba3-bb86-cc65b09828cf")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-				(justify mirror)
-			)
-		)
-		(fp_text user "D"
-			(at -10.5000 1.5500 0)
-			(layer "B.SilkS")
-			(uuid "5132f5fb-a074-5c0f-b3ed-e56093ed75e0")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-				(justify mirror)
-			)
 		)
 		(fp_rect
 			(start -13.0000 2.3150)
