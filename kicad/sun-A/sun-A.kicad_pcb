@@ -94062,28 +94062,120 @@
 			)
 		)
 	)
-	(gr_text "JLCJLCJLCJLC"
-		(at 209.8600 7.5000 0)
+	(gr_text "The Sun - LED Panel Design A\nCenter disc · Ø448mm\n173 pixels · 30mm pitch · 7 radial rings + centre\nCentre pixel first · Mirrored Serpentine Spirals Outward"
+		(at 209.8599 -204.2157 0)
 		(layer "B.SilkS")
-		(uuid "772d6e98-af50-56a7-8dd5-bbf6c907a07b")
+		(uuid "c5fc172d-0764-55db-bb2e-a9ccf24fba49")
 		(effects
 			(font
-				(size 1.0 1.0)
-				(thickness 0.15)
+				(size 2 2)
+				(thickness 0.1)
 			)
-			(justify mirror)
+			(justify bottom mirror)
 		)
 	)
-	(gr_text "sun-A draft3"
-		(at 209.8600 10.5000 0)
+	(gr_text "5V\n"
+		(at 369.2099 -214.0500 0.000)
 		(layer "B.SilkS")
-		(uuid "245a7c04-6b49-5484-b02f-be620b741b23")
+		(uuid "9066a265-c549-5adc-b5de-c26d9a0d5106")
 		(effects
 			(font
-				(size 1.5 1.5)
-				(thickness 0.22)
+				(size 2 2)
+				(thickness 0.3)
+				(bold yes)
 			)
-			(justify mirror)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "GND"
+		(at 369.2099 -210.5500 0.000)
+		(layer "B.SilkS")
+		(uuid "e9ce5db5-d24c-5489-9936-ac86c3d4efe8")
+		(effects
+			(font
+				(size 2 2)
+				(thickness 0.3)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "GND"
+		(at 369.2099 -207.0500 0.000)
+		(layer "B.SilkS")
+		(uuid "341b5249-b369-58d5-bb30-1ed93dea3e25")
+		(effects
+			(font
+				(size 2 2)
+				(thickness 0.3)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "DI"
+		(at 369.2099 -203.5500 0.000)
+		(layer "B.SilkS")
+		(uuid "25b5fbdb-ef69-5307-83ff-b2b71a5655e4")
+		(effects
+			(font
+				(size 2 2)
+				(thickness 0.3)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "5V\n"
+		(at 50.5099 -205.9500 180.000)
+		(layer "B.SilkS")
+		(uuid "6ab96178-8c72-55e9-8222-5fed5423c125")
+		(effects
+			(font
+				(size 2 2)
+				(thickness 0.3)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "GND"
+		(at 50.5099 -209.4500 180.000)
+		(layer "B.SilkS")
+		(uuid "ac93d2bf-77a0-5b8f-9ad2-c2abcff320cb")
+		(effects
+			(font
+				(size 2 2)
+				(thickness 0.3)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "GND"
+		(at 50.5099 -212.9500 180.000)
+		(layer "B.SilkS")
+		(uuid "3c6eb8f8-6812-5f01-86e2-a50ae41611c1")
+		(effects
+			(font
+				(size 2 2)
+				(thickness 0.3)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
+	(gr_text "DO"
+		(at 50.5099 -216.4500 180.000)
+		(layer "B.SilkS")
+		(uuid "6475a69b-821f-5e9a-9e5d-4c4ba82c8946")
+		(effects
+			(font
+				(size 2 2)
+				(thickness 0.3)
+				(bold yes)
+			)
+			(justify left bottom mirror)
 		)
 	)
 )
