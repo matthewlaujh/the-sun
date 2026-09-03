@@ -1,6 +1,6 @@
 # the sun — KiCad projects (draft 3)
 
-Generated 2026-09-02 from the 2026-08-17 Studio DXF pack (sun-layout-dxf v2, on-line mounting).
+Generated 2026-09-03 from the 2026-08-17 Studio DXF pack (sun-layout-dxf v2, on-line mounting).
 Format: KiCad 8 s-expressions — KiCad 9 opens these and migrates them on save.
 
 ## Layout
