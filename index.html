@@ -35,6 +35,10 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:13px/1
 .prow input[type=number]{width:100%;background:#0c0e13;color:var(--ink);border:1px solid var(--panel-line);border-radius:4px;padding:3px 5px;font:11px var(--mono);text-align:right;-moz-appearance:textfield}
 .prow input[type=number]::-webkit-inner-spin-button{opacity:.4}
 textarea{width:100%;background:#0c0e13;color:var(--ink);border:1px solid var(--panel-line);border-radius:5px;padding:7px 8px;font:12px var(--sans);resize:vertical;min-height:56px}
+.stop{display:grid;grid-template-columns:48px 1fr 1fr 20px;gap:6px;align-items:center;margin:4px 0}
+.stop input[type=number]{width:100%;background:#0c0e13;color:var(--ink);border:1px solid var(--panel-line);border-radius:4px;padding:3px 4px;font:11px var(--mono)}
+.stop input[type=range]{height:14px}
+.stop button{background:none;border:0;color:var(--ink-3);cursor:pointer;font-size:14px;padding:0}
 .preset{border:1px solid var(--panel-line);border-radius:6px;padding:8px 10px;margin:6px 0;background:#0c0e13}
 .preset b{color:var(--sun-2);font-weight:500}
 .preset .m{font:10.5px var(--mono);color:var(--ink-3);margin:2px 0 4px}
@@ -118,7 +122,12 @@ button.primary{background:var(--sun);color:#1a1205;border-color:var(--sun);font-
         <div id="params"></div>
         <div class="row"><label for="tint">Colour</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="tint" value="#ff9a2e"><span id="tint-o" style="font:11px var(--mono);color:var(--ink-3)">#ff9a2e</span></div><span></span></div>
         <details class="sec" style="margin:10px 0 0"><summary style="font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);cursor:pointer">Common controls</summary><div id="globals" style="margin-top:6px"></div></details>
-        <div class="tog" style="margin-top:8px"><button id="sunpal" aria-pressed="true">Sun palette</button></div>
+        <div class="tog" style="margin-top:8px"><button id="sunpal" aria-pressed="true">Sun palette</button><select id="palsel" style="width:auto;flex:1;padding:4px 6px"></select></div>
+        <details class="sec" style="margin:8px 0 0" id="paldet"><summary style="font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);cursor:pointer">Colour stops — dark → bright</summary>
+          <div class="note" style="margin:4px 0 6px">The palette maps each pixel's energy to a colour: the first stop colours the darkest parts of the animation, the last the brightest. Position = where along the energy scale the colour sits; W = the white channel. Add stops for more bands.</div>
+          <div id="palstops"></div>
+          <div class="btns" style="margin-top:6px"><button id="paladd" class="act">Add stop</button><button id="palreset" class="act">Reset to preset</button></div>
+        </details>
         <div class="btns" style="margin-top:8px"><button id="play" class="act" aria-pressed="true">Pause</button><button id="step" class="act">Step 1 frame</button><button id="reset" class="act">Reset t</button></div>
       </div>
       <div class="sec">
@@ -141,8 +150,9 @@ button.primary{background:var(--sun);color:#1a1205;border-color:var(--sun);font-
           <button data-layer="mount" aria-pressed="true">Wall mount</button>
           <button data-layer="tray" aria-pressed="true">Trays</button>
           <button data-layer="stand" aria-pressed="true">Stand</button>
-          <button data-layer="flat" aria-pressed="false">Opal sheet</button>
-          <button data-layer="dome" aria-pressed="false">Dome</button>
+          <button data-layer="flat" aria-pressed="true">Opal sheet</button>
+          <button data-layer="dome" aria-pressed="true">Dome</button>
+          <button data-layer="wall" aria-pressed="false">Wall behind</button>
           <button data-layer="labels" aria-pressed="false">Board labels</button>
           <button data-layer="floor" aria-pressed="true">Floor grid</button>
         </div>
@@ -153,7 +163,9 @@ button.primary{background:var(--sun);color:#1a1205;border-color:var(--sun);font-
           <button data-opt="bloom" aria-pressed="true">Bloom</button>
           <button data-opt="halo" aria-pressed="true">Pixel halo</button>
           <button data-opt="work" aria-pressed="false">Work lights</button>
+          <button data-opt="spill" aria-pressed="true">Spill light</button>
         </div>
+        <div class="row" style="margin-top:8px"><label for="spillk">Spill strength</label><input type="range" id="spillk" min="0" max="3" step="0.05" value="1"><output id="spillk-o">1.00×</output></div>
         <div class="row" style="margin-top:8px"><label for="exposure">Exposure</label><input type="range" id="exposure" min="0.25" max="4" step="0.05" value="1"><output id="exposure-o">1.00×</output></div>
         <div class="row"><label for="ambient">Room light</label><input type="range" id="ambient" min="0" max="1" step="0.01" value="0.12"><output id="ambient-o">12%</output></div>
         <div class="note">Every pixel is a lit 5050 package at its KiCad centre. Its light on a diffusing surface follows the cos⁴ screen law, <code>E ∝ d²/(d²+ρ²)²</code>: energy per pixel is conserved, the peak falls as 1/d², the tails are long. The opal (3 mm double-frosted PMMA) behaves like a screen ~56 mm above the LEDs at ~50 % transmission; the dome is clear cast PMMA (91 % LT at 3 mm, SGS) with a sanded outer face, so it is a screen at 66–266 mm whose blur comes from geometry, not haze. Bloom is applied to the whole frame. Exposure scales only what you see — the diffusers really do cost about half the light — and never touches the wire bytes.</div>
@@ -189,6 +201,8 @@ button.primary{background:var(--sun);color:#1a1205;border-color:var(--sun);font-
       <div class="sec">
         <h3>Power estimate (20 mA / channel @ 5 V)</h3>
         <div class="kv"><span>total</span><b id="o-power">— W · — A</b><span>of 967 W full white</span><b id="o-pct">—</b></div>
+        <div class="kv" style="margin-top:8px"><span>light leaving the sun</span><b id="o-lm">— lm</b><span>on-axis at 1 m / 3 m</span><b id="o-lx">— / — lx</b></div>
+        <div class="note">Flux assumes ≈0.6 / 1.6 / 0.35 / 3.0 lm per R / G / B / W channel at full drive (typical SK6812RGBW — measure one), times the diffuser transmissions in the light model. Illuminance treats the lit face as a Ø1.8 m Lambertian disc: E = Φ / (π (a² + d²)).</div>
         <div class="zones" id="zones"></div>
         <div class="note">Zone bars are against one LSP-160-5T at 150 W. Amber above 80 %, red above 100 %.</div>
       </div>
@@ -205,7 +219,7 @@ button.primary{background:var(--sun);color:#1a1205;border-color:var(--sun);font-
         <input type="text" id="ps-author" placeholder="Your name" style="margin-bottom:6px">
         <textarea id="ps-notes" placeholder="Notes — what you like about it, where it should be used, what to tweak…"></textarea>
         <div class="btns" style="margin-top:8px"><button id="ps-save" class="act primary">Save preset</button><button id="ps-link" class="act">Copy as link</button><span class="status" id="ps-status">local library</span></div>
-        <div class="note" id="ps-note">Saves the pattern, all its parameters and the common controls (speed, master, scale, contrast, warmth, colour, palette).</div>
+        <div class="note" id="ps-note">Saves the pattern, all its parameters, the common controls (speed, master, scale, contrast, warmth, colour) and the full colour palette with its stops.</div>
       </div>
       <div class="sec">
         <h3>Library <button id="ps-refresh" class="act" style="padding:2px 8px;font-size:11px;margin-left:6px">Refresh</button></h3>
@@ -518,7 +532,7 @@ const PATTERNS = [
       const t = c.t * c.speed;
       for (let i = 0; i < N; i++) {
         const n = vnoise(X[i] / 260 + t * 0.1, Y[i] / 260, t * 0.15), g = 0.02 + 0.05 * n * (1 - R[i] / RIM * 0.5);
-        const h = hash1(i * 3 + 11), fire = R[i] > RIM * 0.9 && h < c.p1 * 0.25 ? Math.pow(Math.max(0, Math.sin(h * 300 + t * (0.15 + 0.3 * hash1(i)))), 40) : 0;
+        const h = hash1(i * 3 + 11), fire = R[i] > RIM * 0.9 && h < c.p1 * 0.6 ? Math.pow(Math.max(0, Math.sin(h * 300 + t * (0.4 + 0.6 * hash1(i)))), 12) : 0;
         set(o, i, g * 0.8 + fire, g * 0.35 + fire * 0.85, fire * 0.6, g + fire);
       }
     } },
@@ -558,7 +572,7 @@ const PATTERNS = [
   { id: 'd-wall', name: 'Dome wall wash', group: 'Dome studies', p1: 'Band width', p1d: 0.5,
     desc: 'Only the annulus under the dome\'s sloped wall is lit, in slowly turning colour, with the centre and rim dark — the dome reads as a sculpted form rather than a screen.',
     fn(o, c) {
-      const t = c.t * c.speed * 0.2, w = 0.08 + 0.14 * c.p1;
+      const t = c.t * c.speed * 0.5, w = 0.08 + 0.14 * c.p1;
       for (let i = 0; i < N; i++) {
         const r = R[i] / RIM, band = Math.exp(-Math.pow((r - 0.7) / w, 2)), a = TH[i] / 360;
         const k = 4 * i; hsv(fract(0.05 + a * 0.15 + t * 0.1 + 0.1 * Math.sin(t + a * TAU)), 0.75, band * 0.9, o, k); o[k + 3] = band * 0.25;
@@ -615,7 +629,7 @@ const PATTERNS = [
       const t = c.t * c.speed, P = c.P, g = P.gran;
       for (let i = 0; i < N; i++) {
         const r = R[i] / RIM, limb = 1 - P.limb * (1 - Math.sqrt(Math.max(0, 1 - r * r)));
-        const n1 = vnoise(X[i] / g + t * 0.06 * P.drift, Y[i] / g, t * 0.12 * P.churn), n2 = vnoise(X[i] / (g * 0.45) - t * 0.09 * P.drift, Y[i] / (g * 0.45) + 7, t * 0.25 * P.churn + 3), n3 = vnoise(X[i] / (g * 2.6), Y[i] / (g * 2.6) - t * 0.03, t * 0.05 + 9);
+        const n1 = vnoise(X[i] / g + t * 0.35 * P.drift, Y[i] / g, t * 0.6 * P.churn), n2 = vnoise(X[i] / (g * 0.45) - t * 0.5 * P.drift, Y[i] / (g * 0.45) + 7, t * 1.2 * P.churn + 3), n3 = vnoise(X[i] / (g * 2.6), Y[i] / (g * 2.6) - t * 0.15, t * 0.25 + 9);
         const v = clamp01(limb * (0.62 + P.con * (0.55 * n1 + 0.3 * n2 + 0.15 * n3 - 0.5)));
         E(o, i, v);
       }
@@ -624,7 +638,7 @@ const PATTERNS = [
     params: [{ k: 'cell', n: 'Cell size', min: 120, max: 600, step: 1, d: 300 }, { k: 'edge', n: 'Edge brightness', min: 0, max: 1.5, step: 0.01, d: 0.8 }, { k: 'width', n: 'Edge width', min: 0.02, max: 0.4, step: 0.01, d: 0.12 }, { k: 'flow', n: 'Flow', min: 0, max: 2, step: 0.01, d: 0.4 }],
     desc: 'Supergranular cells with a bright chromospheric network along their boundaries — the pattern that shows up in Ca II images.',
     fn(o, c) {
-      const t = c.t * c.speed * 0.05 * c.P.flow, cs = c.P.cell;
+      const t = c.t * c.speed * 0.3 * c.P.flow, cs = c.P.cell;
       for (let i = 0; i < N; i++) {
         const n = vnoise(X[i] / cs + t, Y[i] / cs - t * 0.7, t * 2), n2 = vnoise(X[i] / cs + 11 - t, Y[i] / cs + 5, t * 2 + 4);
         const ridge = Math.exp(-Math.pow((n - 0.5) / c.P.width, 2)) + 0.6 * Math.exp(-Math.pow((n2 - 0.5) / c.P.width, 2));
@@ -635,7 +649,7 @@ const PATTERNS = [
     params: [{ k: 'rot', n: 'Rotation', min: 0, max: 2, step: 0.01, d: 0.6 }, { k: 'shear', n: 'Equator/pole shear', min: 0, max: 1, step: 0.01, d: 0.6 }, { k: 'bands', n: 'Band contrast', min: 0, max: 1.5, step: 0.01, d: 0.7 }, { k: 'bandw', n: 'Band scale', min: 60, max: 500, step: 1, d: 200 }],
     desc: 'Banded surface flow streaming faster at the equator than the poles, as the real sun turns. Texture shears where the bands slide past each other.',
     fn(o, c) {
-      const t = c.t * c.speed * 0.15 * c.P.rot;
+      const t = c.t * c.speed * 0.5 * c.P.rot;
       for (let i = 0; i < N; i++) {
         const lat = Y[i] / RIM, w = 1 - c.P.shear * lat * lat, xs = X[i] + t * 400 * w;
         const n = vnoise(xs / c.P.bandw, Y[i] / (c.P.bandw * 0.35), t * 0.3), n2 = vnoise(xs / 80 - t, Y[i] / 80, t + 3);
@@ -644,15 +658,15 @@ const PATTERNS = [
       }
     } },
   { id: 'n-butterfly', name: 'Sunspot cycle', group: 'Natural sun',
-    params: [{ k: 'cycle', n: 'Cycle length', min: 10, max: 120, step: 1, d: 40 }, { k: 'count', n: 'Spot groups', min: 1, max: 14, step: 1, d: 6 }, { k: 'size', n: 'Spot size', min: 30, max: 200, step: 1, d: 80 }, { k: 'rot', n: 'Rotation', min: 0, max: 2, step: 0.01, d: 0.5 }],
+    params: [{ k: 'cycle', n: 'Cycle length', min: 10, max: 120, step: 1, d: 24 }, { k: 'count', n: 'Spot groups', min: 1, max: 14, step: 1, d: 6 }, { k: 'size', n: 'Spot size', min: 30, max: 200, step: 1, d: 80 }, { k: 'rot', n: 'Rotation', min: 0, max: 2, step: 0.01, d: 0.5 }],
     desc: 'Spot groups emerge at mid-latitudes and migrate toward the equator over a cycle — the butterfly diagram — riding the rotation across the disc.',
     fn(o, c) {
       const t = c.t * c.speed, ph = fract(t / c.P.cycle), n = Math.floor(t / c.P.cycle);
-      for (let i = 0; i < N; i++) { const r = R[i] / RIM; E(o, i, 0.55 + 0.35 * Math.sqrt(Math.max(0, 1 - r * r))); }
+      for (let i = 0; i < N; i++) { const r = R[i] / RIM; E(o, i, 0.55 + 0.3 * Math.sqrt(Math.max(0, 1 - r * r)) + 0.08 * (vnoise(X[i] / 120 + t * 0.3, Y[i] / 120, t * 0.5) - 0.5)); }
       for (let k = 0; k < c.P.count; k++) {
-        const h = hash1(k * 7 + n * 31), born = hash1(k * 3 + n * 17) * 0.7, age = ph - born; if (age < 0 || age > 0.35) continue;
-        const lat = (h < 0.5 ? 1 : -1) * (0.6 - 0.45 * ph) * RIM * 0.8, lon = ((hash1(k * 11 + n) + t * 0.08 * c.P.rot) % 1) * 2 - 1, cx = lon * Math.sqrt(Math.max(0, RIM * RIM * 0.9 - lat * lat)), cy = lat;
-        const amp = Math.sin(Math.PI * age / 0.35), sz = c.P.size * (0.6 + 0.6 * hash1(k * 5));
+        const h = hash1(k * 7 + n * 31), born = hash1(k * 3 + n * 17) * 0.5, age = fract(ph - born + 1); if (age > 0.5) continue;
+        const lat = (h < 0.5 ? 1 : -1) * (0.6 - 0.45 * ph) * RIM * 0.8, lon = ((hash1(k * 11 + n) + t * 0.25 * c.P.rot / c.P.cycle * 24) % 1) * 2 - 1, cx = lon * Math.sqrt(Math.max(0, RIM * RIM * 0.9 - lat * lat)), cy = lat;
+        const amp = Math.sin(Math.PI * age / 0.5), sz = c.P.size * (0.6 + 0.6 * hash1(k * 5));
         for (let i = 0; i < N; i++) { const d = Math.hypot(X[i] - cx, Y[i] - cy); if (d > sz * 3) continue; const umbra = Math.exp(-d * d / (sz * sz * 0.35)), pen = Math.exp(-d * d / (sz * sz)) * 0.5; const q = 4 * i, f = 1 - amp * (0.85 * umbra + pen); o[q] *= f; o[q + 1] *= f; o[q + 2] *= f; o[q + 3] *= f; }
       }
     } },
@@ -660,7 +674,7 @@ const PATTERNS = [
     params: [{ k: 'limb', n: 'Limb darkening', min: 0, max: 1.2, step: 0.01, d: 0.9 }, { k: 'fac', n: 'Facular brightness', min: 0, max: 2, step: 0.01, d: 1.0 }, { k: 'onset', n: 'Onset radius', min: 0.4, max: 0.95, step: 0.01, d: 0.7 }, { k: 'churn', n: 'Churn', min: 0, max: 2, step: 0.01, d: 0.4 }],
     desc: 'Bright faculae that only show near the limb, where the dome is thin enough to render them as texture, against a strongly darkened edge.',
     fn(o, c) {
-      const t = c.t * c.speed * 0.1 * c.P.churn;
+      const t = c.t * c.speed * 0.5 * c.P.churn;
       for (let i = 0; i < N; i++) {
         const r = R[i] / RIM, mu = Math.sqrt(Math.max(0, 1 - r * r)), limb = 1 - c.P.limb * (1 - mu);
         const n = vnoise(X[i] / 70 + t, Y[i] / 70 - t, t * 3), fac = Math.pow(clamp01((r - c.P.onset) / (1 - c.P.onset)), 1.5) * Math.pow(n, 3) * 4 * c.P.fac;
@@ -691,7 +705,7 @@ const PATTERNS = [
       const t = c.t * c.speed, n = Math.floor(t / c.P.period), ph = fract(t / c.P.period), a0 = hash1(n * 17 + 2) * TAU;
       const dist = RIM * 0.55 + ph * c.P.speed * RIM * 0.9, bx = dist * Math.cos(a0), by = dist * Math.sin(a0), w = c.P.width * (0.4 + ph);
       for (let i = 0; i < N; i++) {
-        const r = R[i] / RIM, base = c.P.glow * (0.6 + 0.4 * Math.sqrt(Math.max(0, 1 - r * r)));
+        const r = R[i] / RIM, base = c.P.glow * (0.6 + 0.4 * Math.sqrt(Math.max(0, 1 - r * r)) + 0.15 * (vnoise(X[i] / 130 + t * 0.3, Y[i] / 130, t * 0.6) - 0.5));
         const d = Math.hypot(X[i] - bx, Y[i] - by), shell = Math.exp(-Math.pow((d - w * 0.7) / (w * 0.25), 2)) * (1 - ph) * 1.2, core = Math.exp(-d * d / (w * w * 0.3)) * Math.pow(1 - ph, 2);
         E(o, i, clamp01(base + shell + core));
       }
@@ -713,7 +727,7 @@ const PATTERNS = [
       }
     } },
   { id: 'n-pmodes', name: 'Five-minute oscillation', group: 'Natural sun',
-    params: [{ k: 'l', n: 'Angular order ℓ', min: 0, max: 12, step: 1, d: 4 }, { k: 'nr', n: 'Radial nodes', min: 0, max: 6, step: 1, d: 2 }, { k: 'freq', n: 'Frequency', min: 0.05, max: 2, step: 0.01, d: 0.4 }, { k: 'amp', n: 'Amplitude', min: 0, max: 1, step: 0.01, d: 0.5 }],
+    params: [{ k: 'l', n: 'Angular order ℓ', min: 0, max: 12, step: 1, d: 4 }, { k: 'nr', n: 'Radial nodes', min: 0, max: 6, step: 1, d: 2 }, { k: 'freq', n: 'Frequency', min: 0.05, max: 2, step: 0.01, d: 0.3 }, { k: 'amp', n: 'Amplitude', min: 0, max: 1.5, step: 0.01, d: 0.9 }],
     desc: 'Helioseismic p-modes: a standing wave with ℓ angular lobes and radial nodes ringing across the disc, slow and global, like a struck bell.',
     fn(o, c) {
       const t = c.t * c.speed * c.P.freq * TAU;
@@ -738,7 +752,7 @@ const PATTERNS = [
     params: [{ k: 'count', n: 'Filaments', min: 1, max: 8, step: 1, d: 3 }, { k: 'width', n: 'Width', min: 10, max: 120, step: 1, d: 40 }, { k: 'dark', n: 'Darkness', min: 0, max: 1, step: 0.01, d: 0.7 }, { k: 'drift', n: 'Drift', min: 0, max: 2, step: 0.01, d: 0.4 }],
     desc: 'Dark sinuous threads of cool plasma lying across the bright disc, slowly drifting and writhing.',
     fn(o, c) {
-      const t = c.t * c.speed * 0.08 * c.P.drift;
+      const t = c.t * c.speed * 0.45 * c.P.drift;
       for (let i = 0; i < N; i++) {
         const r = R[i] / RIM; let v = 0.6 + 0.3 * Math.sqrt(Math.max(0, 1 - r * r));
         for (let k = 0; k < c.P.count; k++) {
@@ -754,7 +768,7 @@ const PATTERNS = [
     params: [{ k: 'size', n: 'Hole size', min: 100, max: 600, step: 1, d: 320 }, { k: 'dark', n: 'Darkness', min: 0, max: 1, step: 0.01, d: 0.75 }, { k: 'drift', n: 'Drift', min: 0, max: 2, step: 0.01, d: 0.3 }, { k: 'edge', n: 'Edge softness', min: 0.2, max: 3, step: 0.01, d: 1 }],
     desc: 'Vast dark regions of open field drifting over a bright, mottled corona — the look of an EUV image.',
     fn(o, c) {
-      const t = c.t * c.speed * 0.05 * c.P.drift;
+      const t = c.t * c.speed * 0.3 * c.P.drift;
       for (let i = 0; i < N; i++) {
         const r = R[i] / RIM, n = vnoise(X[i] / c.P.size + t, Y[i] / c.P.size - t * 0.6, t * 2), m = vnoise(X[i] / 60, Y[i] / 60, t * 6);
         const hole = clamp01((n - 0.52) * 6 / c.P.edge), v = (0.55 + 0.35 * m) * (1 - c.P.dark * hole) * (0.7 + 0.3 * Math.sqrt(Math.max(0, 1 - r * r)));
@@ -788,10 +802,10 @@ const PATTERNS = [
     params: [{ k: 'count', n: 'Streamers', min: 1, max: 12, step: 1, d: 5 }, { k: 'width', n: 'Width (°)', min: 2, max: 30, step: 0.5, d: 9 }, { k: 'rot', n: 'Rotation', min: -2, max: 2, step: 0.01, d: 0.2 }, { k: 'disc', n: 'Disc level', min: 0, max: 1, step: 0.01, d: 0.4 }],
     desc: 'Bright streamers rooted in the outer rows, pointing outward like the corona in an eclipse photograph, turning slowly with the sun.',
     fn(o, c) {
-      const t = c.t * c.speed * 0.1 * c.P.rot;
+      const t = c.t * c.speed * 0.5 * c.P.rot, tf = c.t * c.speed;
       for (let i = 0; i < N; i++) {
         const r = R[i] / RIM, base = c.P.disc * (0.6 + 0.4 * Math.sqrt(Math.max(0, 1 - r * r))); let st = 0;
-        for (let k = 0; k < c.P.count; k++) { const a0 = (hash1(k * 7 + 3) * 360 + t * 57.3) % 360, da = Math.abs(((TH[i] - a0) % 360 + 540) % 360 - 180); st += Math.exp(-da * da / (2 * c.P.width * c.P.width)) * (0.6 + 0.4 * Math.sin(t * 3 + k)); }
+        for (let k = 0; k < c.P.count; k++) { const a0 = (hash1(k * 7 + 3) * 360 + t * 57.3) % 360, da = Math.abs(((TH[i] - a0) % 360 + 540) % 360 - 180); st += Math.exp(-da * da / (2 * c.P.width * c.P.width)) * (0.65 + 0.35 * Math.sin(tf * 2.5 + k * 1.7)); }
         E(o, i, clamp01(base + st * Math.pow(clamp01((r - 0.6) / 0.4), 2) * 1.2));
       }
     } },
@@ -809,20 +823,20 @@ const PATTERNS = [
     params: [{ k: 'rot', n: 'Rotation', min: -2, max: 2, step: 0.01, d: 0.3 }, { k: 'width', n: 'Bright arc (°)', min: 20, max: 180, step: 1, d: 90 }, { k: 'edge', n: 'Edge brightness', min: 0, max: 2, step: 0.01, d: 1 }, { k: 'disc', n: 'Disc level', min: 0, max: 1, step: 0.01, d: 0.45 }],
     desc: 'One side of the limb burns brighter and the bright side walks around the disc — the sun seen lit by something moving behind it.',
     fn(o, c) {
-      const a0 = c.t * c.speed * 0.2 * c.P.rot * 57.3;
+      const a0 = c.t * c.speed * c.P.rot * 57.3;
       for (let i = 0; i < N; i++) {
         const r = R[i] / RIM, da = Math.abs(((TH[i] - a0) % 360 + 540) % 360 - 180), arc = Math.exp(-da * da / (2 * c.P.width * c.P.width));
         E(o, i, clamp01(c.P.disc * (0.7 + 0.3 * Math.sqrt(Math.max(0, 1 - r * r))) + c.P.edge * arc * Math.pow(r, 3)));
       }
     } },
   { id: 'n-transit', name: 'Planet transit', group: 'Natural sun',
-    params: [{ k: 'size', n: 'Planet size', min: 20, max: 200, step: 1, d: 60 }, { k: 'period', n: 'Period', min: 5, max: 60, step: 0.5, d: 20 }, { k: 'lat', n: 'Track height', min: -0.8, max: 0.8, step: 0.01, d: 0.2 }, { k: 'limb', n: 'Limb darkening', min: 0, max: 1.2, step: 0.01, d: 0.6 }],
+    params: [{ k: 'size', n: 'Planet size', min: 20, max: 200, step: 1, d: 60 }, { k: 'period', n: 'Period', min: 5, max: 60, step: 0.5, d: 12 }, { k: 'lat', n: 'Track height', min: -0.8, max: 0.8, step: 0.01, d: 0.2 }, { k: 'limb', n: 'Limb darkening', min: 0, max: 1.2, step: 0.01, d: 0.6 }],
     desc: 'A small dark disc crosses the bright sun — a Venus transit. Hard-edged at the rim, a soft shadow when it passes through the dome.',
     fn(o, c) {
       const ph = fract(c.t * c.speed / c.P.period), px = (ph * 2 - 1) * (RIM + 100), py = c.P.lat * RIM;
       for (let i = 0; i < N; i++) {
-        const r = R[i] / RIM, limb = 1 - c.P.limb * (1 - Math.sqrt(Math.max(0, 1 - r * r))), d = Math.hypot(X[i] - px, Y[i] - py);
-        E(o, i, clamp01(0.85 * limb * clamp01((d - c.P.size) / 18)));
+        const r = R[i] / RIM, limb = 1 - c.P.limb * (1 - Math.sqrt(Math.max(0, 1 - r * r))), d = Math.hypot(X[i] - px, Y[i] - py), gr = 0.08 * (vnoise(X[i] / 110 + c.t * 0.3, Y[i] / 110, c.t * 0.5) - 0.5);
+        E(o, i, clamp01((0.85 + gr) * limb * clamp01((d - c.P.size) / 18)));
       }
     } },
   { id: 'n-erupt', name: 'Eruptive prominence', group: 'Natural sun',
@@ -830,12 +844,12 @@ const PATTERNS = [
     desc: 'A prominence hangs on the limb, then lifts off, stretches inward across the disc and tears apart — an eruption in slow motion.',
     fn(o, c) {
       const t = c.t * c.speed, n = Math.floor(t / c.P.period), ph = fract(t / c.P.period), a0 = hash1(n * 23 + 1) * 360;
-      const lift = Math.pow(Math.max(0, ph - 0.3) / 0.7, 1.6) * c.P.height, fade = ph < 0.8 ? 1 : 1 - (ph - 0.8) / 0.2;
+      const lift = Math.pow(Math.max(0, ph - 0.15) / 0.85, 1.6) * c.P.height, fade = ph < 0.8 ? 1 : 1 - (ph - 0.8) / 0.2;
       for (let i = 0; i < N; i++) {
-        const r = R[i] / RIM, base = c.P.disc * (0.6 + 0.4 * Math.sqrt(Math.max(0, 1 - r * r)));
+        const r = R[i] / RIM, base = c.P.disc * (0.6 + 0.4 * Math.sqrt(Math.max(0, 1 - r * r)) + 0.15 * (vnoise(X[i] / 120 + t * 0.3, Y[i] / 120, t * 0.5) - 0.5));
         const da = ((TH[i] - a0) % 360 + 540) % 360 - 180, inside = Math.abs(da) < c.P.span / 2;
         let v = 0;
-        if (inside) { const arch = Math.cos(Math.PI * da / c.P.span), target = RIM - 15 - arch * (40 + lift), d = Math.abs(R[i] - target); v = Math.exp(-d * d / (2 * Math.pow(22 + lift * 0.15, 2))) * fade * (0.7 + 0.3 * vnoise(da / 8, t * 2, n)); }
+        if (inside) { const arch = Math.cos(Math.PI * da / c.P.span), target = RIM - 15 - arch * (110 + lift), d = Math.abs(R[i] - target); v = Math.exp(-d * d / (2 * Math.pow(26 + lift * 0.15, 2))) * fade * (0.6 + 0.4 * vnoise(da / 6, t * 2.5, n)); }
         E(o, i, clamp01(base + v * 1.1));
       }
     } },
@@ -843,7 +857,7 @@ const PATTERNS = [
     params: [{ k: 'fib', n: 'Fibril length', min: 30, max: 300, step: 1, d: 120 }, { k: 'con', n: 'Contrast', min: 0, max: 2, step: 0.01, d: 0.8 }, { k: 'flow', n: 'Flow', min: 0, max: 2, step: 0.01, d: 0.5 }, { k: 'plage', n: 'Plage', min: 0, max: 1.5, step: 0.01, d: 0.5 }],
     desc: 'An H-alpha view: fibrils combed along the field, streaming, with bright plage patches where the field is strong.',
     fn(o, c) {
-      const t = c.t * c.speed * 0.1 * c.P.flow;
+      const t = c.t * c.speed * 0.45 * c.P.flow;
       for (let i = 0; i < N; i++) {
         const r = R[i] / RIM, dir = vnoise(X[i] / 500, Y[i] / 500, 3) * Math.PI * 2, u = X[i] * Math.cos(dir) + Y[i] * Math.sin(dir), w_ = -X[i] * Math.sin(dir) + Y[i] * Math.cos(dir);
         const fib = vnoise(u / c.P.fib + t, w_ / 18, t * 2), plage = Math.pow(vnoise(X[i] / 350 + 9, Y[i] / 350, t * 0.5), 4) * 3 * c.P.plage;
@@ -1098,13 +1112,31 @@ function ensureScaled() { if (scaledFor === S.scale) return; const k = 1 / S.sca
 const intent = new Float32Array(N * 4), wire = new Uint8Array(N * 4);
 const GLUT = new Uint8Array(4096); for (let k = 0; k < 4096; k++) GLUT[k] = Math.round(255 * Math.pow(k / 4095 * CAP, GAMMA));
 /* Sun palette: every pattern's per-pixel energy is re-coloured along one ramp — deep red → orange → amber → white-gold (W carries the highlights). Portable: a 1-D ramp lookup. */
-const SUN_RAMP = [[0, 0, 0, 0], [0.55, 0.04, 0, 0], [1.0, 0.22, 0, 0], [1.0, 0.45, 0.02, 0.12], [1.0, 0.62, 0.10, 0.45], [1.0, 0.78, 0.30, 1.0]];
+const PALETTES = {
+  'Sun':        [[0, 0, 0, 0, 0], [0.2, 0.55, 0.04, 0, 0], [0.4, 1.0, 0.22, 0, 0], [0.6, 1.0, 0.45, 0.02, 0.12], [0.8, 1.0, 0.62, 0.10, 0.45], [1, 1.0, 0.78, 0.30, 1.0]],
+  'Ember':      [[0, 0, 0, 0, 0], [0.35, 0.45, 0.02, 0, 0], [0.7, 1.0, 0.18, 0, 0], [1, 1.0, 0.5, 0.05, 0.25]],
+  'Gold':       [[0, 0, 0, 0, 0], [0.3, 0.6, 0.25, 0, 0], [0.7, 1.0, 0.65, 0.1, 0.3], [1, 1.0, 0.85, 0.4, 1.0]],
+  'White heat': [[0, 0, 0, 0, 0], [0.25, 0.7, 0.1, 0, 0], [0.5, 1.0, 0.5, 0.1, 0.3], [0.75, 1.0, 0.8, 0.5, 0.9], [1, 0.9, 0.9, 1.0, 1.0]],
+  'Blue flame': [[0, 0, 0, 0, 0], [0.3, 0.05, 0.1, 0.5, 0], [0.6, 0.2, 0.5, 1.0, 0.1], [0.85, 1.0, 0.6, 0.3, 0.4], [1, 1.0, 0.9, 0.7, 1.0]],
+  'Ice':        [[0, 0, 0, 0, 0], [0.4, 0.05, 0.25, 0.6, 0], [0.8, 0.3, 0.7, 1.0, 0.3], [1, 0.8, 0.95, 1.0, 1.0]],
+  'Aurora':     [[0, 0, 0, 0, 0], [0.3, 0.0, 0.35, 0.2, 0], [0.6, 0.1, 1.0, 0.4, 0], [0.85, 0.6, 0.3, 1.0, 0.1], [1, 1.0, 0.8, 0.9, 0.8]],
+  'Mono white': [[0, 0, 0, 0, 0], [1, 0.3, 0.3, 0.3, 1.0]],
+};
+const RLUT = new Float32Array(256 * 4);                          // energy → RGBW, rebuilt when the ramp changes
+function buildLUT() {
+  const st = S.ramp.slice().sort((a, b) => a[0] - b[0]);
+  for (let k = 0; k < 256; k++) {
+    const e = k / 255; let j = 0; while (j < st.length - 2 && e > st[j + 1][0]) j++;
+    const A = st[j], B = st[Math.min(st.length - 1, j + 1)], span = Math.max(1e-6, B[0] - A[0]), f = clamp01((e - A[0]) / span);
+    for (let c = 0; c < 4; c++) RLUT[4 * k + c] = A[1 + c] + (B[1 + c] - A[1 + c]) * f;
+  }
+}
 function sunify() {
   for (let i = 0; i < N; i++) {
     const k = 4 * i, e = clamp01(0.3 * intent[k] + 0.5 * intent[k + 1] + 0.2 * intent[k + 2] + 0.9 * intent[k + 3]);   // energy, W weighted as a real white
-    const p = Math.pow(e, 0.85 * S.contrast) * (SUN_RAMP.length - 1), j = Math.min(SUN_RAMP.length - 2, Math.floor(p)), f = p - j, A = SUN_RAMP[j], B = SUN_RAMP[j + 1];
+    const q = 4 * Math.round(Math.pow(e, 0.85 * S.contrast) * 255);
     const w = S.warmth, cool = Math.max(0, w), warm = Math.max(0, -w);   // warmth < 0 → redder, > 0 → whiter
-    intent[k] = A[0] + (B[0] - A[0]) * f; intent[k + 1] = (A[1] + (B[1] - A[1]) * f) * (1 - 0.5 * warm) + cool * 0.15 * e; intent[k + 2] = (A[2] + (B[2] - A[2]) * f) * (1 - 0.8 * warm) + cool * 0.2 * e; intent[k + 3] = (A[3] + (B[3] - A[3]) * f) * (1 - warm) + cool * 0.6 * e;
+    intent[k] = RLUT[q]; intent[k + 1] = RLUT[q + 1] * (1 - 0.5 * warm) + cool * 0.15 * e; intent[k + 2] = RLUT[q + 2] * (1 - 0.8 * warm) + cool * 0.2 * e; intent[k + 3] = RLUT[q + 3] * (1 - warm) + cool * 0.6 * e;
   }
 }
 function quantize(master) {
@@ -1114,8 +1146,9 @@ function quantize(master) {
 
 /* ───────────────────────── state ───────────────────────── */
 const S = { pattern: PATTERNS[0], speed: 1, master: 1, p1: PATTERNS[0].p1d, tint: [1, 0.6, 0.18], playing: true, t: 0, frame: 0, tick: 40, live: false, hang: 0, explode: 0, sunPalette: true, exposure: 1, scale: 1, contrast: 1, warmth: 0, P: {},
-  layers: { pcb: true, leds: true, skel: true, ring: true, mount: true, tray: true, stand: true, dome: false, flat: false, labels: false, floor: true },
-  light: { bloom: true, halo: true, work: false }, ambient: 0.12 };
+  layers: { pcb: true, leds: true, skel: true, ring: true, mount: true, tray: true, stand: true, dome: true, flat: true, wall: false, labels: false, floor: true },
+  light: { bloom: true, halo: true, work: false, spill: true }, ambient: 0.12, spill: 1 };
+S.ramp = PALETTES['Sun'].map(x => x.slice()); S.paletteName = 'Sun'; buildLUT();
 const $ = id => document.getElementById(id);
 
 /* ───────────────────────── scene ───────────────────────── */
@@ -1136,9 +1169,9 @@ const back = new THREE.DirectionalLight(0xd8dce6, 0.35); back.position.set(900, 
 function applyRoomLight() { const a = S.ambient, w = S.light.work ? 1 : 0; hemi.intensity = 0.1 + a * 1.2 + w * 0.6; key.intensity = 0.15 + a * 1.4 + w * 0.9; fill.intensity = 0.1 + a * 0.6 + w * 0.5; back.intensity = 0.3 + a * 1.2 + w * 0.8; if (bloom) bloom.threshold = w ? 1.05 : 0.62; }
 applyRoomLight();
 
-const RANK = { dome: 3, flat: 2, leds: 0, pcb: 0, labels: 0, skel: -1, ring: -1.6, mount: -2.4, tray: -3.2, stand: -4.2, floor: 0 };   // explode order, front → back
+const RANK = { dome: 3, flat: 2, leds: 0, pcb: 0, labels: 0, skel: -1, ring: -1.6, mount: -2.4, tray: -3.2, stand: -4.2, floor: 0, wall: 0 };   // explode order, front → back
 const L = {};                                                      // layer groups
-for (const k of Object.keys(S.layers)) { L[k] = new THREE.Group(); (k === 'floor' ? scene : sun).add(L[k]); }
+for (const k of Object.keys(S.layers)) { L[k] = new THREE.Group(); (k === 'floor' || k === 'wall' ? scene : sun).add(L[k]); }
 
 /* ── model frame: Fusion export is X right, Z up, Y toward the back → sim (x, y, z) = (X, Z, −Y).
    PCB front face is at z = 40 in that frame; the floor is 1165 mm below centre. ── */
@@ -1203,8 +1236,15 @@ function makeLabel(text, color, px) {
   for (let i = 0; i < N; i++) { const c = cen[BOARD[i]]; c[0] += X[i]; c[1] += Y[i]; c[2]++; }
   cen.forEach((c, b) => { const run = RUN[BOARD.indexOf(b)]; const s = makeLabel(`${BOARDS[b]} · run ${run}`, '#ffcf7a', 26); s.position.set(c[0] / c[2], c[1] / c[2], Z0 + 12); s.scale.set(160, 40, 1); L.labels.add(s); });
 }
-/* floor: the stand's feet are 1165 mm below centre */
-{ const g = new THREE.GridHelper(6000, 60, 0x1b1e26, 0x12141a); g.position.y = -1165; L.floor.add(g); }
+/* floor + wall: matte surfaces that catch the light spilling off the sun; the stand's feet are 1165 mm below centre */
+{ const g = new THREE.GridHelper(6000, 60, 0x1b1e26, 0x12141a); g.position.y = -1164; L.floor.add(g);
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.MeshStandardMaterial({ color: 0x1c1d21, roughness: 0.92, metalness: 0 })); f.rotation.x = -Math.PI / 2; f.position.y = -1165.5; L.floor.add(f);
+  const w = new THREE.Mesh(new THREE.PlaneGeometry(7000, 4200), new THREE.MeshStandardMaterial({ color: 0x23242a, roughness: 0.95, metalness: 0 })); w.position.set(0, 935, -320); L.wall.add(w); }
+/* spill: the lit dome is a ~Ø1.8 m Lambertian source. One point light in front of it, coloured and scaled by the live frame, plus a soft ambient lift. */
+const spill = new THREE.PointLight(0xffa040, 0, 0, 2); spill.position.set(0, -150, 1300); spill.layers.set(1); scene.add(spill);   // layer 1: lights the room and structure, never the diffusers themselves
+const spillAmb = new THREE.AmbientLight(0xffa040, 0); spillAmb.layers.set(1); scene.add(spillAmb);
+camera.layers.enable(1);
+for (const k of ['floor', 'wall', 'stand', 'ring', 'mount', 'tray', 'skel', 'pcb']) L[k].traverse(m => { if (m.isMesh) m.layers.enable(1); });
 
 /* ── the 2,417 pixels: package (lit by room light) + emitter face (wire colour) + halo (additive) ── */
 const colors = new Float32Array(N * 3);                            // linear display colour per pixel
@@ -1272,7 +1312,8 @@ view('iso');
 /* ───────────────────────── frame loop ───────────────────────── */
 const W_TINT = [1.0, 0.92, 0.78];                                  // SK6812 W die, warm-neutral, linear
 let lastEngine = 0, acc = 0, engineRate = 0, fpsN = 0, fpsT = performance.now(), litN = 0, peak = 0;
-const zoneW = new Float32Array(7);
+const zoneW = new Float32Array(7); let sumC = [0, 0, 0], lumens = 0;
+const LM = [0.6, 1.6, 0.35, 3.0];                                 // lm per channel at full drive, typical SK6812RGBW (assumption — measure)
 function engineTick(dt) {
   if (!S.live) {
     const P = S.P;
@@ -1284,15 +1325,25 @@ function engineTick(dt) {
   presentWire();
 }
 function presentWire() {                                           // wire bytes → linear display colour + stats
-  zoneW.fill(0); litN = 0; peak = 0;
+  zoneW.fill(0); litN = 0; peak = 0; let cr = 0, cg = 0, cb = 0, lm = 0;
   for (let i = 0; i < N; i++) {
     const r = wire[4 * i], g = wire[4 * i + 1], b = wire[4 * i + 2], w = wire[4 * i + 3], s = r + g + b + w;
+    lm += (r * LM[0] + g * LM[1] + b * LM[2] + w * LM[3]) / 255;
     if (s) litN++; const mx = Math.max(r, g, b, w); if (mx > peak) peak = mx;
     zoneW[ZONE[i]] += s;                                            // Σ bytes → mA later
     const wl = w / 255;
     colors[3 * i] = r / 255 + wl * W_TINT[0]; colors[3 * i + 1] = g / 255 + wl * W_TINT[1]; colors[3 * i + 2] = b / 255 + wl * W_TINT[2];
+    cr += colors[3 * i]; cg += colors[3 * i + 1]; cb += colors[3 * i + 2];
   }
   colorAttr.needsUpdate = true;
+  sumC = [cr / N, cg / N, cb / N]; lumens = lm * (S.layers.flat || S.layers.dome ? T_OPAL : 1) * (S.layers.dome ? T_DOME : 1);
+  updateSpill();
+}
+function updateSpill() {
+  const [r, g, b] = sumC, lum = 0.3 * r + 0.5 * g + 0.2 * b, mx = Math.max(r, g, b, 1e-4);
+  spill.color.setRGB(r / mx, g / mx, b / mx); spillAmb.color.copy(spill.color);
+  const on = S.light.spill ? S.spill : 0, T = (S.layers.flat || S.layers.dome ? T_OPAL : 1) * (S.layers.dome ? T_DOME : 1);
+  spill.intensity = on * lum * T * 1.4e7; spillAmb.intensity = on * lum * T * 0.6;
 }
 function loop(now) {
   requestAnimationFrame(loop);
@@ -1309,8 +1360,10 @@ function updateStats() {
   $('o-power').textContent = `${tot.toFixed(0)} W · ${(tot / 5).toFixed(1)} A`; $('o-pct').textContent = (tot / 967 * 100).toFixed(0) + ' %';
   $('s-power').textContent = tot.toFixed(0) + ' W'; $('s-frame').textContent = S.frame; $('s-t').textContent = S.t.toFixed(1) + ' s';
   $('o-lit').textContent = `${litN} / ${N}`; $('o-peak').textContent = peak + ' / 255';
+  const a2 = 0.9 * 0.9, lx = d => lumens / (Math.PI * (a2 + d * d)); $('o-lm').textContent = Math.round(lumens).toLocaleString() + ' lm'; $('o-lx').textContent = `${Math.round(lx(1))} / ${Math.round(lx(3))} lx`;
 }
 engineTick(0); requestAnimationFrame(t => { lastEngine = t; loop(t); });
+window.__sun = { S, PATTERNS, engineTick, wire, setPattern: id => setPattern(id) };   // test hook
 
 /* ───────────────────────── hover inspector ───────────────────────── */
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(); const insp = $('insp'); let hoverId = -1;
@@ -1366,14 +1419,36 @@ bind('hang', v => { S.hang = v; sun.rotation.z = deg(v); }, v => v + '°');
 bind('explode', v => { S.explode = v * 1.6; for (const k in L) if (k !== 'floor') L[k].position.z = RANK[k] * S.explode; layoutHalo(); }, v => v ? v + '%' : 'off');
 bind('ambient', v => { S.ambient = v; applyRoomLight(); }, v => Math.round(v * 100) + '%');
 bind('exposure', v => { S.exposure = v; layoutHalo(); }, v => v.toFixed(2) + '× (display only)');
+bind('spillk', v => { S.spill = v; updateSpill(); }, v => v.toFixed(2) + '×');
 bind('tick', v => { S.tick = v; $('o-tick').textContent = v + ' Hz'; }, v => v + ' Hz');
+const palsel = $('palsel'); for (const n of Object.keys(PALETTES).concat(['Custom'])) { const o = document.createElement('option'); o.value = n; o.textContent = n; palsel.appendChild(o); }
+function paletteChanged(custom) { if (custom) { S.paletteName = 'Custom'; palsel.value = 'Custom'; } buildLUT(); if (!S.playing) engineTick(0); }
+function renderStops() {
+  const host = $('palstops'); host.innerHTML = ''; const order = S.ramp.map((st, i) => i).sort((a, b) => S.ramp[a][0] - S.ramp[b][0]);
+  for (const i of order) {
+    const st = S.ramp[i], row = document.createElement('div'); row.className = 'stop';
+    const hex = '#' + new THREE.Color(clamp01(st[1]), clamp01(st[2]), clamp01(st[3])).getHexString();
+    row.innerHTML = `<input type="number" min="0" max="1" step="0.01" value="${+st[0].toFixed(2)}" title="position on the energy scale"><input type="color" value="${hex}" title="colour" style="width:100%;height:24px"><input type="range" min="0" max="1" step="0.01" value="${st[4]}" title="white channel ${st[4]}"><button title="remove stop" ${S.ramp.length <= 2 ? 'disabled' : ''}>×</button>`;
+    const [pos, col, w, del] = row.children;
+    pos.addEventListener('change', () => { st[0] = clamp01(+pos.value || 0); paletteChanged(true); renderStops(); });
+    col.addEventListener('input', () => { const c = new THREE.Color(col.value); st[1] = c.r; st[2] = c.g; st[3] = c.b; paletteChanged(true); });
+    w.addEventListener('input', () => { st[4] = +w.value; w.title = 'white channel ' + w.value; paletteChanged(true); });
+    del.addEventListener('click', () => { S.ramp.splice(i, 1); paletteChanged(true); renderStops(); });
+    host.appendChild(row);
+  }
+}
+function setPalette(name, ramp) { S.paletteName = name; S.ramp = (ramp || PALETTES[name] || PALETTES.Sun).map(x => x.slice()); palsel.value = PALETTES[name] ? name : 'Custom'; buildLUT(); renderStops(); if (!S.playing) engineTick(0); }
+palsel.addEventListener('change', () => { if (palsel.value !== 'Custom') setPalette(palsel.value); });
+$('paladd').addEventListener('click', () => { const st = S.ramp.slice().sort((a, b) => a[0] - b[0]); let gi = 0, gap = 0; for (let k = 0; k < st.length - 1; k++) if (st[k + 1][0] - st[k][0] > gap) { gap = st[k + 1][0] - st[k][0]; gi = k; } const A = st[gi], B = st[gi + 1]; S.ramp.push([(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, (A[2] + B[2]) / 2, (A[3] + B[3]) / 2, (A[4] + B[4]) / 2]); paletteChanged(true); renderStops(); });
+$('palreset').addEventListener('click', () => setPalette(PALETTES[S.paletteName] ? S.paletteName : 'Sun'));
+renderStops();
 $('sunpal').addEventListener('click', e => { S.sunPalette = !S.sunPalette; e.target.setAttribute('aria-pressed', S.sunPalette); if (!S.playing) engineTick(0); });
 $('play').addEventListener('click', e => { S.playing = !S.playing; e.target.textContent = S.playing ? 'Pause' : 'Play'; e.target.setAttribute('aria-pressed', S.playing); acc = 0; });
 $('step').addEventListener('click', () => { engineTick(1 / S.tick); });
 $('reset').addEventListener('click', () => { S.t = 0; S.frame = 0; engineTick(0); });
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => view(b.dataset.view)));
 document.querySelectorAll('#layers button').forEach(b => b.addEventListener('click', () => { const k = b.dataset.layer; S.layers[k] = !S.layers[k]; b.setAttribute('aria-pressed', S.layers[k]); L[k].visible = S.layers[k]; if (k === 'dome' || k === 'flat') layoutHalo(); }));
-document.querySelectorAll('#light button').forEach(b => b.addEventListener('click', () => { const k = b.dataset.opt; S.light[k] = !S.light[k]; b.setAttribute('aria-pressed', S.light[k]); applyRoomLight(); }));
+document.querySelectorAll('#light button').forEach(b => b.addEventListener('click', () => { const k = b.dataset.opt; S.light[k] = !S.light[k]; b.setAttribute('aria-pressed', S.light[k]); applyRoomLight(); updateSpill(); }));
 for (const k in S.layers) L[k].visible = S.layers[k];
 /* tabs */
 document.querySelectorAll('#panel [role=tab]').forEach(t => t.addEventListener('click', () => {
@@ -1396,11 +1471,12 @@ const fbOn = () => !!(FB.projectId && FB.apiKey);
 const fbBase = () => `https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents`;
 function fsEnc(v) { if (v === null || v === undefined) return { nullValue: null }; if (typeof v === 'string') return { stringValue: v }; if (typeof v === 'number') return { doubleValue: v }; if (typeof v === 'boolean') return { booleanValue: v }; if (Array.isArray(v)) return { arrayValue: { values: v.map(fsEnc) } }; const f = {}; for (const k in v) f[k] = fsEnc(v[k]); return { mapValue: { fields: f } }; }
 function fsDec(v) { if ('stringValue' in v) return v.stringValue; if ('doubleValue' in v) return v.doubleValue; if ('integerValue' in v) return +v.integerValue; if ('booleanValue' in v) return v.booleanValue; if ('nullValue' in v) return null; if ('timestampValue' in v) return v.timestampValue; if ('arrayValue' in v) return (v.arrayValue.values || []).map(fsDec); if ('mapValue' in v) { const o = {}; for (const k in (v.mapValue.fields || {})) o[k] = fsDec(v.mapValue.fields[k]); return o; } return null; }
-function snapshot() { return { pattern: S.pattern.id, P: Object.assign({}, S.P), speed: S.speed, master: S.master, scale: S.scale, contrast: S.contrast, warmth: S.warmth, sunPalette: S.sunPalette, tint: S.tint.slice(), dome: S.layers.dome, flat: S.layers.flat }; }
+function snapshot() { return { pattern: S.pattern.id, P: Object.assign({}, S.P), speed: S.speed, master: S.master, scale: S.scale, contrast: S.contrast, warmth: S.warmth, sunPalette: S.sunPalette, tint: S.tint.slice(), dome: S.layers.dome, flat: S.layers.flat, paletteName: S.paletteName, ramp: S.ramp.map(x => x.slice()) }; }
 function applyPreset(p) {
   setPattern(p.pattern, true); S.P = {}; for (const def of S.pattern.params) S.P[def.k] = p.P && p.P[def.k] !== undefined ? p.P[def.k] : def.d; renderParams();
   for (const k of ['speed', 'master', 'scale', 'contrast', 'warmth']) if (typeof p[k] === 'number') { S[k] = p[k]; globalShows[k] && globalShows[k](p[k]); }
   if (typeof p.sunPalette === 'boolean') { S.sunPalette = p.sunPalette; $('sunpal').setAttribute('aria-pressed', S.sunPalette); }
+  if (Array.isArray(p.ramp) && p.ramp.length >= 2) setPalette(p.paletteName || 'Custom', p.ramp);
   if (Array.isArray(p.tint)) { S.tint = p.tint.slice(); const c = new THREE.Color(...p.tint); $('tint').value = '#' + c.getHexString(); $('tint-o').textContent = '#' + c.getHexString(); }
   if (!S.playing) engineTick(0);
 }
