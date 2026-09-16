@@ -218,21 +218,32 @@ button.primary{background:var(--sun);color:#1a1205;border-color:var(--sun);font-
         <input type="text" id="ps-name" placeholder="Preset name" style="margin-bottom:6px">
         <input type="text" id="ps-author" placeholder="Your name" style="margin-bottom:6px">
         <textarea id="ps-notes" placeholder="Notes — what you like about it, where it should be used, what to tweak…"></textarea>
-        <div class="btns" style="margin-top:8px"><button id="ps-save" class="act primary">Save preset</button><button id="ps-link" class="act">Copy as link</button><span class="status" id="ps-status">local library</span></div>
-        <div class="note" id="ps-note">Saves the pattern, all its parameters, the common controls (speed, master, scale, contrast, warmth, colour) and the full colour palette with its stops.</div>
+        <div class="btns" style="margin-top:8px"><button id="ps-save" class="act primary">Save preset</button><button id="ps-link" class="act">Copy as link</button><span class="status" id="ps-status">…</span></div>
+        <div class="note">Saves the pattern, all its parameters, the common controls and the full colour palette.</div>
       </div>
       <div class="sec">
-        <h3>Library <button id="ps-refresh" class="act" style="padding:2px 8px;font-size:11px;margin-left:6px">Refresh</button></h3>
+        <h3>Library <span id="ps-count" style="color:var(--ink-2);text-transform:none;letter-spacing:0"></span></h3>
+        <input type="text" id="ps-q" placeholder="Search name, notes, author, pattern" style="margin-bottom:6px">
+        <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+          <select id="ps-sort" style="flex:1"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="name">Name</option><option value="pattern">Pattern</option><option value="author">Author</option></select>
+          <select id="ps-pat" style="flex:1"><option value="">All patterns</option></select>
+        </div>
+        <div class="tog" style="margin-bottom:8px"><button id="ps-arch" aria-pressed="false">Show archived</button><button id="ps-refresh" class="act" style="border-radius:999px">Refresh</button><button id="ps-export" class="act" style="border-radius:999px">Export all (JSON)</button></div>
         <div id="ps-list"><div class="note">Nothing saved yet.</div></div>
       </div>
-      <details class="sec"><summary style="font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);cursor:pointer">Shared store (Firebase)</summary>
+      <div class="sec">
+        <h3>Library stats</h3>
+        <div class="kv" id="ps-stats"><span>—</span><b></b></div>
+        <div id="ps-top" class="note"></div>
+      </div>
+      <details class="sec" id="srv-det"><summary style="font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);cursor:pointer">Server &amp; admin</summary>
         <div style="margin-top:8px">
-          <textarea id="fb-paste" placeholder="Paste the whole firebaseConfig { … } block here, or fill the two fields below" style="min-height:64px;font:11px var(--mono);margin-bottom:6px"></textarea>
-          <input type="text" id="fb-pid" placeholder="Firebase project ID" style="margin-bottom:6px">
-          <input type="text" id="fb-key" placeholder="Web API key" style="margin-bottom:6px">
-          <div class="btns"><button id="fb-connect" class="act primary">Connect</button><button id="fb-setup" class="act">Copy setup link</button><button id="fb-forget" class="act">Use local only</button></div>
-          <div class="note">Connect keeps the values in this browser only — nothing is written into the page or the repo. "Copy setup link" gives you a private link that configures another browser the same way; send it to whoever should share the library.</div>
-          <div class="note">Presets live in a Firestore collection called <code>presets</code>, shared by everyone who opens this page. Create a Firebase project, enable Firestore, and set these rules:<br><code>match /presets/{id} { allow read, create, delete: if true; allow update: if false; }</code><br>Both values are public by design (Firebase web config); they are kept in this browser and can be baked into the page.</div>
+          <div class="kv" style="margin-bottom:8px"><span>store</span><b id="srv-where">—</b></div>
+          <input type="text" id="srv-url" placeholder="Server URL (only needed when this page is not served by the server)" style="margin-bottom:6px">
+          <input type="password" id="srv-admin" placeholder="Admin passphrase (unlocks delete / restore / activity)" style="margin-bottom:6px">
+          <div class="btns"><button id="srv-apply" class="act primary">Apply</button><button id="srv-forget" class="act">Forget</button><span class="status" id="srv-status"></span></div>
+          <div class="note">When the page is opened from the server it finds its own <code>/api</code> automatically. The passphrase is kept in this browser only and sent as a header; it is never written into the page.</div>
+          <div id="srv-events" style="margin-top:8px"></div>
         </div>
       </details>
     </div>
@@ -1465,14 +1476,20 @@ const zonesEl = $('zones');
 ['Z0 disc (A)', 'Z1 sectors 1–2', 'Z2 sectors 3–4', 'Z3 sectors 5–6', 'Z4 sectors 7–8', 'Z5 sectors 9–10', 'Z6 sectors 11–12'].forEach(n => { const d = document.createElement('div'); d.className = 'z'; d.innerHTML = `<span>${n}</span><div class="bar"><i></i></div><b>—</b>`; zonesEl.appendChild(d); });
 updateStats();
 
-/* ───────────────────────── presets: Firestore (REST, shared) or browser library; share-links always ───────────────────────── */
-const FIREBASE = { projectId: '', apiKey: '' };                     // bake the shared store here; the Saved tab can also set it per browser
+/* ───────────────────────── presets: same-origin server (/api, SQLite) → configured server URL → browser library; share-links always ───────────────────────── */
 const LS = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
-let FB = Object.assign({}, FIREBASE, LS.get('sun-firebase', {}));
-const fbOn = () => !!(FB.projectId && FB.apiKey);
-const fbBase = () => `https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents`;
-function fsEnc(v) { if (v === null || v === undefined) return { nullValue: null }; if (typeof v === 'string') return { stringValue: v }; if (typeof v === 'number') return { doubleValue: v }; if (typeof v === 'boolean') return { booleanValue: v }; if (Array.isArray(v)) return { arrayValue: { values: v.map(fsEnc) } }; const f = {}; for (const k in v) f[k] = fsEnc(v[k]); return { mapValue: { fields: f } }; }
-function fsDec(v) { if ('stringValue' in v) return v.stringValue; if ('doubleValue' in v) return v.doubleValue; if ('integerValue' in v) return +v.integerValue; if ('booleanValue' in v) return v.booleanValue; if ('nullValue' in v) return null; if ('timestampValue' in v) return v.timestampValue; if ('arrayValue' in v) return (v.arrayValue.values || []).map(fsDec); if ('mapValue' in v) { const o = {}; for (const k in (v.mapValue.fields || {})) o[k] = fsDec(v.mapValue.fields[k]); return o; } return null; }
+let SRV = { url: LS.get('sun-server', ''), admin: LS.get('sun-admin', ''), mode: 'local', isAdmin: false };
+const api = path => (SRV.mode === 'same' ? '' : SRV.url.replace(/\/$/, '')) + '/api' + path;
+const hdrs = (extra = {}) => Object.assign({}, extra, SRV.admin ? { 'x-admin-key': SRV.admin } : {});
+async function jfetch(path, opt = {}) { const r = await fetch(api(path), Object.assign({}, opt, { headers: hdrs(Object.assign({}, opt.headers || {})) })); if (!r.ok) { let m = 'HTTP ' + r.status; try { m = (await r.json()).error || m; } catch (e) {} throw new Error(m); } return r.json(); }
+async function detectServer() {
+  SRV.mode = 'local'; SRV.isAdmin = false;
+  const tryMode = async mode => { SRV.mode = mode; const h = await jfetch('/health'); if (!h.ok) throw 0; if (SRV.admin) { try { SRV.isAdmin = (await jfetch('/admin/check')).admin; } catch (e) {} } return true; };
+  if (location.protocol.startsWith('http')) { try { return await tryMode('same'); } catch (e) {} }
+  if (SRV.url) { try { return await tryMode('remote'); } catch (e) {} }
+  SRV.mode = 'local'; return false;
+}
+const onServer = () => SRV.mode !== 'local';
 function snapshot() { return { pattern: S.pattern.id, P: Object.assign({}, S.P), speed: S.speed, master: S.master, scale: S.scale, contrast: S.contrast, warmth: S.warmth, sunPalette: S.sunPalette, tint: S.tint.slice(), dome: S.layers.dome, flat: S.layers.flat, paletteName: S.paletteName, ramp: S.ramp.map(x => x.slice()) }; }
 function applyPreset(p) {
   setPattern(p.pattern, true); S.P = {}; for (const def of S.pattern.params) S.P[def.k] = p.P && p.P[def.k] !== undefined ? p.P[def.k] : def.d; renderParams();
@@ -1482,55 +1499,84 @@ function applyPreset(p) {
   if (Array.isArray(p.tint)) { S.tint = p.tint.slice(); const c = new THREE.Color(...p.tint); $('tint').value = '#' + c.getHexString(); $('tint-o').textContent = '#' + c.getHexString(); }
   if (!S.playing) engineTick(0);
 }
-async function presetsList() {
-  if (!fbOn()) return LS.get('sun-presets', []);
-  const r = await fetch(`${fbBase()}/presets?pageSize=300&key=${FB.apiKey}`); if (!r.ok) throw new Error('Firestore ' + r.status);
-  const j = await r.json(); return (j.documents || []).map(d => Object.assign(fsDec({ mapValue: { fields: d.fields } }), { id: d.name.split('/').pop() }));
-}
-async function presetsSave(p) {
-  if (!fbOn()) { const L = LS.get('sun-presets', []); p.id = 'l' + Date.now().toString(36); L.unshift(p); LS.set('sun-presets', L); return; }
-  const body = fsEnc(p).mapValue; const r = await fetch(`${fbBase()}/presets?key=${FB.apiKey}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); if (!r.ok) throw new Error('Firestore ' + r.status);
-}
-async function presetsDelete(id) {
-  if (!fbOn()) { LS.set('sun-presets', LS.get('sun-presets', []).filter(p => p.id !== id)); return; }
-  const r = await fetch(`${fbBase()}/presets/${id}?key=${FB.apiKey}`, { method: 'DELETE' }); if (!r.ok) throw new Error('Firestore ' + r.status);
-}
+let cache = [];                                                    // summaries (+ full data once loaded)
+async function presetsList(all) { if (!onServer()) return LS.get('sun-presets', []).filter(p => all || !p.deleted); return jfetch('/presets' + (all ? '?all=1' : '')); }
+async function presetFull(p) { if (!onServer() || p.P) return p; const f = await jfetch('/presets/' + p.id); Object.assign(p, f); return p; }
+async function presetsSave(p) { if (!onServer()) { const L = LS.get('sun-presets', []); p.id = 'l' + Date.now().toString(36); L.unshift(p); LS.set('sun-presets', L); return p; } return jfetch('/presets', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(p) }); }
+async function presetsDelete(id) { if (!onServer()) { const L = LS.get('sun-presets', []); const p = L.find(x => x.id === id); if (p) p.deleted = new Date().toISOString(); LS.set('sun-presets', L); return; } return jfetch('/presets/' + id, { method: 'DELETE' }); }
+async function presetsRestore(id) { if (!onServer()) { const L = LS.get('sun-presets', []); const p = L.find(x => x.id === id); if (p) delete p.deleted; LS.set('sun-presets', L); return; } return jfetch('/presets/' + id + '/restore', { method: 'POST' }); }
+async function presetsPurge(id) { if (!onServer()) { LS.set('sun-presets', LS.get('sun-presets', []).filter(x => x.id !== id)); return; } return jfetch('/presets/' + id + '/purge', { method: 'DELETE' }); }
 function psStatus(cls, txt) { const el = $('ps-status'); el.className = 'status ' + cls; el.textContent = txt; }
 const esc = t => String(t ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const patName = id => { const p = PATTERNS.find(x => x.id === id); return p ? p.name : id; };
+let showArchived = false;
 async function renderPresets() {
   const host = $('ps-list');
   try {
-    const L = (await presetsList()).sort((a, b) => (b.created || '').localeCompare(a.created || ''));
-    if (!L.length) { host.innerHTML = '<div class="note">Nothing saved yet.</div>'; return; }
+    cache = await presetsList(showArchived);
+    const q = $('ps-q').value.trim().toLowerCase(), pat = $('ps-pat').value, sort = $('ps-sort').value;
+    const pats = [...new Set(cache.map(p => p.pattern))].sort((a, b) => patName(a).localeCompare(patName(b)));
+    const sel = $('ps-pat'); const cur = sel.value; sel.innerHTML = '<option value="">All patterns</option>' + pats.map(id => `<option value="${esc(id)}">${esc(patName(id))}</option>`).join(''); sel.value = pats.includes(cur) ? cur : '';
+    let L = cache.filter(p => (!pat || p.pattern === pat) && (!q || [p.name, p.notes, p.author, patName(p.pattern)].join(' ').toLowerCase().includes(q)));
+    const key = { new: (a, b) => (b.created || '').localeCompare(a.created || ''), old: (a, b) => (a.created || '').localeCompare(b.created || ''), name: (a, b) => (a.name || '').localeCompare(b.name || ''), pattern: (a, b) => patName(a.pattern).localeCompare(patName(b.pattern)), author: (a, b) => (a.author || '').localeCompare(b.author || '') }[sort];
+    L.sort(key);
+    $('ps-count').textContent = `· ${L.length}${L.length !== cache.length ? ' of ' + cache.length : ''}`;
+    if (!L.length) { host.innerHTML = `<div class="note">${cache.length ? 'No matches.' : 'Nothing saved yet.'}</div>`; return; }
     host.innerHTML = '';
     for (const p of L) {
-      const pat = PATTERNS.find(x => x.id === p.pattern), d = document.createElement('div'); d.className = 'preset';
-      d.innerHTML = `<b>${esc(p.name || 'untitled')}</b><div class="m">${esc(pat ? pat.name : p.pattern)} · ${esc(p.author || 'anon')} · ${p.created ? new Date(p.created).toLocaleString() : ''}</div>${p.notes ? `<p>${esc(p.notes)}</p>` : ''}<div class="btns"><button class="act" data-load>Load</button><button class="act" data-link>Copy link</button><button class="act" data-del>Delete</button></div>`;
-      d.querySelector('[data-load]').addEventListener('click', () => { applyPreset(p); document.querySelector('[data-tab="show"]').click(); });
-      d.querySelector('[data-link]').addEventListener('click', e => copyLink(p, e.target));
-      d.querySelector('[data-del]').addEventListener('click', async e => { if (e.target.textContent !== 'Really delete?') { e.target.textContent = 'Really delete?'; setTimeout(() => e.target.textContent = 'Delete', 2500); return; } try { await presetsDelete(p.id); renderPresets(); } catch (err) { psStatus('err', err.message); } });
+      const d = document.createElement('div'); d.className = 'preset'; if (p.deleted) d.style.opacity = 0.6;
+      d.innerHTML = `<b>${esc(p.name || 'untitled')}</b>${p.deleted ? ' <span class="m" style="display:inline;color:var(--bad)">archived</span>' : ''}<div class="m">${esc(patName(p.pattern))} · ${esc(p.author || 'anon')} · ${p.created ? new Date(p.created).toLocaleString() : ''}</div>${p.notes ? `<p>${esc(p.notes)}</p>` : ''}<div class="btns"><button class="act" data-load>Load</button><button class="act" data-link>Copy link</button><button class="act" data-json>JSON</button>${p.deleted ? (SRV.isAdmin || !onServer() ? '<button class="act" data-restore>Restore</button><button class="act" data-purge>Purge</button>' : '') : (SRV.isAdmin || !onServer() ? '<button class="act" data-del>Delete</button>' : '')}</div><pre class="m" data-raw hidden style="white-space:pre-wrap;max-height:220px;overflow:auto;margin-top:6px"></pre>`;
+      d.querySelector('[data-load]').addEventListener('click', async () => { try { applyPreset(await presetFull(p)); document.querySelector('[data-tab="show"]').click(); } catch (e) { psStatus('err', e.message); } });
+      d.querySelector('[data-link]').addEventListener('click', async e => { try { copyLink(await presetFull(p), e.target); } catch (err) { psStatus('err', err.message); } });
+      d.querySelector('[data-json]').addEventListener('click', async e => { const pre = d.querySelector('[data-raw]'); if (pre.hidden) { try { await presetFull(p); pre.textContent = JSON.stringify(p, null, 1); } catch (err) { pre.textContent = err.message; } } pre.hidden = !pre.hidden; e.target.textContent = pre.hidden ? 'JSON' : 'Hide'; });
+      const confirmBtn = (btn, fn) => btn.addEventListener('click', async e => { if (e.target.dataset.armed !== '1') { e.target.dataset.armed = '1'; const t = e.target.textContent; e.target.textContent = 'Sure?'; setTimeout(() => { e.target.dataset.armed = ''; e.target.textContent = t; }, 2500); return; } try { await fn(); renderPresets(); renderStats(); } catch (err) { psStatus('err', err.message); } });
+      d.querySelector('[data-del]') && confirmBtn(d.querySelector('[data-del]'), () => presetsDelete(p.id));
+      d.querySelector('[data-restore]') && d.querySelector('[data-restore]').addEventListener('click', async () => { try { await presetsRestore(p.id); renderPresets(); renderStats(); } catch (err) { psStatus('err', err.message); } });
+      d.querySelector('[data-purge]') && confirmBtn(d.querySelector('[data-purge]'), () => presetsPurge(p.id));
       host.appendChild(d);
     }
-  } catch (err) { host.innerHTML = `<div class="note">Could not load the shared library (${esc(err.message)}). Check the Firebase settings below.</div>`; }
+  } catch (err) { host.innerHTML = `<div class="note">Could not load the library (${esc(err.message)}).</div>`; }
+}
+async function renderStats() {
+  const kv = $('ps-stats'), top = $('ps-top');
+  try {
+    let st;
+    if (onServer()) st = await jfetch('/stats');
+    else { const L = LS.get('sun-presets', []); const live = L.filter(p => !p.deleted); const cnt = (arr, k) => Object.entries(arr.reduce((m, p) => (m[p[k] || 'anon'] = (m[p[k] || 'anon'] || 0) + 1, m), {})).map(([a, n]) => ({ [k]: a, n })).sort((a, b) => b.n - a.n); st = { total: L.length, live: live.length, archived: L.length - live.length, authors: new Set(live.map(p => p.author || 'anon')).size, patterns: new Set(live.map(p => p.pattern)).size, first: L.at(-1)?.created, last: L[0]?.created, byPattern: cnt(live, 'pattern'), byAuthor: cnt(live, 'author') }; }
+    kv.innerHTML = `<span>saved</span><b>${st.live || 0}</b><span>archived</span><b>${st.archived || 0}</b><span>people</span><b>${st.authors || 0}</b><span>patterns used</span><b>${st.patterns || 0}</b><span>first · last</span><b>${st.first ? new Date(st.first).toLocaleDateString() : '—'} · ${st.last ? new Date(st.last).toLocaleDateString() : '—'}</b>`;
+    top.innerHTML = (st.byPattern || []).slice(0, 6).map(r => `${esc(patName(r.pattern))} <b style="color:var(--ink-2)">${r.n}</b>`).join(' · ') + ((st.byAuthor || []).length ? '<br>' + st.byAuthor.slice(0, 6).map(r => `${esc(r.author)} <b style="color:var(--ink-2)">${r.n}</b>`).join(' · ') : '');
+  } catch (err) { kv.innerHTML = `<span>stats</span><b>${esc(err.message)}</b>`; }
+}
+async function renderEvents() {
+  const host = $('srv-events'); if (!onServer() || !SRV.isAdmin) { host.innerHTML = ''; return; }
+  try { const ev = await jfetch('/events?limit=60'); host.innerHTML = '<div class="m" style="font:10px var(--mono);color:var(--ink-3);margin-bottom:4px">RECENT ACTIVITY</div>' + ev.map(e => `<div class="m">${new Date(e.at).toLocaleString()} · ${esc(e.kind)} · ${esc(e.detail || e.preset_id || '')} · ${esc(e.ip || '')}</div>`).join(''); } catch (err) { host.innerHTML = `<div class="note">${esc(err.message)}</div>`; }
 }
 function encodePreset(p) { return btoa(unescape(encodeURIComponent(JSON.stringify(p)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 function decodePreset(h) { try { return JSON.parse(decodeURIComponent(escape(atob(h.replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return null; } }
-async function copyLink(p, btn) { const url = location.href.split('#')[0] + '#preset=' + encodePreset(p); try { await navigator.clipboard.writeText(url); if (btn) { const t = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => btn.textContent = t, 1500); } } catch (e) { prompt('Copy this link', url); } }
+async function copyLink(p, btn) { const { id, created, deleted, ...rest } = p; const url = location.href.split('#')[0] + '#preset=' + encodePreset(rest); try { await navigator.clipboard.writeText(url); if (btn) { const t = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => btn.textContent = t, 1500); } } catch (e) { prompt('Copy this link', url); } }
 $('ps-save').addEventListener('click', async () => {
   const p = Object.assign(snapshot(), { name: $('ps-name').value.trim() || S.pattern.name, author: $('ps-author').value.trim(), notes: $('ps-notes').value.trim(), created: new Date().toISOString() });
   LS.set('sun-author', p.author);
-  try { psStatus('', 'saving…'); await presetsSave(p); psStatus('on', fbOn() ? 'saved to shared library' : 'saved in this browser'); $('ps-name').value = ''; $('ps-notes').value = ''; renderPresets(); } catch (err) { psStatus('err', err.message); }
+  try { psStatus('', 'saving…'); await presetsSave(p); psStatus('on', onServer() ? 'saved to the shared library' : 'saved in this browser'); $('ps-name').value = ''; $('ps-notes').value = ''; renderPresets(); renderStats(); } catch (err) { psStatus('err', err.message); }
 });
 $('ps-link').addEventListener('click', e => copyLink(Object.assign(snapshot(), { name: $('ps-name').value.trim() || S.pattern.name, notes: $('ps-notes').value.trim(), author: $('ps-author').value.trim() }), e.target));
-$('ps-refresh').addEventListener('click', renderPresets);
+$('ps-refresh').addEventListener('click', () => { renderPresets(); renderStats(); renderEvents(); });
+$('ps-q').addEventListener('input', renderPresets); $('ps-sort').addEventListener('change', renderPresets); $('ps-pat').addEventListener('change', renderPresets);
+$('ps-arch').addEventListener('click', e => { showArchived = !showArchived; e.target.setAttribute('aria-pressed', showArchived); renderPresets(); });
+$('ps-export').addEventListener('click', () => { if (onServer()) { window.open(api('/export'), '_blank'); return; } const txt = JSON.stringify({ exported: new Date().toISOString(), presets: LS.get('sun-presets', []) }, null, 1); const w = window.open('', '_blank'); if (w) { w.document.write('<pre>' + esc(txt) + '</pre>'); w.document.close(); } else prompt('Copy', txt); });
 $('ps-author').value = LS.get('sun-author', '');
-function fbRefresh() { $('fb-pid').value = FB.projectId || ''; $('fb-key').value = FB.apiKey || ''; psStatus(fbOn() ? 'on' : '', fbOn() ? 'shared library · ' + FB.projectId : 'local library (this browser only)'); renderPresets(); }
-$('fb-paste').addEventListener('input', () => { const t = $('fb-paste').value, pid = t.match(/projectId\s*[:=]\s*["']([^"']+)["']/), key = t.match(/apiKey\s*[:=]\s*["']([^"']+)["']/); if (pid) $('fb-pid').value = pid[1]; if (key) $('fb-key').value = key[1]; });
-$('fb-connect').addEventListener('click', () => { FB = { projectId: $('fb-pid').value.trim(), apiKey: $('fb-key').value.trim() }; LS.set('sun-firebase', FB); $('fb-paste').value = ''; fbRefresh(); });
-$('fb-setup').addEventListener('click', async e => { if (!fbOn()) { psStatus('err', 'connect first'); return; } const url = location.href.split('#')[0] + '#fb=' + encodePreset(FB); try { await navigator.clipboard.writeText(url); e.target.textContent = 'Copied'; setTimeout(() => e.target.textContent = 'Copy setup link', 1500); } catch (err) { prompt('Copy this link', url); } });
-{ const m = location.hash.match(/fb=([^&]+)/); if (m) { const cfg = decodePreset(m[1]); if (cfg && cfg.projectId && cfg.apiKey) { FB = { projectId: cfg.projectId, apiKey: cfg.apiKey }; LS.set('sun-firebase', FB); history.replaceState(null, '', location.pathname + location.search); } } }
-$('fb-forget').addEventListener('click', () => { FB = Object.assign({}, FIREBASE); LS.set('sun-firebase', {}); fbRefresh(); });
-fbRefresh();
+function srvRefresh() {
+  $('srv-url').value = SRV.url || ''; $('srv-admin').value = SRV.admin || '';
+  const where = SRV.mode === 'same' ? 'this server' : SRV.mode === 'remote' ? SRV.url : 'this browser only';
+  $('srv-where').textContent = where + (onServer() ? (SRV.isAdmin ? ' · admin' : ' · read + save') : '');
+  psStatus(onServer() ? 'on' : '', onServer() ? 'shared library' : 'local library (this browser only)');
+  const st = $('srv-status'); st.className = 'status ' + (onServer() ? 'on' : ''); st.textContent = onServer() ? (SRV.isAdmin ? 'connected as admin' : SRV.admin ? 'connected — passphrase not accepted' : 'connected') : (SRV.url ? 'server not reachable' : 'no server');
+  renderPresets(); renderStats(); renderEvents();
+}
+$('srv-apply').addEventListener('click', async () => { SRV.url = $('srv-url').value.trim(); SRV.admin = $('srv-admin').value; LS.set('sun-server', SRV.url); LS.set('sun-admin', SRV.admin); await detectServer(); srvRefresh(); });
+$('srv-forget').addEventListener('click', async () => { SRV.url = ''; SRV.admin = ''; LS.set('sun-server', ''); LS.set('sun-admin', ''); await detectServer(); srvRefresh(); });
+{ const m = location.hash.match(/server=([^&]+)/); if (m) { const cfg = decodePreset(m[1]); if (cfg && cfg.url) { SRV.url = cfg.url; LS.set('sun-server', SRV.url); history.replaceState(null, '', location.pathname + location.search); } } }
+detectServer().then(srvRefresh);
 { const m = location.hash.match(/preset=([^&]+)/); if (m) { const p = decodePreset(m[1]); if (p && p.pattern) { applyPreset(p); if (p.notes || p.name) $('pat-desc').textContent = `${p.name || ''}${p.author ? ' — ' + p.author : ''}${p.notes ? ': ' + p.notes : ''}`; } } }
 
 /* ───────────────────────── live input (WebSocket, raw frame or DDP packets) ───────────────────────── */
