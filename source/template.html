@@ -30,6 +30,16 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:13px/1
 .sec{margin-bottom:16px}
 .sec h3{margin:0 0 8px;font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
 .row{display:grid;grid-template-columns:92px 1fr 44px;gap:8px;align-items:center;margin:6px 0}
+.prow{display:grid;grid-template-columns:88px 1fr 60px;gap:8px;align-items:center;margin:5px 0}
+.prow label{color:var(--ink-2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow input[type=number]{width:100%;background:#0c0e13;color:var(--ink);border:1px solid var(--panel-line);border-radius:4px;padding:3px 5px;font:11px var(--mono);text-align:right;-moz-appearance:textfield}
+.prow input[type=number]::-webkit-inner-spin-button{opacity:.4}
+textarea{width:100%;background:#0c0e13;color:var(--ink);border:1px solid var(--panel-line);border-radius:5px;padding:7px 8px;font:12px var(--sans);resize:vertical;min-height:56px}
+.preset{border:1px solid var(--panel-line);border-radius:6px;padding:8px 10px;margin:6px 0;background:#0c0e13}
+.preset b{color:var(--sun-2);font-weight:500}
+.preset .m{font:10.5px var(--mono);color:var(--ink-3);margin:2px 0 4px}
+.preset p{margin:0 0 6px;color:var(--ink-2);font-size:12px;white-space:pre-wrap}
+.preset .btns button{padding:4px 8px;font-size:11px}
 .row label{color:var(--ink-2);font-size:12px}
 .row output{font:11px var(--mono);color:var(--ink-2);text-align:right}
 input[type=range]{width:100%;accent-color:var(--sun);height:18px;margin:0}
@@ -93,6 +103,7 @@ button.primary{background:var(--sun);color:#1a1205;border-color:var(--sun);font-
     <button role="tab" aria-selected="true" data-tab="show" id="tab-show">Show</button>
     <button role="tab" aria-selected="false" data-tab="build" id="tab-build">Build</button>
     <button role="tab" aria-selected="false" data-tab="out" id="tab-out">Output</button>
+    <button role="tab" aria-selected="false" data-tab="saved" id="tab-saved">Saved</button>
     <button role="tab" aria-selected="false" data-tab="live" id="tab-live">Live</button>
   </div>
   <div class="body">
@@ -104,10 +115,9 @@ button.primary{background:var(--sun);color:#1a1205;border-color:var(--sun);font-
         <div class="pat-desc" id="pat-desc"></div>
       </div>
       <div class="sec">
-        <div class="row"><label for="speed">Speed</label><input type="range" id="speed" min="0" max="3" step="0.05" value="1"><output id="speed-o">1.00×</output></div>
-        <div class="row"><label for="master">Master</label><input type="range" id="master" min="0" max="1" step="0.01" value="1"><output id="master-o">100%</output></div>
-        <div class="row"><label for="p1" id="p1-l">Param</label><input type="range" id="p1" min="0" max="1" step="0.01" value="0.5"><output id="p1-o">0.50</output></div>
+        <div id="params"></div>
         <div class="row"><label for="tint">Colour</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="tint" value="#ff9a2e"><span id="tint-o" style="font:11px var(--mono);color:var(--ink-3)">#ff9a2e</span></div><span></span></div>
+        <details class="sec" style="margin:10px 0 0"><summary style="font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);cursor:pointer">Common controls</summary><div id="globals" style="margin-top:6px"></div></details>
         <div class="tog" style="margin-top:8px"><button id="sunpal" aria-pressed="true">Sun palette</button></div>
         <div class="btns" style="margin-top:8px"><button id="play" class="act" aria-pressed="true">Pause</button><button id="step" class="act">Step 1 frame</button><button id="reset" class="act">Reset t</button></div>
       </div>
@@ -187,6 +197,29 @@ button.primary{background:var(--sun);color:#1a1205;border-color:var(--sun);font-
         <div class="note">Move the pointer over any LED in the 3D view for its index, run, universe/channel, board position and the RGBW bytes on the wire this frame.</div>
       </div>
     </div>
+    <!-- SAVED -->
+    <div data-pane="saved" hidden>
+      <div class="sec">
+        <h3>Save what's on screen</h3>
+        <input type="text" id="ps-name" placeholder="Preset name" style="margin-bottom:6px">
+        <input type="text" id="ps-author" placeholder="Your name" style="margin-bottom:6px">
+        <textarea id="ps-notes" placeholder="Notes — what you like about it, where it should be used, what to tweak…"></textarea>
+        <div class="btns" style="margin-top:8px"><button id="ps-save" class="act primary">Save preset</button><button id="ps-link" class="act">Copy as link</button><span class="status" id="ps-status">local library</span></div>
+        <div class="note" id="ps-note">Saves the pattern, all its parameters and the common controls (speed, master, scale, contrast, warmth, colour, palette).</div>
+      </div>
+      <div class="sec">
+        <h3>Library <button id="ps-refresh" class="act" style="padding:2px 8px;font-size:11px;margin-left:6px">Refresh</button></h3>
+        <div id="ps-list"><div class="note">Nothing saved yet.</div></div>
+      </div>
+      <details class="sec"><summary style="font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);cursor:pointer">Shared store (Firebase)</summary>
+        <div style="margin-top:8px">
+          <input type="text" id="fb-pid" placeholder="Firebase project ID" style="margin-bottom:6px">
+          <input type="text" id="fb-key" placeholder="Web API key" style="margin-bottom:6px">
+          <div class="btns"><button id="fb-connect" class="act">Connect</button><button id="fb-forget" class="act">Use local only</button></div>
+          <div class="note">Presets live in a Firestore collection called <code>presets</code>, shared by everyone who opens this page. Create a Firebase project, enable Firestore, and set these rules:<br><code>match /presets/{id} { allow read, create, delete: if true; allow update: if false; }</code><br>Both values are public by design (Firebase web config); they are kept in this browser and can be baked into the page.</div>
+        </div>
+      </details>
+    </div>
     <!-- LIVE -->
     <div data-pane="live" hidden>
       <div class="sec">
@@ -224,9 +257,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 /* ───────────────────────── map ───────────────────────── */
 const D = SUN_DATA, N = D.N;
-const X = Float32Array.from(D.x), Y = Float32Array.from(D.y);
-const R = new Float32Array(N), TH = new Float32Array(N);          // mm, degrees 0..360 CCW from +x
+let X = Float32Array.from(D.x), Y = Float32Array.from(D.y);
+let R = new Float32Array(N); const TH = new Float32Array(N);          // mm, degrees 0..360 CCW from +x
 for (let i = 0; i < N; i++) { R[i] = Math.hypot(X[i], Y[i]); TH[i] = ((Math.atan2(Y[i], X[i]) * 180 / Math.PI) + 360) % 360; }
+const X0 = X, Y0 = Y, R0 = R;                                       // geometry always uses these; patterns see X/Y/R, which Scale may swap
 const BOARD = Uint8Array.from(D.b), RUN = Uint8Array.from(D.run), RI = Uint16Array.from(D.ri);
 const BOARDS = D.boards;                                            // 0=A, 1..12=B1..B12, 13..24=C1..C12
 const RUNS = D.runs;                                                // [run, boards, px, [uni...]]
@@ -265,6 +299,7 @@ function hsv(h, s, v, o, k) {                                       // h 0..1 �
 }
 const DEPTH = r => 8 + 200 * Math.pow(Math.max(0, Math.cos(Math.PI * Math.min(r, 700) / 1400)), 1.5);   // dome stand-off above the opal, mm (fits the STEP profile)
 const FEAT = r => 30 + 1.8 * DEPTH(r);                                                                   // smallest feature the dome preserves at radius r, mm
+const E = (o, i, v) => { o[4 * i] = v; o[4 * i + 1] = v * 0.6; o[4 * i + 2] = v * 0.2; o[4 * i + 3] = v * 0.4; };   // sun-energy shorthand
 const set = (o, i, r, g, b, w) => { o[4 * i] = r; o[4 * i + 1] = g; o[4 * i + 2] = b; o[4 * i + 3] = w; };
 
 const PATTERNS = [
@@ -572,6 +607,250 @@ const PATTERNS = [
       }
     } },
 
+  /* ── Natural sun: the physics of the photosphere and corona, in sun colour. Each declares its own params (c.P). ── */
+  { id: 'n-photosphere', name: 'Photosphere', group: 'Natural sun',
+    params: [{ k: 'gran', n: 'Granule size', min: 40, max: 400, step: 1, d: 140 }, { k: 'con', n: 'Contrast', min: 0, max: 2, step: 0.01, d: 0.9 }, { k: 'limb', n: 'Limb darkening', min: 0, max: 1.2, step: 0.01, d: 0.7 }, { k: 'drift', n: 'Drift', min: 0, max: 2, step: 0.01, d: 0.5 }, { k: 'churn', n: 'Churn', min: 0, max: 2, step: 0.01, d: 0.6 }],
+    desc: 'The quiet sun: multi-octave granulation churning under limb darkening. Granules live a few minutes and drift slowly; the limb dims as it does on the real disc.',
+    fn(o, c) {
+      const t = c.t * c.speed, P = c.P, g = P.gran;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, limb = 1 - P.limb * (1 - Math.sqrt(Math.max(0, 1 - r * r)));
+        const n1 = vnoise(X[i] / g + t * 0.06 * P.drift, Y[i] / g, t * 0.12 * P.churn), n2 = vnoise(X[i] / (g * 0.45) - t * 0.09 * P.drift, Y[i] / (g * 0.45) + 7, t * 0.25 * P.churn + 3), n3 = vnoise(X[i] / (g * 2.6), Y[i] / (g * 2.6) - t * 0.03, t * 0.05 + 9);
+        const v = clamp01(limb * (0.62 + P.con * (0.55 * n1 + 0.3 * n2 + 0.15 * n3 - 0.5)));
+        E(o, i, v);
+      }
+    } },
+  { id: 'n-network', name: 'Supergranulation', group: 'Natural sun',
+    params: [{ k: 'cell', n: 'Cell size', min: 120, max: 600, step: 1, d: 300 }, { k: 'edge', n: 'Edge brightness', min: 0, max: 1.5, step: 0.01, d: 0.8 }, { k: 'width', n: 'Edge width', min: 0.02, max: 0.4, step: 0.01, d: 0.12 }, { k: 'flow', n: 'Flow', min: 0, max: 2, step: 0.01, d: 0.4 }],
+    desc: 'Supergranular cells with a bright chromospheric network along their boundaries — the pattern that shows up in Ca II images.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.05 * c.P.flow, cs = c.P.cell;
+      for (let i = 0; i < N; i++) {
+        const n = vnoise(X[i] / cs + t, Y[i] / cs - t * 0.7, t * 2), n2 = vnoise(X[i] / cs + 11 - t, Y[i] / cs + 5, t * 2 + 4);
+        const ridge = Math.exp(-Math.pow((n - 0.5) / c.P.width, 2)) + 0.6 * Math.exp(-Math.pow((n2 - 0.5) / c.P.width, 2));
+        const r = R[i] / RIM, v = clamp01(0.3 * (1 - 0.5 * r * r) + c.P.edge * ridge * 0.6); E(o, i, v);
+      }
+    } },
+  { id: 'n-diffrot', name: 'Differential rotation', group: 'Natural sun',
+    params: [{ k: 'rot', n: 'Rotation', min: 0, max: 2, step: 0.01, d: 0.6 }, { k: 'shear', n: 'Equator/pole shear', min: 0, max: 1, step: 0.01, d: 0.6 }, { k: 'bands', n: 'Band contrast', min: 0, max: 1.5, step: 0.01, d: 0.7 }, { k: 'bandw', n: 'Band scale', min: 60, max: 500, step: 1, d: 200 }],
+    desc: 'Banded surface flow streaming faster at the equator than the poles, as the real sun turns. Texture shears where the bands slide past each other.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.15 * c.P.rot;
+      for (let i = 0; i < N; i++) {
+        const lat = Y[i] / RIM, w = 1 - c.P.shear * lat * lat, xs = X[i] + t * 400 * w;
+        const n = vnoise(xs / c.P.bandw, Y[i] / (c.P.bandw * 0.35), t * 0.3), n2 = vnoise(xs / 80 - t, Y[i] / 80, t + 3);
+        const r = R[i] / RIM, limb = 0.4 + 0.6 * Math.sqrt(Math.max(0, 1 - r * r * 0.8));
+        E(o, i, clamp01(limb * (0.55 + c.P.bands * (0.7 * n + 0.3 * n2 - 0.5))));
+      }
+    } },
+  { id: 'n-butterfly', name: 'Sunspot cycle', group: 'Natural sun',
+    params: [{ k: 'cycle', n: 'Cycle length', min: 10, max: 120, step: 1, d: 40 }, { k: 'count', n: 'Spot groups', min: 1, max: 14, step: 1, d: 6 }, { k: 'size', n: 'Spot size', min: 30, max: 200, step: 1, d: 80 }, { k: 'rot', n: 'Rotation', min: 0, max: 2, step: 0.01, d: 0.5 }],
+    desc: 'Spot groups emerge at mid-latitudes and migrate toward the equator over a cycle — the butterfly diagram — riding the rotation across the disc.',
+    fn(o, c) {
+      const t = c.t * c.speed, ph = fract(t / c.P.cycle), n = Math.floor(t / c.P.cycle);
+      for (let i = 0; i < N; i++) { const r = R[i] / RIM; E(o, i, 0.55 + 0.35 * Math.sqrt(Math.max(0, 1 - r * r))); }
+      for (let k = 0; k < c.P.count; k++) {
+        const h = hash1(k * 7 + n * 31), born = hash1(k * 3 + n * 17) * 0.7, age = ph - born; if (age < 0 || age > 0.35) continue;
+        const lat = (h < 0.5 ? 1 : -1) * (0.6 - 0.45 * ph) * RIM * 0.8, lon = ((hash1(k * 11 + n) + t * 0.08 * c.P.rot) % 1) * 2 - 1, cx = lon * Math.sqrt(Math.max(0, RIM * RIM * 0.9 - lat * lat)), cy = lat;
+        const amp = Math.sin(Math.PI * age / 0.35), sz = c.P.size * (0.6 + 0.6 * hash1(k * 5));
+        for (let i = 0; i < N; i++) { const d = Math.hypot(X[i] - cx, Y[i] - cy); if (d > sz * 3) continue; const umbra = Math.exp(-d * d / (sz * sz * 0.35)), pen = Math.exp(-d * d / (sz * sz)) * 0.5; const q = 4 * i, f = 1 - amp * (0.85 * umbra + pen); o[q] *= f; o[q + 1] *= f; o[q + 2] *= f; o[q + 3] *= f; }
+      }
+    } },
+  { id: 'n-faculae', name: 'Faculae', group: 'Natural sun',
+    params: [{ k: 'limb', n: 'Limb darkening', min: 0, max: 1.2, step: 0.01, d: 0.9 }, { k: 'fac', n: 'Facular brightness', min: 0, max: 2, step: 0.01, d: 1.0 }, { k: 'onset', n: 'Onset radius', min: 0.4, max: 0.95, step: 0.01, d: 0.7 }, { k: 'churn', n: 'Churn', min: 0, max: 2, step: 0.01, d: 0.4 }],
+    desc: 'Bright faculae that only show near the limb, where the dome is thin enough to render them as texture, against a strongly darkened edge.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.1 * c.P.churn;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, mu = Math.sqrt(Math.max(0, 1 - r * r)), limb = 1 - c.P.limb * (1 - mu);
+        const n = vnoise(X[i] / 70 + t, Y[i] / 70 - t, t * 3), fac = Math.pow(clamp01((r - c.P.onset) / (1 - c.P.onset)), 1.5) * Math.pow(n, 3) * 4 * c.P.fac;
+        E(o, i, clamp01(0.6 * limb + fac * 0.5));
+      }
+    } },
+  { id: 'n-loops', name: 'Flare arcade', group: 'Natural sun',
+    params: [{ k: 'size', n: 'Loop size', min: 60, max: 400, step: 1, d: 180 }, { k: 'loops', n: 'Loops', min: 1, max: 9, step: 1, d: 5 }, { k: 'period', n: 'Period', min: 3, max: 30, step: 0.5, d: 10 }, { k: 'width', n: 'Loop width', min: 8, max: 60, step: 1, d: 22 }],
+    desc: 'An arcade of coronal loops brightens over an active region, rises, and fades — the aftermath of a flare, drawn as nested arches.',
+    fn(o, c) {
+      const t = c.t * c.speed, n = Math.floor(t / c.P.period), ph = fract(t / c.P.period), amp = Math.sin(Math.PI * Math.min(1, ph * 1.4)) * (1 - ph * 0.5);
+      const a0 = hash1(n * 13 + 5) * TAU, rc = 250 + 450 * hash1(n * 7 + 1), cx = rc * Math.cos(a0), cy = rc * Math.sin(a0), ang = hash1(n * 3) * Math.PI;
+      for (let i = 0; i < N; i++) { const r = R[i] / RIM; E(o, i, 0.4 + 0.3 * Math.sqrt(Math.max(0, 1 - r * r)) + 0.05 * vnoise(X[i] / 150, Y[i] / 150, t * 0.1)); }
+      for (let L = 0; L < c.P.loops; L++) {
+        const rad = c.P.size * (0.35 + 0.65 * (L + 1) / c.P.loops) * (0.8 + 0.4 * ph), off = (L - (c.P.loops - 1) / 2) * c.P.size * 0.25;
+        const lx = cx + off * Math.cos(ang + Math.PI / 2), ly = cy + off * Math.sin(ang + Math.PI / 2);
+        for (let i = 0; i < N; i++) {
+          const dx = X[i] - lx, dy = Y[i] - ly, u = dx * Math.cos(ang) + dy * Math.sin(ang), v_ = -dx * Math.sin(ang) + dy * Math.cos(ang);
+          if (v_ < -20) continue; const d = Math.abs(Math.hypot(u, v_) - rad); if (d > c.P.width * 3) continue;
+          const v = Math.exp(-d * d / (2 * c.P.width * c.P.width)) * amp * (0.6 + 0.4 * Math.sin(t * 4 + L)); const q = 4 * i; o[q] += v; o[q + 1] += v * 0.7; o[q + 2] += v * 0.3; o[q + 3] += v * 0.6;
+        }
+      }
+    } },
+  { id: 'n-cme', name: 'Mass ejection', group: 'Natural sun',
+    params: [{ k: 'period', n: 'Period', min: 4, max: 40, step: 0.5, d: 12 }, { k: 'speed', n: 'Bubble speed', min: 0.3, max: 3, step: 0.01, d: 1 }, { k: 'width', n: 'Bubble width', min: 100, max: 600, step: 1, d: 300 }, { k: 'glow', n: 'Disc glow', min: 0, max: 1, step: 0.01, d: 0.45 }],
+    desc: 'A bubble of plasma lifts off one point on the limb and expands outward past the rim, the last rows flaring as it leaves the disc.',
+    fn(o, c) {
+      const t = c.t * c.speed, n = Math.floor(t / c.P.period), ph = fract(t / c.P.period), a0 = hash1(n * 17 + 2) * TAU;
+      const dist = RIM * 0.55 + ph * c.P.speed * RIM * 0.9, bx = dist * Math.cos(a0), by = dist * Math.sin(a0), w = c.P.width * (0.4 + ph);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, base = c.P.glow * (0.6 + 0.4 * Math.sqrt(Math.max(0, 1 - r * r)));
+        const d = Math.hypot(X[i] - bx, Y[i] - by), shell = Math.exp(-Math.pow((d - w * 0.7) / (w * 0.25), 2)) * (1 - ph) * 1.2, core = Math.exp(-d * d / (w * w * 0.3)) * Math.pow(1 - ph, 2);
+        E(o, i, clamp01(base + shell + core));
+      }
+    } },
+  { id: 'n-spicules', name: 'Spicules', group: 'Natural sun',
+    params: [{ k: 'dens', n: 'Density', min: 0, max: 1, step: 0.01, d: 0.4 }, { k: 'life', n: 'Lifetime', min: 0.5, max: 6, step: 0.1, d: 2 }, { k: 'height', n: 'Height (rows)', min: 1, max: 6, step: 1, d: 3 }, { k: 'disc', n: 'Disc level', min: 0, max: 1, step: 0.01, d: 0.35 }],
+    desc: 'Short-lived jets shooting up from the limb — the outer rows flicker as spicules rise and fall, pixel-sharp, over a calm disc.',
+    fn(o, c) {
+      const t = c.t * c.speed;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, base = c.P.disc * (0.6 + 0.4 * Math.sqrt(Math.max(0, 1 - r * r)));
+        let jet = 0; const rows = (RIM - R[i]) / 30;
+        if (rows < c.P.height + 1) {
+          const a = Math.round(TH[i] / 2.2), h = hash1(a * 7 + 3), cyc = fract(t / (c.P.life * (0.6 + 0.8 * h)) + h), gen = Math.floor(t / (c.P.life * (0.6 + 0.8 * h)) + h);
+          const on = hash1(a * 13 + gen * 5) < c.P.dens, height = c.P.height * Math.sin(Math.PI * cyc);
+          if (on && rows < height) jet = (1 - rows / Math.max(1, height)) * 1.2;
+        }
+        E(o, i, clamp01(base + jet));
+      }
+    } },
+  { id: 'n-pmodes', name: 'Five-minute oscillation', group: 'Natural sun',
+    params: [{ k: 'l', n: 'Angular order ℓ', min: 0, max: 12, step: 1, d: 4 }, { k: 'nr', n: 'Radial nodes', min: 0, max: 6, step: 1, d: 2 }, { k: 'freq', n: 'Frequency', min: 0.05, max: 2, step: 0.01, d: 0.4 }, { k: 'amp', n: 'Amplitude', min: 0, max: 1, step: 0.01, d: 0.5 }],
+    desc: 'Helioseismic p-modes: a standing wave with ℓ angular lobes and radial nodes ringing across the disc, slow and global, like a struck bell.',
+    fn(o, c) {
+      const t = c.t * c.speed * c.P.freq * TAU;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, a = TH[i] * Math.PI / 180, mode = Math.cos(c.P.l * a) * Math.cos(Math.PI * c.P.nr * r + Math.PI * 0.5 * c.P.nr) * Math.sin(t) * Math.sqrt(Math.max(0, 1 - r * r * 0.5));
+        E(o, i, clamp01(0.5 + c.P.amp * 0.45 * mode));
+      }
+    } },
+  { id: 'n-quake', name: 'Sunquake', group: 'Natural sun',
+    params: [{ k: 'period', n: 'Period', min: 3, max: 30, step: 0.5, d: 9 }, { k: 'speed', n: 'Ring speed', min: 50, max: 800, step: 1, d: 260 }, { k: 'spacing', n: 'Ring spacing', min: 40, max: 300, step: 1, d: 110 }, { k: 'decay', n: 'Decay', min: 0.2, max: 4, step: 0.01, d: 1.4 }],
+    desc: 'A flare strikes one point and seismic ripples spread across the disc from it, losing height as they travel — the sun rings after being hit.',
+    fn(o, c) {
+      const t = c.t * c.speed, n = Math.floor(t / c.P.period), ph = fract(t / c.P.period) * c.P.period, a0 = hash1(n * 19 + 7) * TAU, rc = 100 + 550 * hash1(n * 5 + 3), qx = rc * Math.cos(a0), qy = rc * Math.sin(a0);
+      const front = ph * c.P.speed, flash = Math.exp(-ph * 3);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, base = 0.5 + 0.3 * Math.sqrt(Math.max(0, 1 - r * r)), d = Math.hypot(X[i] - qx, Y[i] - qy);
+        let wave = 0; if (d < front) wave = Math.sin((front - d) / c.P.spacing * TAU) * Math.exp(-(front - d) / (c.P.spacing * c.P.decay * 2)) * Math.exp(-ph / (c.P.period * 0.5)) * 0.35;
+        E(o, i, clamp01(base + wave + flash * Math.exp(-d * d / 8000)));
+      }
+    } },
+  { id: 'n-filaments', name: 'Filaments', group: 'Natural sun',
+    params: [{ k: 'count', n: 'Filaments', min: 1, max: 8, step: 1, d: 3 }, { k: 'width', n: 'Width', min: 10, max: 120, step: 1, d: 40 }, { k: 'dark', n: 'Darkness', min: 0, max: 1, step: 0.01, d: 0.7 }, { k: 'drift', n: 'Drift', min: 0, max: 2, step: 0.01, d: 0.4 }],
+    desc: 'Dark sinuous threads of cool plasma lying across the bright disc, slowly drifting and writhing.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.08 * c.P.drift;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM; let v = 0.6 + 0.3 * Math.sqrt(Math.max(0, 1 - r * r));
+        for (let k = 0; k < c.P.count; k++) {
+          const a = hash1(k * 7) * Math.PI, cx = (hash1(k * 3 + 1) - 0.5) * 900, cy = (hash1(k * 5 + 2) - 0.5) * 900;
+          const u = (X[i] - cx) * Math.cos(a) + (Y[i] - cy) * Math.sin(a), w_ = -(X[i] - cx) * Math.sin(a) + (Y[i] - cy) * Math.cos(a);
+          const wig = (vnoise(u / 220 + t + k * 9, k, t) - 0.5) * 220 + Math.sin(u / 300 + k) * 60, d = Math.abs(w_ - wig);
+          v *= 1 - c.P.dark * Math.exp(-d * d / (2 * c.P.width * c.P.width)) * Math.exp(-u * u / (2 * 500 * 500));
+        }
+        E(o, i, clamp01(v));
+      }
+    } },
+  { id: 'n-holes', name: 'Coronal holes', group: 'Natural sun',
+    params: [{ k: 'size', n: 'Hole size', min: 100, max: 600, step: 1, d: 320 }, { k: 'dark', n: 'Darkness', min: 0, max: 1, step: 0.01, d: 0.75 }, { k: 'drift', n: 'Drift', min: 0, max: 2, step: 0.01, d: 0.3 }, { k: 'edge', n: 'Edge softness', min: 0.2, max: 3, step: 0.01, d: 1 }],
+    desc: 'Vast dark regions of open field drifting over a bright, mottled corona — the look of an EUV image.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.05 * c.P.drift;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, n = vnoise(X[i] / c.P.size + t, Y[i] / c.P.size - t * 0.6, t * 2), m = vnoise(X[i] / 60, Y[i] / 60, t * 6);
+        const hole = clamp01((n - 0.52) * 6 / c.P.edge), v = (0.55 + 0.35 * m) * (1 - c.P.dark * hole) * (0.7 + 0.3 * Math.sqrt(Math.max(0, 1 - r * r)));
+        E(o, i, clamp01(v));
+      }
+    } },
+  { id: 'n-carpet', name: 'Magnetic carpet', group: 'Natural sun',
+    params: [{ k: 'dens', n: 'Density', min: 0, max: 1, step: 0.01, d: 0.5 }, { k: 'life', n: 'Lifetime', min: 0.5, max: 10, step: 0.1, d: 3 }, { k: 'bright', n: 'Brightness', min: 0, max: 2, step: 0.01, d: 1 }, { k: 'base', n: 'Base level', min: 0, max: 1, step: 0.01, d: 0.3 }],
+    desc: 'Thousands of small bright points appearing and vanishing across the surface — the magnetic carpet — resolved at the rim, a shimmer in the dome.',
+    fn(o, c) {
+      const t = c.t * c.speed;
+      for (let i = 0; i < N; i++) {
+        const h = hash1(i * 3 + 7), h2 = hash1(i * 11 + 1), life = c.P.life * (0.5 + h2), cyc = fract(t / life + h), gen = Math.floor(t / life + h);
+        const on = hash1(i * 5 + gen * 13) < c.P.dens, pt = on ? Math.pow(Math.sin(Math.PI * cyc), 2) * c.P.bright : 0;
+        const r = R[i] / RIM; E(o, i, clamp01(c.P.base * (0.7 + 0.3 * Math.sqrt(Math.max(0, 1 - r * r))) + pt * 0.8));
+      }
+    } },
+  { id: 'n-plumes', name: 'Convective plumes', group: 'Natural sun',
+    params: [{ k: 'count', n: 'Plumes', min: 2, max: 24, step: 1, d: 10 }, { k: 'speed', n: 'Rise speed', min: 0.2, max: 3, step: 0.01, d: 1 }, { k: 'width', n: 'Plume width', min: 30, max: 200, step: 1, d: 90 }, { k: 'base', n: 'Base level', min: 0, max: 1, step: 0.01, d: 0.35 }],
+    desc: 'Hot plumes rise from the core outward, cooling and widening as they go, then dissolve at the rim: convection seen from above.',
+    fn(o, c) {
+      const t = c.t * c.speed * c.P.speed;
+      for (let i = 0; i < N; i++) { const r = R[i] / RIM; E(o, i, c.P.base * (0.5 + 0.5 * (1 - r))); }
+      for (let k = 0; k < c.P.count; k++) {
+        const life = 4 + 3 * hash1(k * 3), ph = fract(t / life + hash1(k * 7 + 1)), gen = Math.floor(t / life + hash1(k * 7 + 1));
+        const a = hash1(k * 11 + gen * 5) * TAU + ph * (hash1(k) - 0.5) * 0.8, rr = 80 + (RIM - 120) * ph, px = rr * Math.cos(a), py = rr * Math.sin(a), w = c.P.width * (0.5 + ph), amp = Math.sin(Math.PI * ph) * (1.1 - ph * 0.6);
+        for (let i = 0; i < N; i++) { const d = Math.hypot(X[i] - px, Y[i] - py); if (d > w * 2.5) continue; const v = Math.exp(-d * d / (2 * w * w)) * amp; const q = 4 * i; o[q] += v; o[q + 1] += v * 0.6 * (1 - ph * 0.5); o[q + 2] += v * 0.2 * (1 - ph); o[q + 3] += v * 0.4 * (1 - ph); }
+      }
+    } },
+  { id: 'n-streamers', name: 'Helmet streamers', group: 'Natural sun',
+    params: [{ k: 'count', n: 'Streamers', min: 1, max: 12, step: 1, d: 5 }, { k: 'width', n: 'Width (°)', min: 2, max: 30, step: 0.5, d: 9 }, { k: 'rot', n: 'Rotation', min: -2, max: 2, step: 0.01, d: 0.2 }, { k: 'disc', n: 'Disc level', min: 0, max: 1, step: 0.01, d: 0.4 }],
+    desc: 'Bright streamers rooted in the outer rows, pointing outward like the corona in an eclipse photograph, turning slowly with the sun.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.1 * c.P.rot;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, base = c.P.disc * (0.6 + 0.4 * Math.sqrt(Math.max(0, 1 - r * r))); let st = 0;
+        for (let k = 0; k < c.P.count; k++) { const a0 = (hash1(k * 7 + 3) * 360 + t * 57.3) % 360, da = Math.abs(((TH[i] - a0) % 360 + 540) % 360 - 180); st += Math.exp(-da * da / (2 * c.P.width * c.P.width)) * (0.6 + 0.4 * Math.sin(t * 3 + k)); }
+        E(o, i, clamp01(base + st * Math.pow(clamp01((r - 0.6) / 0.4), 2) * 1.2));
+      }
+    } },
+  { id: 'n-deep', name: 'Deep pulse', group: 'Natural sun',
+    params: [{ k: 'period', n: 'Period', min: 4, max: 60, step: 0.5, d: 18 }, { k: 'depth', n: 'Depth', min: 0, max: 1, step: 0.01, d: 0.5 }, { k: 'core', n: 'Core size', min: 0.2, max: 1.5, step: 0.01, d: 0.6 }, { k: 'flicker', n: 'Core flicker', min: 0, max: 1, step: 0.01, d: 0.3 }],
+    desc: 'The whole disc breathing on a long period, hotter at the core, with a faint fast flicker deep in the middle as if the fusion were just visible.',
+    fn(o, c) {
+      const t = c.t * c.speed, br = 0.5 + 0.5 * Math.sin(t * TAU / c.P.period);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, core = Math.exp(-Math.pow(r / c.P.core, 2)), fl = c.P.flicker * core * (vnoise(X[i] / 90, Y[i] / 90, t * 3) - 0.5) * 0.5;
+        E(o, i, clamp01((0.35 + 0.5 * core) * (1 - c.P.depth + c.P.depth * br) + fl));
+      }
+    } },
+  { id: 'n-limb', name: 'Turning limb', group: 'Natural sun',
+    params: [{ k: 'rot', n: 'Rotation', min: -2, max: 2, step: 0.01, d: 0.3 }, { k: 'width', n: 'Bright arc (°)', min: 20, max: 180, step: 1, d: 90 }, { k: 'edge', n: 'Edge brightness', min: 0, max: 2, step: 0.01, d: 1 }, { k: 'disc', n: 'Disc level', min: 0, max: 1, step: 0.01, d: 0.45 }],
+    desc: 'One side of the limb burns brighter and the bright side walks around the disc — the sun seen lit by something moving behind it.',
+    fn(o, c) {
+      const a0 = c.t * c.speed * 0.2 * c.P.rot * 57.3;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, da = Math.abs(((TH[i] - a0) % 360 + 540) % 360 - 180), arc = Math.exp(-da * da / (2 * c.P.width * c.P.width));
+        E(o, i, clamp01(c.P.disc * (0.7 + 0.3 * Math.sqrt(Math.max(0, 1 - r * r))) + c.P.edge * arc * Math.pow(r, 3)));
+      }
+    } },
+  { id: 'n-transit', name: 'Planet transit', group: 'Natural sun',
+    params: [{ k: 'size', n: 'Planet size', min: 20, max: 200, step: 1, d: 60 }, { k: 'period', n: 'Period', min: 5, max: 60, step: 0.5, d: 20 }, { k: 'lat', n: 'Track height', min: -0.8, max: 0.8, step: 0.01, d: 0.2 }, { k: 'limb', n: 'Limb darkening', min: 0, max: 1.2, step: 0.01, d: 0.6 }],
+    desc: 'A small dark disc crosses the bright sun — a Venus transit. Hard-edged at the rim, a soft shadow when it passes through the dome.',
+    fn(o, c) {
+      const ph = fract(c.t * c.speed / c.P.period), px = (ph * 2 - 1) * (RIM + 100), py = c.P.lat * RIM;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, limb = 1 - c.P.limb * (1 - Math.sqrt(Math.max(0, 1 - r * r))), d = Math.hypot(X[i] - px, Y[i] - py);
+        E(o, i, clamp01(0.85 * limb * clamp01((d - c.P.size) / 18)));
+      }
+    } },
+  { id: 'n-erupt', name: 'Eruptive prominence', group: 'Natural sun',
+    params: [{ k: 'period', n: 'Period', min: 5, max: 60, step: 0.5, d: 16 }, { k: 'height', n: 'Lift height', min: 50, max: 500, step: 1, d: 220 }, { k: 'span', n: 'Span (°)', min: 10, max: 90, step: 1, d: 40 }, { k: 'disc', n: 'Disc level', min: 0, max: 1, step: 0.01, d: 0.4 }],
+    desc: 'A prominence hangs on the limb, then lifts off, stretches inward across the disc and tears apart — an eruption in slow motion.',
+    fn(o, c) {
+      const t = c.t * c.speed, n = Math.floor(t / c.P.period), ph = fract(t / c.P.period), a0 = hash1(n * 23 + 1) * 360;
+      const lift = Math.pow(Math.max(0, ph - 0.3) / 0.7, 1.6) * c.P.height, fade = ph < 0.8 ? 1 : 1 - (ph - 0.8) / 0.2;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, base = c.P.disc * (0.6 + 0.4 * Math.sqrt(Math.max(0, 1 - r * r)));
+        const da = ((TH[i] - a0) % 360 + 540) % 360 - 180, inside = Math.abs(da) < c.P.span / 2;
+        let v = 0;
+        if (inside) { const arch = Math.cos(Math.PI * da / c.P.span), target = RIM - 15 - arch * (40 + lift), d = Math.abs(R[i] - target); v = Math.exp(-d * d / (2 * Math.pow(22 + lift * 0.15, 2))) * fade * (0.7 + 0.3 * vnoise(da / 8, t * 2, n)); }
+        E(o, i, clamp01(base + v * 1.1));
+      }
+    } },
+  { id: 'n-chromo', name: 'Chromosphere', group: 'Natural sun',
+    params: [{ k: 'fib', n: 'Fibril length', min: 30, max: 300, step: 1, d: 120 }, { k: 'con', n: 'Contrast', min: 0, max: 2, step: 0.01, d: 0.8 }, { k: 'flow', n: 'Flow', min: 0, max: 2, step: 0.01, d: 0.5 }, { k: 'plage', n: 'Plage', min: 0, max: 1.5, step: 0.01, d: 0.5 }],
+    desc: 'An H-alpha view: fibrils combed along the field, streaming, with bright plage patches where the field is strong.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.1 * c.P.flow;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, dir = vnoise(X[i] / 500, Y[i] / 500, 3) * Math.PI * 2, u = X[i] * Math.cos(dir) + Y[i] * Math.sin(dir), w_ = -X[i] * Math.sin(dir) + Y[i] * Math.cos(dir);
+        const fib = vnoise(u / c.P.fib + t, w_ / 18, t * 2), plage = Math.pow(vnoise(X[i] / 350 + 9, Y[i] / 350, t * 0.5), 4) * 3 * c.P.plage;
+        E(o, i, clamp01((0.5 + c.P.con * (fib - 0.5) * 0.9 + plage) * (0.75 + 0.25 * Math.sqrt(Math.max(0, 1 - r * r)))));
+      }
+    } },
+
   /* ── Rim ↔ dome: energy handed back and forth between the crisp rim and the soft centre. All written for the sun palette (energy in, colour from the ramp). ── */
   { id: 'x-tide', name: 'Tide', group: 'Rim ↔ dome', p1: 'Slosh angle', p1d: 0.5,
     desc: 'Light sloshes between rim and centre like liquid in a bowl, with a lag around the circle so one side is at the rim while the other is pooled in the middle.',
@@ -813,6 +1092,8 @@ const PATTERNS = [
     fn(o, c) { const v = Math.round(c.p1 * 10) / 10; for (let i = 0; i < N; i++) set(o, i, v, v, v, v); } },
 ];
 
+let XS = null, YS = null, RS = null, scaledFor = 0;
+function ensureScaled() { if (scaledFor === S.scale) return; const k = 1 / S.scale; XS = Float32Array.from(X0, v => v * k); YS = Float32Array.from(Y0, v => v * k); RS = Float32Array.from(R0, v => v * k); scaledFor = S.scale; }
 /* output pipeline: intent → master → cap → gamma → bytes on the wire */
 const intent = new Float32Array(N * 4), wire = new Uint8Array(N * 4);
 const GLUT = new Uint8Array(4096); for (let k = 0; k < 4096; k++) GLUT[k] = Math.round(255 * Math.pow(k / 4095 * CAP, GAMMA));
@@ -821,17 +1102,18 @@ const SUN_RAMP = [[0, 0, 0, 0], [0.55, 0.04, 0, 0], [1.0, 0.22, 0, 0], [1.0, 0.4
 function sunify() {
   for (let i = 0; i < N; i++) {
     const k = 4 * i, e = clamp01(0.3 * intent[k] + 0.5 * intent[k + 1] + 0.2 * intent[k + 2] + 0.9 * intent[k + 3]);   // energy, W weighted as a real white
-    const p = Math.pow(e, 0.85) * (SUN_RAMP.length - 1), j = Math.min(SUN_RAMP.length - 2, Math.floor(p)), f = p - j, A = SUN_RAMP[j], B = SUN_RAMP[j + 1];
-    intent[k] = A[0] + (B[0] - A[0]) * f; intent[k + 1] = A[1] + (B[1] - A[1]) * f; intent[k + 2] = A[2] + (B[2] - A[2]) * f; intent[k + 3] = A[3] + (B[3] - A[3]) * f;
+    const p = Math.pow(e, 0.85 * S.contrast) * (SUN_RAMP.length - 1), j = Math.min(SUN_RAMP.length - 2, Math.floor(p)), f = p - j, A = SUN_RAMP[j], B = SUN_RAMP[j + 1];
+    const w = S.warmth, cool = Math.max(0, w), warm = Math.max(0, -w);   // warmth < 0 → redder, > 0 → whiter
+    intent[k] = A[0] + (B[0] - A[0]) * f; intent[k + 1] = (A[1] + (B[1] - A[1]) * f) * (1 - 0.5 * warm) + cool * 0.15 * e; intent[k + 2] = (A[2] + (B[2] - A[2]) * f) * (1 - 0.8 * warm) + cool * 0.2 * e; intent[k + 3] = (A[3] + (B[3] - A[3]) * f) * (1 - warm) + cool * 0.6 * e;
   }
 }
 function quantize(master) {
-  if (S.sunPalette) sunify();
+  if (S.sunPalette && S.pattern.group !== 'First light') sunify(); else if (S.contrast !== 1) for (let k = 0; k < N * 4; k++) intent[k] = Math.pow(clamp01(intent[k]), S.contrast);
   for (let k = 0; k < N * 4; k++) { const v = clamp01(intent[k] * master); wire[k] = GLUT[(v * 4095) | 0]; }
 }
 
 /* ───────────────────────── state ───────────────────────── */
-const S = { pattern: PATTERNS[0], speed: 1, master: 1, p1: PATTERNS[0].p1d, tint: [1, 0.6, 0.18], playing: true, t: 0, frame: 0, tick: 40, live: false, hang: 0, explode: 0, sunPalette: true, exposure: 1,
+const S = { pattern: PATTERNS[0], speed: 1, master: 1, p1: PATTERNS[0].p1d, tint: [1, 0.6, 0.18], playing: true, t: 0, frame: 0, tick: 40, live: false, hang: 0, explode: 0, sunPalette: true, exposure: 1, scale: 1, contrast: 1, warmth: 0, P: {},
   layers: { pcb: true, leds: true, skel: true, ring: true, mount: true, tray: true, stand: true, dome: false, flat: false, labels: false, floor: true },
   light: { bloom: true, halo: true, work: false }, ambient: 0.12 };
 const $ = id => document.getElementById(id);
@@ -993,7 +1275,9 @@ let lastEngine = 0, acc = 0, engineRate = 0, fpsN = 0, fpsT = performance.now(),
 const zoneW = new Float32Array(7);
 function engineTick(dt) {
   if (!S.live) {
-    S.pattern.fn(intent, { t: S.t, dt, speed: S.speed, p1: S.p1, tint: S.tint });
+    const P = S.P;
+    if (S.scale !== 1) { ensureScaled(); X = XS; Y = YS; R = RS; }
+    try { S.pattern.fn(intent, { t: S.t, dt, speed: S.speed, p1: P.p1 ?? 0.5, P, tint: S.tint }); } finally { X = X0; Y = Y0; R = R0; }
     quantize(S.master);
   }
   S.t += dt; S.frame++;
@@ -1043,21 +1327,46 @@ canvas.addEventListener('pointerleave', () => { insp.hidden = true; });
 
 /* ───────────────────────── UI wiring ───────────────────────── */
 const sel = $('pattern');
-for (const grp of ['Rim ↔ dome', 'Dome studies', 'Show', 'First light']) { const og = document.createElement('optgroup'); og.label = grp; PATTERNS.filter(p => p.group === grp).forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; og.appendChild(o); }); sel.appendChild(og); }
-function setPattern(id) { S.pattern = PATTERNS.find(p => p.id === id); S.p1 = S.pattern.p1d; $('p1').value = S.p1; $('p1-l').textContent = S.pattern.p1; $('p1-o').textContent = fmtP1(); $('pat-desc').textContent = S.pattern.desc; sel.value = id; if (!S.playing) engineTick(0); }
-const fmtP1 = () => S.pattern.id === 'white' ? Math.round(S.p1 * 10) * 10 + ' %' : S.pattern.id === 'rays' ? String(2 + Math.round(S.p1 * 14)) : S.p1.toFixed(2);
+for (const p of PATTERNS) if (!p.params) p.params = p.p1 ? [{ k: 'p1', n: p.p1, min: 0, max: 1, step: 0.01, d: p.p1d ?? 0.5 }] : [];
+for (const grp of ['Natural sun', 'Rim ↔ dome', 'Dome studies', 'Show', 'First light']) { const og = document.createElement('optgroup'); og.label = grp; PATTERNS.filter(p => p.group === grp).forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; og.appendChild(o); }); sel.appendChild(og); }
+const GLOBALS = [
+  { k: 'speed', n: 'Speed', min: 0, max: 3, step: 0.01, d: 1, fmt: v => v.toFixed(2) + '×' },
+  { k: 'master', n: 'Master', min: 0, max: 1, step: 0.01, d: 1, fmt: v => Math.round(v * 100) + '%' },
+  { k: 'scale', n: 'Scale', min: 0.4, max: 2.5, step: 0.01, d: 1, fmt: v => v.toFixed(2) + '×' },
+  { k: 'contrast', n: 'Contrast', min: 0.4, max: 2.5, step: 0.01, d: 1, fmt: v => v.toFixed(2) },
+  { k: 'warmth', n: 'Warmth', min: -1, max: 1, step: 0.01, d: 0, fmt: v => (v > 0 ? '+' : '') + v.toFixed(2) },
+];
+function paramRow(host, def, get, setv) {
+  const id = 'p_' + host.id + '_' + def.k, row = document.createElement('div'); row.className = 'prow';
+  row.innerHTML = `<label for="${id}" title="${def.n}">${def.n}</label><input type="range" id="${id}" min="${def.min}" max="${def.max}" step="${def.step}"><input type="number" id="${id}_n" min="${def.min}" max="${def.max}" step="${def.step}" aria-label="${def.n} value">`;
+  host.appendChild(row); const r = row.children[1], n = row.children[2];
+  const show = v => { r.value = v; n.value = +(+v).toFixed(4); };
+  show(get());
+  r.addEventListener('input', () => { setv(+r.value); show(+r.value); });
+  n.addEventListener('change', () => { let v = +n.value; if (isNaN(v)) v = def.d; v = Math.min(def.max, Math.max(def.min, v)); setv(v); show(v); });
+  return show;
+}
+const paramShows = {};
+function renderParams() {
+  const host = $('params'); host.innerHTML = '';
+  for (const def of S.pattern.params) paramShows[def.k] = paramRow(host, def, () => S.P[def.k], v => { S.P[def.k] = v; if (!S.playing) engineTick(0); });
+}
+const globalShows = {};
+{ const host = $('globals'); for (const def of GLOBALS) globalShows[def.k] = paramRow(host, def, () => S[def.k], v => { S[def.k] = v; if (!S.playing) engineTick(0); }); }
+function setPattern(id, keepP) {
+  S.pattern = PATTERNS.find(p => p.id === id) || PATTERNS[0];
+  if (!keepP) { S.P = {}; for (const def of S.pattern.params) S.P[def.k] = def.d; }
+  $('pat-desc').textContent = S.pattern.desc; sel.value = S.pattern.id; renderParams(); if (!S.playing) engineTick(0);
+}
 sel.addEventListener('change', () => setPattern(sel.value));
-setPattern('x-tide');
+setPattern('n-photosphere');
 const bind = (id, fn, fmt) => { const el = $(id), out = $(id + '-o'); const h = () => { fn(+el.value); if (out) out.textContent = fmt(+el.value); }; el.addEventListener('input', h); h(); };
-bind('speed', v => S.speed = v, v => v.toFixed(2) + '×');
-bind('master', v => { S.master = v; if (!S.playing) engineTick(0); }, v => Math.round(v * 100) + '%');
-bind('p1', v => { S.p1 = v; if (!S.playing) engineTick(0); }, () => fmtP1());
+$('tint').addEventListener('input', e => { const h = e.target.value; $('tint-o').textContent = h; const c = new THREE.Color(h); S.tint = [c.r, c.g, c.b]; if (!S.playing) engineTick(0); });
 bind('hang', v => { S.hang = v; sun.rotation.z = deg(v); }, v => v + '°');
 bind('explode', v => { S.explode = v * 1.6; for (const k in L) if (k !== 'floor') L[k].position.z = RANK[k] * S.explode; layoutHalo(); }, v => v ? v + '%' : 'off');
 bind('ambient', v => { S.ambient = v; applyRoomLight(); }, v => Math.round(v * 100) + '%');
 bind('exposure', v => { S.exposure = v; layoutHalo(); }, v => v.toFixed(2) + '× (display only)');
 bind('tick', v => { S.tick = v; $('o-tick').textContent = v + ' Hz'; }, v => v + ' Hz');
-$('tint').addEventListener('input', e => { const h = e.target.value; $('tint-o').textContent = h; const c = new THREE.Color(h); S.tint = [c.r, c.g, c.b]; if (!S.playing) engineTick(0); });
 $('sunpal').addEventListener('click', e => { S.sunPalette = !S.sunPalette; e.target.setAttribute('aria-pressed', S.sunPalette); if (!S.playing) engineTick(0); });
 $('play').addEventListener('click', e => { S.playing = !S.playing; e.target.textContent = S.playing ? 'Pause' : 'Play'; e.target.setAttribute('aria-pressed', S.playing); acc = 0; });
 $('step').addEventListener('click', () => { engineTick(1 / S.tick); });
@@ -1078,6 +1387,70 @@ $('panel-toggle').addEventListener('click', () => { const p = $('panel'); p.clas
 const zonesEl = $('zones');
 ['Z0 disc (A)', 'Z1 sectors 1–2', 'Z2 sectors 3–4', 'Z3 sectors 5–6', 'Z4 sectors 7–8', 'Z5 sectors 9–10', 'Z6 sectors 11–12'].forEach(n => { const d = document.createElement('div'); d.className = 'z'; d.innerHTML = `<span>${n}</span><div class="bar"><i></i></div><b>—</b>`; zonesEl.appendChild(d); });
 updateStats();
+
+/* ───────────────────────── presets: Firestore (REST, shared) or browser library; share-links always ───────────────────────── */
+const FIREBASE = { projectId: '', apiKey: '' };                     // bake the shared store here; the Saved tab can also set it per browser
+const LS = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+let FB = Object.assign({}, FIREBASE, LS.get('sun-firebase', {}));
+const fbOn = () => !!(FB.projectId && FB.apiKey);
+const fbBase = () => `https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents`;
+function fsEnc(v) { if (v === null || v === undefined) return { nullValue: null }; if (typeof v === 'string') return { stringValue: v }; if (typeof v === 'number') return { doubleValue: v }; if (typeof v === 'boolean') return { booleanValue: v }; if (Array.isArray(v)) return { arrayValue: { values: v.map(fsEnc) } }; const f = {}; for (const k in v) f[k] = fsEnc(v[k]); return { mapValue: { fields: f } }; }
+function fsDec(v) { if ('stringValue' in v) return v.stringValue; if ('doubleValue' in v) return v.doubleValue; if ('integerValue' in v) return +v.integerValue; if ('booleanValue' in v) return v.booleanValue; if ('nullValue' in v) return null; if ('timestampValue' in v) return v.timestampValue; if ('arrayValue' in v) return (v.arrayValue.values || []).map(fsDec); if ('mapValue' in v) { const o = {}; for (const k in (v.mapValue.fields || {})) o[k] = fsDec(v.mapValue.fields[k]); return o; } return null; }
+function snapshot() { return { pattern: S.pattern.id, P: Object.assign({}, S.P), speed: S.speed, master: S.master, scale: S.scale, contrast: S.contrast, warmth: S.warmth, sunPalette: S.sunPalette, tint: S.tint.slice(), dome: S.layers.dome, flat: S.layers.flat }; }
+function applyPreset(p) {
+  setPattern(p.pattern, true); S.P = {}; for (const def of S.pattern.params) S.P[def.k] = p.P && p.P[def.k] !== undefined ? p.P[def.k] : def.d; renderParams();
+  for (const k of ['speed', 'master', 'scale', 'contrast', 'warmth']) if (typeof p[k] === 'number') { S[k] = p[k]; globalShows[k] && globalShows[k](p[k]); }
+  if (typeof p.sunPalette === 'boolean') { S.sunPalette = p.sunPalette; $('sunpal').setAttribute('aria-pressed', S.sunPalette); }
+  if (Array.isArray(p.tint)) { S.tint = p.tint.slice(); const c = new THREE.Color(...p.tint); $('tint').value = '#' + c.getHexString(); $('tint-o').textContent = '#' + c.getHexString(); }
+  if (!S.playing) engineTick(0);
+}
+async function presetsList() {
+  if (!fbOn()) return LS.get('sun-presets', []);
+  const r = await fetch(`${fbBase()}/presets?pageSize=300&key=${FB.apiKey}`); if (!r.ok) throw new Error('Firestore ' + r.status);
+  const j = await r.json(); return (j.documents || []).map(d => Object.assign(fsDec({ mapValue: { fields: d.fields } }), { id: d.name.split('/').pop() }));
+}
+async function presetsSave(p) {
+  if (!fbOn()) { const L = LS.get('sun-presets', []); p.id = 'l' + Date.now().toString(36); L.unshift(p); LS.set('sun-presets', L); return; }
+  const body = fsEnc(p).mapValue; const r = await fetch(`${fbBase()}/presets?key=${FB.apiKey}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); if (!r.ok) throw new Error('Firestore ' + r.status);
+}
+async function presetsDelete(id) {
+  if (!fbOn()) { LS.set('sun-presets', LS.get('sun-presets', []).filter(p => p.id !== id)); return; }
+  const r = await fetch(`${fbBase()}/presets/${id}?key=${FB.apiKey}`, { method: 'DELETE' }); if (!r.ok) throw new Error('Firestore ' + r.status);
+}
+function psStatus(cls, txt) { const el = $('ps-status'); el.className = 'status ' + cls; el.textContent = txt; }
+const esc = t => String(t ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+async function renderPresets() {
+  const host = $('ps-list');
+  try {
+    const L = (await presetsList()).sort((a, b) => (b.created || '').localeCompare(a.created || ''));
+    if (!L.length) { host.innerHTML = '<div class="note">Nothing saved yet.</div>'; return; }
+    host.innerHTML = '';
+    for (const p of L) {
+      const pat = PATTERNS.find(x => x.id === p.pattern), d = document.createElement('div'); d.className = 'preset';
+      d.innerHTML = `<b>${esc(p.name || 'untitled')}</b><div class="m">${esc(pat ? pat.name : p.pattern)} · ${esc(p.author || 'anon')} · ${p.created ? new Date(p.created).toLocaleString() : ''}</div>${p.notes ? `<p>${esc(p.notes)}</p>` : ''}<div class="btns"><button class="act" data-load>Load</button><button class="act" data-link>Copy link</button><button class="act" data-del>Delete</button></div>`;
+      d.querySelector('[data-load]').addEventListener('click', () => { applyPreset(p); document.querySelector('[data-tab="show"]').click(); });
+      d.querySelector('[data-link]').addEventListener('click', e => copyLink(p, e.target));
+      d.querySelector('[data-del]').addEventListener('click', async e => { if (e.target.textContent !== 'Really delete?') { e.target.textContent = 'Really delete?'; setTimeout(() => e.target.textContent = 'Delete', 2500); return; } try { await presetsDelete(p.id); renderPresets(); } catch (err) { psStatus('err', err.message); } });
+      host.appendChild(d);
+    }
+  } catch (err) { host.innerHTML = `<div class="note">Could not load the shared library (${esc(err.message)}). Check the Firebase settings below.</div>`; }
+}
+function encodePreset(p) { return btoa(unescape(encodeURIComponent(JSON.stringify(p)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function decodePreset(h) { try { return JSON.parse(decodeURIComponent(escape(atob(h.replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return null; } }
+async function copyLink(p, btn) { const url = location.href.split('#')[0] + '#preset=' + encodePreset(p); try { await navigator.clipboard.writeText(url); if (btn) { const t = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => btn.textContent = t, 1500); } } catch (e) { prompt('Copy this link', url); } }
+$('ps-save').addEventListener('click', async () => {
+  const p = Object.assign(snapshot(), { name: $('ps-name').value.trim() || S.pattern.name, author: $('ps-author').value.trim(), notes: $('ps-notes').value.trim(), created: new Date().toISOString() });
+  LS.set('sun-author', p.author);
+  try { psStatus('', 'saving…'); await presetsSave(p); psStatus('on', fbOn() ? 'saved to shared library' : 'saved in this browser'); $('ps-name').value = ''; $('ps-notes').value = ''; renderPresets(); } catch (err) { psStatus('err', err.message); }
+});
+$('ps-link').addEventListener('click', e => copyLink(Object.assign(snapshot(), { name: $('ps-name').value.trim() || S.pattern.name, notes: $('ps-notes').value.trim(), author: $('ps-author').value.trim() }), e.target));
+$('ps-refresh').addEventListener('click', renderPresets);
+$('ps-author').value = LS.get('sun-author', '');
+function fbRefresh() { $('fb-pid').value = FB.projectId || ''; $('fb-key').value = FB.apiKey || ''; psStatus(fbOn() ? 'on' : '', fbOn() ? 'shared library · ' + FB.projectId : 'local library (this browser only)'); renderPresets(); }
+$('fb-connect').addEventListener('click', () => { FB = { projectId: $('fb-pid').value.trim(), apiKey: $('fb-key').value.trim() }; LS.set('sun-firebase', FB); fbRefresh(); });
+$('fb-forget').addEventListener('click', () => { FB = Object.assign({}, FIREBASE); LS.set('sun-firebase', {}); fbRefresh(); });
+fbRefresh();
+{ const m = location.hash.match(/preset=([^&]+)/); if (m) { const p = decodePreset(m[1]); if (p && p.pattern) { applyPreset(p); if (p.notes || p.name) $('pat-desc').textContent = `${p.name || ''}${p.author ? ' — ' + p.author : ''}${p.notes ? ': ' + p.notes : ''}`; } } }
 
 /* ───────────────────────── live input (WebSocket, raw frame or DDP packets) ───────────────────────── */
 let ws = null, wsN = 0, wsT = [], pending = new Uint8Array(N * 4);
