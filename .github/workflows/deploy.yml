@@ -1,0 +1,57 @@
+name: Deploy the sun
+
+on:
+  push:
+    branches: [main]
+    paths: ['simulator/**', 'server/**', '.github/workflows/deploy.yml']
+  workflow_dispatch:
+
+concurrency: { group: deploy, cancel-in-progress: false }
+
+jobs:
+  droplet:
+    name: Sync to droplet and restart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        env:
+          KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync files
+        env: { HOST: ${{ secrets.DROPLET_HOST }}, USER: ${{ secrets.DROPLET_USER || 'root' }} }
+        run: |
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy" \
+            --exclude 'server/.env' --exclude 'server/data' --exclude 'server/node_modules' \
+            simulator server "$USER@$HOST:/opt/the-sun/"
+
+      - name: Rebuild and restart
+        env: { HOST: ${{ secrets.DROPLET_HOST }}, USER: ${{ secrets.DROPLET_USER || 'root' }} }
+        run: |
+          ssh -i ~/.ssh/deploy "$USER@$HOST" 'cd /opt/the-sun/server && test -f .env || { echo "server/.env missing on the droplet — run deploy.sh once from your Mac first"; exit 1; }; docker compose up -d --build --remove-orphans && docker image prune -f >/dev/null && docker compose ps'
+
+      - name: Smoke test
+        env: { HOST: ${{ secrets.DROPLET_HOST }} }
+        run: |
+          sleep 5
+          curl -fsS --max-time 20 "http://$HOST/api/health" || curl -fsS --max-time 20 -k "https://$HOST/api/health"
+
+  pages:
+    name: Update gh-pages copy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Split simulator/ into gh-pages and push
+        run: |
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          SHA=$(git subtree split --prefix=simulator main)
+          git push --force origin "$SHA:refs/heads/gh-pages"
