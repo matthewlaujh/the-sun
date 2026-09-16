@@ -121,9 +121,9 @@ button.primary{background:var(--sun);color:#1a1205;border-color:var(--sun);font-
       <div class="sec">
         <div id="params"></div>
         <div class="row"><label for="tint">Colour</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="tint" value="#ff9a2e"><span id="tint-o" style="font:11px var(--mono);color:var(--ink-3)">#ff9a2e</span></div><span></span></div>
-        <details class="sec" style="margin:10px 0 0"><summary style="font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);cursor:pointer">Common controls</summary><div id="globals" style="margin-top:6px"></div></details>
+        <details class="sec" style="margin:10px 0 0" open><summary style="font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);cursor:pointer">Common controls</summary><div id="globals" style="margin-top:6px"></div></details>
         <div class="tog" style="margin-top:8px"><button id="sunpal" aria-pressed="true">Sun palette</button><select id="palsel" style="width:auto;flex:1;padding:4px 6px"></select></div>
-        <details class="sec" style="margin:8px 0 0" id="paldet"><summary style="font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);cursor:pointer">Colour stops — dark → bright</summary>
+        <details class="sec" style="margin:8px 0 0" id="paldet" open><summary style="font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);cursor:pointer">Colour stops — dark → bright</summary>
           <div class="note" style="margin:4px 0 6px">The palette maps each pixel's energy to a colour: the first stop colours the darkest parts of the animation, the last the brightest. Position = where along the energy scale the colour sits; W = the white channel. Add stops for more bands.</div>
           <div id="palstops"></div>
           <div class="btns" style="margin-top:6px"><button id="paladd" class="act">Add stop</button><button id="palreset" class="act">Reset to preset</button></div>
@@ -236,7 +236,7 @@ button.primary{background:var(--sun);color:#1a1205;border-color:var(--sun);font-
         <div class="kv" id="ps-stats"><span>—</span><b></b></div>
         <div id="ps-top" class="note"></div>
       </div>
-      <details class="sec" id="srv-det"><summary style="font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);cursor:pointer">Server &amp; admin</summary>
+      <details class="sec" id="srv-det" open><summary style="font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);cursor:pointer">Server &amp; admin</summary>
         <div style="margin-top:8px">
           <div class="kv" style="margin-bottom:8px"><span>store</span><b id="srv-where">—</b></div>
           <input type="text" id="srv-url" placeholder="Server URL (only needed when this page is not served by the server)" style="margin-bottom:6px">
