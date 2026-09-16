@@ -21,7 +21,18 @@ jobs:
       HOST: ${{ secrets.DROPLET_HOST }}
       USER: ${{ secrets.DROPLET_USER || 'root' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
+      - name: Check secrets
+        env:
+          KEY: ${{ secrets.DROPLET_SSH_KEY }}
+        run: |
+          ok=1
+          [ -n "$HOST" ] || { echo "::error::Secret DROPLET_HOST is empty or missing (repo → Settings → Secrets and variables → Actions)"; ok=0; }
+          [ -n "$KEY" ] || { echo "::error::Secret DROPLET_SSH_KEY is empty or missing"; ok=0; }
+          case "$KEY" in *"BEGIN OPENSSH PRIVATE KEY"*) ;; *) [ -z "$KEY" ] || { echo "::error::DROPLET_SSH_KEY does not look like a private key (it must start with -----BEGIN OPENSSH PRIVATE KEY-----)"; ok=0; };; esac
+          [ $ok = 1 ] || exit 1
+          echo "secrets present · host $HOST · user $USER"
 
       - name: Install SSH key
         env:
@@ -29,7 +40,12 @@ jobs:
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
-          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -T 15 -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || { echo "::error::Cannot reach $HOST on port 22 — droplet off, wrong IP, or firewall"; exit 1; }
+
+      - name: Test login
+        run: |
+          ssh -i ~/.ssh/deploy -o BatchMode=yes -o ConnectTimeout=15 "$USER@$HOST" 'echo "logged in as $(whoami) on $(hostname)"' \
+            || { echo "::error::SSH login refused — the deploy public key is not in /root/.ssh/authorized_keys on the droplet. Run the ssh root@IP '...>> authorized_keys' command from the setup steps."; exit 1; }
 
       - name: Sync files
         run: |
@@ -53,7 +69,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Split simulator/ into gh-pages and push
