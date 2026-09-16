@@ -1,0 +1,1108 @@
+<title>Sun Simulator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+:root{
+  --bg:#07080b; --panel:rgba(16,18,24,.88); --panel-line:#23262f; --ink:#ebe7dc; --ink-2:#a3a6ae; --ink-3:#5f626b;
+  --sun:#f2a33b; --sun-2:#ffcf7a; --ok:#6ec98a; --warn:#e8873d; --bad:#e2503f;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace; --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif; --serif:"Instrument Serif",Georgia,serif;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:13px/1.45 var(--sans);overflow:hidden}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+#c{position:fixed;inset:0;display:block;width:100%;height:100%;background:var(--bg)}
+#c.grab{cursor:grab}
+/* header */
+#hd{position:fixed;left:0;right:0;top:0;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 0;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:5}
+#hd h1{margin:0;font:italic 400 30px/1 var(--serif);color:var(--sun-2);letter-spacing:.01em}
+#hd .sub{font:11px var(--mono);color:var(--ink-3);margin-top:6px;letter-spacing:.02em}
+#hd .right{text-align:right;font:11px var(--mono);color:var(--ink-3);pointer-events:auto}
+#hd .right b{color:var(--ink-2);font-weight:500}
+/* panel */
+#panel{position:fixed;left:16px;top:calc(88px + env(safe-area-inset-top,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:316px;max-width:calc(100vw - 32px);background:var(--panel);border:1px solid var(--panel-line);border-radius:8px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;flex-direction:column;z-index:6;overflow:hidden}
+#panel.collapsed{bottom:auto}
+#panel.collapsed .body{display:none}
+#panel .tabs{display:flex;border-bottom:1px solid var(--panel-line);flex:none}
+#panel .tabs button{flex:1;background:none;border:0;color:var(--ink-3);font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:11px 4px;cursor:pointer;border-bottom:2px solid transparent}
+#panel .tabs button[aria-selected="true"]{color:var(--sun-2);border-bottom-color:var(--sun)}
+#panel .tabs button:focus-visible{outline:1px solid var(--sun);outline-offset:-3px}
+#panel .body{flex:1;overflow-y:auto;padding:12px 14px 14px}
+.sec{margin-bottom:16px}
+.sec h3{margin:0 0 8px;font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.row{display:grid;grid-template-columns:92px 1fr 44px;gap:8px;align-items:center;margin:6px 0}
+.row label{color:var(--ink-2);font-size:12px}
+.row output{font:11px var(--mono);color:var(--ink-2);text-align:right}
+input[type=range]{width:100%;accent-color:var(--sun);height:18px;margin:0}
+select,input[type=text],input[type=url]{width:100%;background:#0c0e13;color:var(--ink);border:1px solid var(--panel-line);border-radius:5px;padding:7px 8px;font:12px var(--sans)}
+select:focus-visible,input:focus-visible,button:focus-visible{outline:1px solid var(--sun);outline-offset:1px}
+input[type=color]{width:34px;height:26px;border:1px solid var(--panel-line);border-radius:5px;background:#0c0e13;padding:1px}
+.tog{display:flex;flex-wrap:wrap;gap:6px}
+.tog button{background:#0c0e13;border:1px solid var(--panel-line);color:var(--ink-2);border-radius:999px;padding:5px 10px;font:12px var(--sans);cursor:pointer}
+.tog button[aria-pressed="true"]{background:rgba(242,163,59,.14);border-color:rgba(242,163,59,.55);color:var(--sun-2)}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btns button,button.act{background:#161922;border:1px solid var(--panel-line);color:var(--ink);border-radius:5px;padding:7px 11px;font:12px var(--sans);cursor:pointer}
+.btns button:hover,button.act:hover{border-color:#3a3e4a}
+button.primary{background:var(--sun);color:#1a1205;border-color:var(--sun);font-weight:600}
+.pat-desc{color:var(--ink-3);font-size:11.5px;margin-top:6px;min-height:1.4em}
+.kv{display:grid;grid-template-columns:1fr auto;gap:2px 12px;font:11.5px var(--mono);color:var(--ink-2)}
+.kv b{color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
+.zones{display:grid;gap:5px;margin-top:8px}
+.z{display:grid;grid-template-columns:78px 1fr 58px;gap:8px;align-items:center;font:11px var(--mono);color:var(--ink-2)}
+.z .bar{height:6px;background:#161922;border-radius:3px;overflow:hidden}
+.z .bar i{display:block;height:100%;background:var(--ok);width:0%;transition:width .15s linear}
+.z .bar i.warn{background:var(--warn)} .z .bar i.bad{background:var(--bad)}
+.z b{text-align:right;color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
+.status{display:inline-flex;align-items:center;gap:6px;font:11px var(--mono);color:var(--ink-2)}
+.status::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ink-3)}
+.status.on::before{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.status.err::before{background:var(--bad)}
+.note{font-size:11.5px;color:var(--ink-3);line-height:1.5;margin-top:8px}
+.note code{font:11px var(--mono);color:var(--ink-2);background:#0c0e13;padding:1px 4px;border-radius:3px}
+/* hover inspector */
+#insp{position:fixed;pointer-events:none;background:rgba(12,14,19,.94);border:1px solid var(--panel-line);border-radius:6px;padding:8px 10px;font:11px/1.5 var(--mono);color:var(--ink-2);z-index:7;min-width:190px}
+#insp b{color:var(--sun-2);font-weight:500}
+#insp .sw{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:6px;border:1px solid #333}
+/* bottom strip */
+#strip{position:fixed;right:16px;bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;gap:14px;font:11px var(--mono);color:var(--ink-3);z-index:5;background:var(--panel);border:1px solid var(--panel-line);border-radius:6px;padding:7px 10px}
+#strip b{color:var(--ink-2);font-weight:500;font-variant-numeric:tabular-nums}
+#strip .cap{color:var(--sun)}
+#panel-toggle{position:fixed;left:16px;top:calc(56px + env(safe-area-inset-top,0px));z-index:7;display:none}
+@media (max-width:720px){
+  #hd h1{font-size:24px}
+  #hd .right{display:none}
+  #panel{left:0;right:0;top:auto;bottom:0;width:100%;max-width:none;border-radius:12px 12px 0 0;max-height:46vh;padding-bottom:env(safe-area-inset-bottom,0px)}
+  #panel.collapsed{max-height:none}
+  #panel-toggle{display:block;top:auto;bottom:calc(10px + env(safe-area-inset-bottom,0px));left:auto;right:16px}
+  #strip{bottom:auto;top:calc(84px + env(safe-area-inset-top,0px));right:16px;flex-wrap:wrap;gap:8px}
+}
+@media (prefers-reduced-motion:reduce){ .z .bar i{transition:none} }
+</style>
+
+<canvas id="c" class="grab" aria-label="3D view of the sun LED installation"></canvas>
+
+<div id="hd">
+  <div>
+    <h1>the sun</h1>
+    <div class="sub">Ø1773 mm · 2,417 × SK6812 RGBW · 25 boards · 8 runs · 24 universes</div>
+  </div>
+  <div class="right">chain: host → ESP32-GATEWAY → PixLite E4-S Mk3 (expanded) → 8 runs<br><b id="hd-mode">simulated frames · 40 Hz engine</b></div>
+</div>
+
+<div id="panel">
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="show" id="tab-show">Show</button>
+    <button role="tab" aria-selected="false" data-tab="build" id="tab-build">Build</button>
+    <button role="tab" aria-selected="false" data-tab="out" id="tab-out">Output</button>
+    <button role="tab" aria-selected="false" data-tab="live" id="tab-live">Live</button>
+  </div>
+  <div class="body">
+    <!-- SHOW -->
+    <div data-pane="show">
+      <div class="sec">
+        <h3>Pattern</h3>
+        <select id="pattern"></select>
+        <div class="pat-desc" id="pat-desc"></div>
+      </div>
+      <div class="sec">
+        <div class="row"><label for="speed">Speed</label><input type="range" id="speed" min="0" max="3" step="0.05" value="1"><output id="speed-o">1.00×</output></div>
+        <div class="row"><label for="master">Master</label><input type="range" id="master" min="0" max="1" step="0.01" value="1"><output id="master-o">100%</output></div>
+        <div class="row"><label for="p1" id="p1-l">Param</label><input type="range" id="p1" min="0" max="1" step="0.01" value="0.5"><output id="p1-o">0.50</output></div>
+        <div class="row"><label for="tint">Colour</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="tint" value="#ff9a2e"><span id="tint-o" style="font:11px var(--mono);color:var(--ink-3)">#ff9a2e</span></div><span></span></div>
+        <div class="tog" style="margin-top:8px"><button id="sunpal" aria-pressed="true">Sun palette</button></div>
+        <div class="btns" style="margin-top:8px"><button id="play" class="act" aria-pressed="true">Pause</button><button id="step" class="act">Step 1 frame</button><button id="reset" class="act">Reset t</button></div>
+      </div>
+      <div class="sec">
+        <h3>Camera</h3>
+        <div class="btns"><button class="act" data-view="front">Front</button><button class="act" data-view="iso">Three-quarter</button><button class="act" data-view="back">Back (skeleton)</button><button class="act" data-view="close">Close-up</button></div>
+        <div class="row" style="margin-top:8px"><label for="explode">Explode</label><input type="range" id="explode" min="0" max="100" step="1" value="0"><output id="explode-o">off</output></div>
+        <div class="row"><label for="hang">Hang rotation</label><input type="range" id="hang" min="-180" max="180" step="1" value="0"><output id="hang-o">0°</output></div>
+        <div class="note">Explode pulls the layers apart along the depth axis (dome and opal forward, skeleton, ring, mount, trays and stand back) so each one can be seen on its own. Rotation is applied to the whole sun in the view only — pixels are never remapped, per the kit's rule.</div>
+      </div>
+    </div>
+    <!-- BUILD -->
+    <div data-pane="build" hidden>
+      <div class="sec">
+        <h3>Assembly layers (BIG LIGHT 9.1)</h3>
+        <div class="tog" id="layers">
+          <button data-layer="pcb" aria-pressed="true">PCBs</button>
+          <button data-layer="leds" aria-pressed="true">LED packages</button>
+          <button data-layer="skel" aria-pressed="true">LED skeleton</button>
+          <button data-layer="ring" aria-pressed="true">40×80 ring</button>
+          <button data-layer="mount" aria-pressed="true">Wall mount</button>
+          <button data-layer="tray" aria-pressed="true">Trays</button>
+          <button data-layer="stand" aria-pressed="true">Stand</button>
+          <button data-layer="flat" aria-pressed="false">Opal sheet</button>
+          <button data-layer="dome" aria-pressed="false">Dome</button>
+          <button data-layer="labels" aria-pressed="false">Board labels</button>
+          <button data-layer="floor" aria-pressed="true">Floor grid</button>
+        </div>
+      </div>
+      <div class="sec">
+        <h3>Light simulation</h3>
+        <div class="tog" id="light">
+          <button data-opt="bloom" aria-pressed="true">Bloom</button>
+          <button data-opt="halo" aria-pressed="true">Pixel halo</button>
+          <button data-opt="work" aria-pressed="false">Work lights</button>
+        </div>
+        <div class="row" style="margin-top:8px"><label for="exposure">Exposure</label><input type="range" id="exposure" min="0.25" max="4" step="0.05" value="1"><output id="exposure-o">1.00×</output></div>
+        <div class="row"><label for="ambient">Room light</label><input type="range" id="ambient" min="0" max="1" step="0.01" value="0.12"><output id="ambient-o">12%</output></div>
+        <div class="note">Every pixel is a lit 5050 package at its KiCad centre. Its light on a diffusing surface follows the cos⁴ screen law, <code>E ∝ d²/(d²+ρ²)²</code>: energy per pixel is conserved, the peak falls as 1/d², the tails are long. The opal (3 mm double-frosted PMMA) behaves like a screen ~56 mm above the LEDs at ~50 % transmission; the dome is clear cast PMMA (91 % LT at 3 mm, SGS) with a sanded outer face, so it is a screen at 66–266 mm whose blur comes from geometry, not haze. Bloom is applied to the whole frame. Exposure scales only what you see — the diffusers really do cost about half the light — and never touches the wire bytes.</div>
+      </div>
+      <div class="sec">
+        <h3>Dimensions from the STEP</h3>
+        <div class="kv">
+          <span>PCB face</span><b>z 40 · 3 mm boards</b>
+          <span>LED skeleton</span><b>12 bars r203–863 + hub ring r200–248, 37 deep</b>
+          <span>ring</span><b>40×80 extrusion R892–932, 80 deep, 24° plates</b>
+          <span>wall mount</span><b>40×80 frame, uprights x ±280, rails z ±385</b>
+          <span>trays</span><b>2 × 1200 wide, 105 deep, 10 mm, at z −80…−90 (electronics TBD)</b>
+          <span>inner diffuser</span><b>3 mm PMMA opal, frosted ×2 · z 54.6–57.6</b>
+          <span>dome</span><b>cast PMMA 91 % LT (SGS), outer face sanded · 8 mm, 65.6 → 265.6</b>
+          <span>stand</span><b>feet 1165 below centre</b>
+        </div>
+      </div>
+    </div>
+    <!-- OUTPUT -->
+    <div data-pane="out" hidden>
+      <div class="sec">
+        <h3>Wire frame (what the E4-S receives)</h3>
+        <div class="kv">
+          <span>bytes / frame</span><b>9,668</b>
+          <span>pipeline</span><b>pattern → master → cap 0.90 → γ 2.2 → u8</b>
+          <span>engine tick</span><b id="o-tick">40 Hz</b>
+          <span>render</span><b id="o-fps">— fps</b>
+          <span>lit pixels</span><b id="o-lit">—</b>
+          <span>peak byte</span><b id="o-peak">—</b>
+        </div>
+        <div class="row" style="margin-top:8px"><label for="tick">Engine rate</label><input type="range" id="tick" min="10" max="60" step="5" value="40"><output id="tick-o">40 Hz</output></div>
+      </div>
+      <div class="sec">
+        <h3>Power estimate (20 mA / channel @ 5 V)</h3>
+        <div class="kv"><span>total</span><b id="o-power">— W · — A</b><span>of 967 W full white</span><b id="o-pct">—</b></div>
+        <div class="zones" id="zones"></div>
+        <div class="note">Zone bars are against one LSP-160-5T at 150 W. Amber above 80 %, red above 100 %.</div>
+      </div>
+      <div class="sec">
+        <h3>Hover a pixel</h3>
+        <div class="note">Move the pointer over any LED in the 3D view for its index, run, universe/channel, board position and the RGBW bytes on the wire this frame.</div>
+      </div>
+    </div>
+    <!-- LIVE -->
+    <div data-pane="live" hidden>
+      <div class="sec">
+        <h3>Mirror the real controller</h3>
+        <input type="url" id="ws-url" placeholder="ws://192.168.4.1/frames" value="ws://192.168.4.1/frames">
+        <div class="btns" style="margin-top:8px"><button id="ws-btn" class="act primary">Connect</button><span class="status" id="ws-status">not connected</span></div>
+        <div class="kv" style="margin-top:8px"><span>frames received</span><b id="ws-n">0</b><span>last frame</span><b id="ws-last">—</b><span>rate</span><b id="ws-fps">—</b></div>
+      </div>
+      <div class="sec">
+        <h3>Protocol</h3>
+        <div class="note">Binary WebSocket messages, either a raw <code>2417 × 4</code> RGBW byte frame (the exact DDP payload, <code>offset = 4·i</code>), or DDP packets as-is (10-byte header: flags, seq, type, id, offset u32, length u16 — the push flag <code>0x01</code> commits the frame). So the ESP32-GATEWAY can fan the same UDP packets it sends to the E4-S out over its web server, and this view shows what the sun is showing.</div>
+        <div class="note">Sockets are blocked in the hosted copy of this page. Open the downloaded <code>sun-simulator.html</code> from disk, or serve it from the ESP32's web server, and live input works.</div>
+      </div>
+      <div class="sec">
+        <h3>Firmware port</h3>
+        <div class="note"><code>sun_map.h</code> in the kit carries the same arrays this page uses (x, y, r, θ, board, run, run-index, zone) in int16 mm×10, plus <code>sun_universe(i)</code> / <code>sun_channel(i)</code>. Every pattern here is written against <code>i, x, y, r, θ, t</code> with only <code>sin/cos/pow</code> and a value-noise hash, so it moves to C++ line for line.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<button id="panel-toggle" class="act">Controls</button>
+<div id="insp" hidden></div>
+<div id="strip"><span>frame <b id="s-frame">0</b></span><span>t <b id="s-t">0.0 s</b></span><span><b id="s-power">0 W</b></span><span class="cap">cap 0.90</span></div>
+
+<script>/*__DATA__*/</script>
+<script>/*__MODEL__*/</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ───────────────────────── map ───────────────────────── */
+const D = SUN_DATA, N = D.N;
+const X = Float32Array.from(D.x), Y = Float32Array.from(D.y);
+const R = new Float32Array(N), TH = new Float32Array(N);          // mm, degrees 0..360 CCW from +x
+for (let i = 0; i < N; i++) { R[i] = Math.hypot(X[i], Y[i]); TH[i] = ((Math.atan2(Y[i], X[i]) * 180 / Math.PI) + 360) % 360; }
+const BOARD = Uint8Array.from(D.b), RUN = Uint8Array.from(D.run), RI = Uint16Array.from(D.ri);
+const BOARDS = D.boards;                                            // 0=A, 1..12=B1..B12, 13..24=C1..C12
+const RUNS = D.runs;                                                // [run, boards, px, [uni...]]
+const RUN_UNI0 = [0]; for (const r of RUNS) RUN_UNI0[r[0]] = r[3][0];
+const uniOf = i => RUN_UNI0[RUN[i]] + (RI[i] >> 7), chOf = i => 1 + 4 * (RI[i] & 127);
+const sectorOf = b => b === 0 ? 0 : (b - 1) % 12 + 1;              // 1..12
+const zoneOf = b => b === 0 ? 0 : ((sectorOf(b) + 1) >> 1);        // 0 disc, 1..6
+const ZONE = Uint8Array.from(BOARD, zoneOf);
+const CAP = 0.90, GAMMA = 2.2;
+const RIM = 886.5;
+
+/* ───────────────────── portable frame engine ─────────────────────
+   A pattern is  fn(out, ctx)  writing out[4i..4i+3] = r,g,b,w  in 0..1 (linear intent).
+   ctx: { t, dt, speed, p1, tint:[r,g,b] } plus the map arrays above. Nothing here needs the DOM,
+   so the same function bodies port to C++ on the ESP32 (see sun_map.h). */
+const TAU = Math.PI * 2;
+const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+const fract = v => v - Math.floor(v);
+function hash1(n) { n = (n * 374761393 + 668265263) | 0; n = ((n ^ (n >>> 13)) * 1274126177) | 0; return ((n ^ (n >>> 16)) >>> 0) / 4294967296; }
+function hash3(x, y, z) { return hash1((x | 0) * 73856093 ^ (y | 0) * 19349663 ^ (z | 0) * 83492791); }
+function smooth(t) { return t * t * (3 - 2 * t); }
+function vnoise(x, y, z) {                                          // value noise, 0..1
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  const fx = smooth(x - xi), fy = smooth(y - yi), fz = smooth(z - zi);
+  let acc = 0;
+  for (let dz = 0; dz < 2; dz++) for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
+    const w = (dx ? fx : 1 - fx) * (dy ? fy : 1 - fy) * (dz ? fz : 1 - fz);
+    acc += w * hash3(xi + dx, yi + dy, zi + dz);
+  }
+  return acc;
+}
+function hsv(h, s, v, o, k) {                                       // h 0..1 → o[k..k+2]
+  const i = Math.floor(h * 6), f = h * 6 - i, p = v * (1 - s), q = v * (1 - s * f), t = v * (1 - s * (1 - f));
+  let r, g, b; switch (i % 6) { case 0: r = v; g = t; b = p; break; case 1: r = q; g = v; b = p; break; case 2: r = p; g = v; b = t; break; case 3: r = p; g = q; b = v; break; case 4: r = t; g = p; b = v; break; default: r = v; g = p; b = q; }
+  o[k] = r; o[k + 1] = g; o[k + 2] = b;
+}
+const DEPTH = r => 8 + 200 * Math.pow(Math.max(0, Math.cos(Math.PI * Math.min(r, 700) / 1400)), 1.5);   // dome stand-off above the opal, mm (fits the STEP profile)
+const FEAT = r => 30 + 1.8 * DEPTH(r);                                                                   // smallest feature the dome preserves at radius r, mm
+const set = (o, i, r, g, b, w) => { o[4 * i] = r; o[4 * i + 1] = g; o[4 * i + 2] = b; o[4 * i + 3] = w; };
+
+const PATTERNS = [
+  { id: 'solar', name: 'Solar surface', group: 'Show', p1: 'Activity', p1d: 0.55,
+    desc: 'Granulation noise over a limb-darkened disc, with slow flares. Whites come from the W channel.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.25, act = c.p1;
+      for (let i = 0; i < N; i++) {
+        const rr = R[i] / RIM;
+        const limb = Math.sqrt(Math.max(0, 1 - rr * rr * 0.92));                       // limb darkening
+        const n1 = vnoise(X[i] / 110 + t, Y[i] / 110 - t * 0.6, t * 0.7);
+        const n2 = vnoise(X[i] / 38 - t * 1.7, Y[i] / 38 + t, 7 + t * 1.3);
+        const flare = Math.pow(vnoise(X[i] / 260 + 30, Y[i] / 260 + 30, t * 0.45), 6) * 4 * act;
+        const v = clamp01(limb * (0.35 + 0.65 * (0.55 * n1 + 0.45 * n2 - 0.15 + act * 0.25)) + flare);
+        const heat = clamp01(v * 1.3 - 0.25);                                          // hotter → whiter
+        set(o, i, v, v * (0.28 + 0.5 * heat), v * 0.08 * heat, heat * heat * 0.9);
+      }
+    } },
+  { id: 'breath', name: 'Breathing rings', group: 'Show', p1: 'Ring width', p1d: 0.5,
+    desc: 'The kit\'s demo: rings breathing outward from the centre pixel.',
+    fn(o, c) {
+      const k = 1 / (60 + 140 * c.p1), t = c.t * c.speed * 2;
+      for (let i = 0; i < N; i++) { const v = 0.5 + 0.5 * Math.sin(R[i] * k - t); set(o, i, v, v * 0.55, 0, v * 0.15); }
+    } },
+  { id: 'rays', name: 'Rotating rays', group: 'Show', p1: 'Ray count', p1d: 0.4,
+    desc: 'Angular rays turning about the centre, tinted with the colour picker.',
+    fn(o, c) {
+      const n = 2 + Math.round(c.p1 * 14), w = c.t * c.speed * 0.6, [tr, tg, tb] = c.tint;
+      for (let i = 0; i < N; i++) {
+        const a = TH[i] * Math.PI / 180;
+        const v = Math.pow(0.5 + 0.5 * Math.cos(n * (a - w)), 3) * (0.35 + 0.65 * (1 - R[i] / RIM)) + 0.04;
+        set(o, i, v * tr, v * tg, v * tb, v * v * 0.3);
+      }
+    } },
+  { id: 'sweep', name: 'Radial pulse', group: 'Show', p1: 'Pulse spacing', p1d: 0.5,
+    desc: 'Sharp pulses travelling from the centre to the rim; colour runs from the tint at the core to deep red at the edge.',
+    fn(o, c) {
+      const sp = 200 + 500 * c.p1, t = c.t * c.speed * 250, [tr, tg, tb] = c.tint;
+      for (let i = 0; i < N; i++) {
+        const ph = fract((R[i] - t) / sp); const v = Math.pow(1 - ph, 5);
+        const m = R[i] / RIM;
+        set(o, i, v * (tr * (1 - m) + 1.0 * m), v * tg * (1 - m), v * tb * (1 - m), v * 0.2 * (1 - m));
+      }
+    } },
+  { id: 'embers', name: 'Embers', group: 'Show', p1: 'Density', p1d: 0.35,
+    desc: 'Independent sparks per pixel on a dim warm ground — each pixel has its own phase from a hash of its index.',
+    fn(o, c) {
+      const t = c.t * c.speed, dens = c.p1;
+      for (let i = 0; i < N; i++) {
+        const h = hash1(i * 7 + 1), h2 = hash1(i * 13 + 5);
+        const s = Math.pow(Math.max(0, Math.sin(h * 200 + t * (0.4 + 1.2 * h2))), 14) * (h2 < dens ? 1 : 0);
+        const base = 0.03 + 0.03 * vnoise(X[i] / 200, Y[i] / 200, t * 0.2);
+        set(o, i, base + s, base * 0.3 + s * 0.6, 0, s * 0.5);
+      }
+    } },
+  { id: 'eclipse', name: 'Eclipse', group: 'Show', p1: 'Moon size', p1d: 0.6,
+    desc: 'A dark disc crossing a bright limb-darkened sun, with a thin corona at the occluding edge.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.15, mx = Math.sin(t) * 1400, my = Math.cos(t * 0.37) * 300, mr = 300 + 600 * c.p1;
+      for (let i = 0; i < N; i++) {
+        const rr = R[i] / RIM, limb = Math.sqrt(Math.max(0, 1 - rr * rr * 0.9));
+        const d = Math.hypot(X[i] - mx, Y[i] - my);
+        const occ = clamp01((d - mr) / 40);                                             // 0 inside moon
+        const corona = Math.exp(-Math.pow(Math.max(0, d - mr) / 60, 2)) * 0.9;
+        const v = limb * occ;
+        set(o, i, v + corona, v * 0.6 + corona * 0.85, v * 0.15 + corona * 0.8, v * 0.6 + corona);
+      }
+    } },
+  { id: 'solid', name: 'Solid colour', group: 'Show', p1: 'White channel', p1d: 0,
+    desc: 'Every pixel the picked colour, plus the W channel from the slider.',
+    fn(o, c) { const [r, g, b] = c.tint; for (let i = 0; i < N; i++) set(o, i, r, g, b, c.p1); } },
+
+  /* ── Dome studies: written for the optics of the piece.
+     DEPTH(r) ≈ dome stand-off above the opal (8 mm at the rim → 208 mm at centre); FEAT(r) ≈ the smallest feature that survives it.
+     Rim = pixel-crisp and colour-separable; centre = soft mixed glow; the sloped wall (r 450–800) lights up as a form. ── */
+  { id: 'd-corona', name: 'Corona breath', group: 'Dome studies', p1: 'Rim weight', p1d: 0.6,
+    desc: 'A crisp white-gold rim ring and a soft amber core breathing in anti-phase; between them the dome wall catches grazing light.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.5, b = 0.5 + 0.5 * Math.sin(t);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, rim = Math.pow(clamp01((r - 0.78) / 0.22), 2) * (0.4 + 0.6 * (1 - b)) * (0.4 + 1.2 * c.p1);
+        const core = Math.pow(1 - r, 1.6) * (0.3 + 0.7 * b), wall = Math.exp(-Math.pow((r - 0.68) / 0.12, 2)) * 0.35 * b;
+        set(o, i, rim + core + wall, rim * 0.8 + core * 0.45 + wall * 0.3, rim * 0.35, rim * 0.9);
+      }
+    } },
+  { id: 'd-flare', name: 'Limb flares', group: 'Dome studies', p1: 'Flare rate', p1d: 0.4,
+    desc: 'Flares erupt at the rim as sharp, colour-separated pixels and drift inward, dissolving into the glow as the dome blurs them.',
+    fn(o, c) {
+      const t = c.t * c.speed;
+      for (let i = 0; i < N; i++) { const r = R[i] / RIM, g = 0.03 + 0.04 * (1 - r); set(o, i, g, g * 0.35, 0, 0); }
+      const nF = 3 + Math.round(c.p1 * 6);
+      for (let f = 0; f < nF; f++) {
+        const period = 4 + 5 * hash1(f * 31 + 7), ph = fract(t / period + hash1(f * 17 + 3)), a0 = hash1(f * 13 + 1 + Math.floor(t / period + hash1(f * 17 + 3))) * TAU;
+        const rr = RIM * (1 - ph * 0.9), w = 40 + 260 * ph, amp = Math.pow(1 - ph, 1.5);
+        const fx = rr * Math.cos(a0), fy = rr * Math.sin(a0);
+        for (let i = 0; i < N; i++) {
+          const d = Math.hypot(X[i] - fx, Y[i] - fy); if (d > w * 2) continue;
+          const v = Math.exp(-d * d / (w * w)) * amp, hue = fract(hash1(f * 5) + d / 90);          // chromatic near the rim
+          const k = 4 * i; hsv(hue * 0.15, 0.8, v, o, k); o[k] += v * 0.4; o[k + 3] += v * 0.5;
+        }
+      }
+    } },
+  { id: 'd-cells', name: 'Convection cells', group: 'Dome studies', p1: 'Contrast', p1d: 0.6,
+    desc: 'Granulation whose cell size is matched to the dome blur — tiny cells at the rim, broad cells at the centre — so texture stays legible everywhere.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.3;
+      for (let i = 0; i < N; i++) {
+        const f = FEAT(R[i]) * 1.4, n = vnoise(X[i] / f + t, Y[i] / f - t * 0.7, t * 0.5), n2 = vnoise(X[i] / (f * 0.5) - t, Y[i] / (f * 0.5), 9 + t);
+        const v = clamp01(0.35 + (0.6 * n + 0.4 * n2 - 0.5) * (0.6 + 1.2 * c.p1) + 0.2);
+        set(o, i, v, v * 0.55 * v + 0.1 * v, v * v * 0.08, Math.pow(v, 3) * 0.7);
+      }
+    } },
+  { id: 'd-prom', name: 'Prominences', group: 'Dome studies', p1: 'Arc span', p1d: 0.4,
+    desc: 'Magenta-red arcs along the rim between slowly migrating footpoints, pixel-sharp on the outside, feathering into the dome on the inside.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.2;
+      for (let i = 0; i < N; i++) { const r = R[i] / RIM; set(o, i, 0.12 * (1 - r) + 0.03, 0.03, 0.05 * (1 - r), 0.04); }
+      for (let a = 0; a < 3; a++) {
+        const ctr = hash1(a * 7 + 2) * TAU + t * (0.6 + 0.4 * hash1(a)), span = (0.15 + 0.5 * c.p1) * (0.7 + 0.6 * Math.sin(t * 1.3 + a)), h = 60 + 120 * Math.abs(Math.sin(t * 0.9 + a * 2));
+        for (let i = 0; i < N; i++) {
+          let da = Math.abs(((TH[i] * Math.PI / 180 - ctr) % TAU + TAU * 1.5) % TAU - Math.PI); if (da > span) continue;
+          const lift = h * Math.sin(Math.PI * (1 - da / span)), target = RIM - 10 - lift, d = Math.abs(R[i] - target);
+          const v = Math.exp(-d * d / (2 * 28 * 28)) * (0.5 + 0.5 * Math.sin(t * 6 + da * 9));
+          const k = 4 * i; o[k] += v; o[k + 1] += v * 0.15; o[k + 2] += v * 0.45;
+        }
+      }
+    } },
+  { id: 'd-rain', name: 'Photon rain', group: 'Dome studies', p1: 'Density', p1d: 0.5,
+    desc: 'Sparks are born invisible in the centre glow and drift outward, crystallising into single crisp pixels as they reach the rim, then die.',
+    fn(o, c) {
+      const t = c.t * c.speed, nS = 20 + Math.round(c.p1 * 60);
+      for (let i = 0; i < N; i++) { const r = R[i] / RIM; const g = 0.06 * Math.pow(1 - r, 2); set(o, i, g, g * 0.5, g * 0.2, g * 0.6); }
+      for (let s = 0; s < nS; s++) {
+        const life = 3 + 3 * hash1(s * 3 + 1), ph = fract(t / life + hash1(s * 5 + 2)), gen = Math.floor(t / life + hash1(s * 5 + 2));
+        const a = hash1(s * 11 + gen * 7) * TAU + ph * 0.6 * (hash1(s) - 0.5), rr = 120 + (RIM - 130) * Math.pow(ph, 0.8);
+        const sx = rr * Math.cos(a), sy = rr * Math.sin(a), w = 12 + 30 * (1 - ph), amp = Math.sin(Math.PI * ph) * (0.6 + 0.4 * hash1(s * 9));
+        for (let i = 0; i < N; i++) { const d = Math.hypot(X[i] - sx, Y[i] - sy); if (d > 60) continue; const v = Math.exp(-d * d / (w * w)) * amp; const k = 4 * i; o[k] += v; o[k + 1] += v * 0.8; o[k + 2] += v * 0.5; o[k + 3] += v; }
+      }
+    } },
+  { id: 'd-mix', name: 'Additive mixing', group: 'Dome studies', p1: 'Rotation', p1d: 0.3,
+    desc: 'Pure R, G and B in 10° sectors: at the rim they read as three colours, toward the centre the dome mixes them into white. (Per-pixel alternation was tried first — the opal alone already blends it to grey.)',
+    fn(o, c) {
+      const t = c.t * c.speed * c.p1 * 2;
+      for (let i = 0; i < N; i++) {
+        const k = (Math.floor(TH[i] / 10 + t) % 3 + 3) % 3, r = R[i] / RIM, v = 0.55 + 0.35 * (1 - r) * Math.sin(t * 0.7 + r * 4);
+        set(o, i, k === 0 ? v : 0, k === 1 ? v : 0, k === 2 ? v : 0, 0);
+      }
+    } },
+  { id: 'd-spots', name: 'Sunspot drift', group: 'Dome studies', p1: 'Spot size', p1d: 0.5,
+    desc: 'Dark spots crossing a bright limb-darkened field. Dark features are what the dome kills first, so spots grow as they move toward the centre.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.12;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, limb = Math.sqrt(Math.max(0, 1 - r * r * 0.85)) * 0.9;
+        let dark = 1;
+        for (let s = 0; s < 5; s++) {
+          const a = hash1(s * 3) * TAU + t * (0.5 + hash1(s)), rr = 200 + 550 * hash1(s * 5 + 1) * (0.7 + 0.3 * Math.sin(t + s));
+          const sx = rr * Math.cos(a), sy = rr * Math.sin(a), size = (40 + 80 * c.p1) + FEAT(rr) * 0.8, d = Math.hypot(X[i] - sx, Y[i] - sy);
+          dark *= 1 - 0.85 * Math.exp(-d * d / (size * size)) ;
+        }
+        const v = limb * dark; set(o, i, v, v * 0.6, v * 0.12, v * v * 0.6);
+      }
+    } },
+  { id: 'd-heart', name: 'Heartbeat', group: 'Dome studies', p1: 'Rate', p1d: 0.4,
+    desc: 'A slow warm-white pulse through the whole glow, with a hard bright tick ring at the rim on every beat. Low power.',
+    fn(o, c) {
+      const bpm = 30 + 40 * c.p1, ph = fract(c.t * c.speed * bpm / 60), beat = Math.pow(Math.max(0, 1 - ph * 3), 2) + 0.5 * Math.pow(Math.max(0, 1 - Math.abs(ph - 0.25) * 6), 2);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, core = (0.18 + 0.3 * beat) * Math.pow(1 - r, 0.7), tick = r > 0.94 ? beat : 0;
+        set(o, i, core * 0.9 + tick, core * 0.5 + tick, core * 0.15 + tick, core + tick);
+      }
+    } },
+  { id: 'd-wedges', name: 'Twelve wedges', group: 'Dome studies', p1: 'Sharpness', p1d: 0.7,
+    desc: 'The 12 sector seams as a chase. Sector edges are only visible where the dome is thin, so the pattern appears at the rim and melts into a soft pool at the centre.',
+    fn(o, c) {
+      const t = c.t * c.speed * 1.5, edge = 0.5 + 6 * c.p1;
+      for (let i = 0; i < N; i++) {
+        const sec = ((TH[i] - 60 + 360) % 360) / 30, ph = fract(sec / 12 - t / 12), v = Math.pow(1 - ph, edge) * 0.9 + 0.05, r = R[i] / RIM;
+        const k = 4 * i; hsv(fract(sec / 12 + t * 0.03), 0.7, v * (0.35 + 0.65 * r), o, k); o[k + 3] = (1 - r) * 0.25;
+      }
+    } },
+  { id: 'd-eclipse', name: 'Dome eclipse', group: 'Dome studies', p1: 'Moon size', p1d: 0.55,
+    desc: 'An occulting disc crossing the sun. The shadow edge is hard at the rim and soft at the centre — the dome gives the penumbra for free; the corona lives only on the rim pixels.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.12, mx = Math.sin(t) * 1500, my = Math.cos(t * 0.41) * 250, mr = 350 + 500 * c.p1;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, limb = Math.sqrt(Math.max(0, 1 - r * r * 0.9)), d = Math.hypot(X[i] - mx, Y[i] - my);
+        const occ = clamp01((d - mr) / 20), v = limb * occ * 0.9;
+        const cor = r > 0.9 ? Math.exp(-Math.pow(Math.max(0, d - mr) / 120, 2)) * 0.9 : 0;
+        set(o, i, v + cor, v * 0.55 + cor * 0.9, v * 0.12 + cor, v * 0.5 + cor);
+      }
+    } },
+  { id: 'd-implode', name: 'Ripples in', group: 'Dome studies', p1: 'Ring spacing', p1d: 0.5,
+    desc: 'Rings converge on the centre and accelerate. Crisp at birth on the rim, they dissolve into pulses of pure glow as they arrive.',
+    fn(o, c) {
+      const sp = 120 + 300 * c.p1, t = c.t * c.speed * 220;
+      for (let i = 0; i < N; i++) {
+        const r = R[i], ph = fract((r + t) / sp), v = Math.pow(1 - ph, 4) * (0.35 + 0.65 * Math.pow(r / RIM, 0.5)) + Math.pow(1 - r / RIM, 6) * 0.6 * (0.5 + 0.5 * Math.sin(t / 60));
+        set(o, i, v * 0.9, v * 0.75, v, v * 0.5);
+      }
+    } },
+  { id: 'd-aurora', name: 'Aurora curtains', group: 'Dome studies', p1: 'Turbulence', p1d: 0.5,
+    desc: 'Sinuous green-teal curtains drifting sideways. Where they cross the rim they show pixel detail; over the dome they turn to mist.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.35;
+      for (let i = 0; i < N; i++) {
+        const wob = (vnoise(X[i] / 500 + t * 0.3, Y[i] / 300, t) - 0.5) * 400 * c.p1;
+        let v = 0;
+        for (let k = 0; k < 3; k++) { const cx = Math.sin(t * (0.4 + 0.15 * k) + k * 2.1) * 600 + wob, w = 60 + 60 * k; v += Math.exp(-Math.pow((X[i] - cx) / w, 2)) * (0.4 + 0.3 * vnoise(Y[i] / 120 + t * 2, k * 3, t)); }
+        v = clamp01(v) * (0.55 + 0.45 * (Y[i] / RIM)); set(o, i, v * 0.1, v * 0.9, v * 0.5, v * 0.12);
+      }
+    } },
+  { id: 'd-embers', name: 'Ember bed', group: 'Dome studies', p1: 'Ignitions', p1d: 0.3,
+    desc: 'Near-dark: a slow warm murmur in the W channel, and now and then a single rim pixel ignites white and cools. A resting state at ~5 % power.',
+    fn(o, c) {
+      const t = c.t * c.speed;
+      for (let i = 0; i < N; i++) {
+        const n = vnoise(X[i] / 260 + t * 0.1, Y[i] / 260, t * 0.15), g = 0.02 + 0.05 * n * (1 - R[i] / RIM * 0.5);
+        const h = hash1(i * 3 + 11), fire = R[i] > RIM * 0.9 && h < c.p1 * 0.25 ? Math.pow(Math.max(0, Math.sin(h * 300 + t * (0.15 + 0.3 * hash1(i)))), 40) : 0;
+        set(o, i, g * 0.8 + fire, g * 0.35 + fire * 0.85, fire * 0.6, g + fire);
+      }
+    } },
+  { id: 'd-spectrum', name: 'Radial spectrum', group: 'Dome studies', p1: 'Bands', p1d: 0.3,
+    desc: 'Hue as a function of radius, sweeping outward. Bands stay pure at the rim and blend into pastels in the centre — one slider shows how many bands the dome can hold.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.15, bands = 1 + Math.round(c.p1 * 4);
+      for (let i = 0; i < N; i++) { const r = R[i] / RIM; const k = 4 * i; hsv(fract(r * bands - t), 0.95, 0.75, o, k); o[k + 3] = 0.05; }
+    } },
+  { id: 'd-wind', name: 'Solar wind', group: 'Dome studies', p1: 'Streak count', p1d: 0.4,
+    desc: 'Fast thin radial streaks leaving the glow. They are invisible inside the dome and snap into focus on the last few rim rows — light seems to be emitted from the blur.',
+    fn(o, c) {
+      const t = c.t * c.speed, nS = 8 + Math.round(c.p1 * 24);
+      for (let i = 0; i < N; i++) { const r = R[i] / RIM, g = 0.12 * Math.pow(1 - r, 1.5); set(o, i, g, g * 0.6, g * 0.3, g); }
+      for (let s = 0; s < nS; s++) {
+        const life = 0.8 + 0.8 * hash1(s * 7), ph = fract(t / life + hash1(s * 3)), gen = Math.floor(t / life + hash1(s * 3));
+        const a = hash1(s * 13 + gen * 5) * TAU, head = 250 + (RIM - 200) * ph, amp = Math.pow(Math.sin(Math.PI * ph), 0.5);
+        const ca = Math.cos(a), sa = Math.sin(a);
+        for (let i = 0; i < N; i++) {
+          const along = X[i] * ca + Y[i] * sa, across = Math.abs(-X[i] * sa + Y[i] * ca); if (across > 25 || along > head || along < head - 260) continue;
+          const v = Math.exp(-across * across / 200) * Math.pow((along - (head - 260)) / 260, 2) * amp; const k = 4 * i; o[k] += v; o[k + 1] += v * 0.85; o[k + 2] += v * 0.6; o[k + 3] += v * 0.8;
+        }
+      }
+    } },
+  { id: 'd-dipole', name: 'Field lines', group: 'Dome studies', p1: 'Line count', p1d: 0.5,
+    desc: 'Dipole field lines looping from the top pole to the bottom. Near the poles at the rim they are drawn as fine lines; across the equator they widen into a soft magnetic glow.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.4, nL = 3 + Math.round(c.p1 * 6);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, a = TH[i] * Math.PI / 180, s2 = Math.sin(a) * Math.sin(a) + 1e-3;
+        const L = r / (Math.cos(a) * Math.cos(a) + 1e-3);                                  // dipole: r = L sin²(polar angle), poles on ±y here
+        let v = 0;
+        for (let k = 1; k <= nL; k++) { const Lk = 0.35 + k * 0.75 / nL + 0.05 * Math.sin(t + k); const d = Math.abs(L - Lk) / (0.02 + 0.06 * (1 - r)); v += Math.exp(-d * d) * (0.5 + 0.5 * Math.sin(t * 3 - k + a * 2)); }
+        v = clamp01(v) * (0.35 + 0.65 * r) + 0.04 * (1 - r); set(o, i, v * 0.35, v * 0.55, v, v * 0.15);
+      }
+    } },
+  { id: 'd-wall', name: 'Dome wall wash', group: 'Dome studies', p1: 'Band width', p1d: 0.5,
+    desc: 'Only the annulus under the dome\'s sloped wall is lit, in slowly turning colour, with the centre and rim dark — the dome reads as a sculpted form rather than a screen.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.2, w = 0.08 + 0.14 * c.p1;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, band = Math.exp(-Math.pow((r - 0.7) / w, 2)), a = TH[i] / 360;
+        const k = 4 * i; hsv(fract(0.05 + a * 0.15 + t * 0.1 + 0.1 * Math.sin(t + a * TAU)), 0.75, band * 0.9, o, k); o[k + 3] = band * 0.25;
+      }
+    } },
+  { id: 'd-pool', name: 'Centre pool', group: 'Dome studies', p1: 'Pool size', p1d: 0.4,
+    desc: 'Only the centre lit: a single Ø500–700 orb of light with no pixel structure at all, breathing slowly between warm white and amber.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.3, rad = 220 + 200 * c.p1, warm = 0.5 + 0.5 * Math.sin(t);
+      for (let i = 0; i < N; i++) { const v = Math.exp(-Math.pow(R[i] / rad, 2.2)) * (0.75 + 0.25 * Math.sin(t * 1.7)); set(o, i, v, v * (0.45 + 0.45 * warm), v * 0.15 * warm, v * (0.3 + 0.7 * warm)); }
+    } },
+  { id: 'd-crescent', name: 'Crescents', group: 'Dome studies', p1: 'Thickness', p1d: 0.5,
+    desc: 'A thick crescent turning about the centre. Its horns at the rim stay razor-edged while its belly softens over the dome.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.3, off = 300 + 200 * c.p1, [tr, tg, tb] = c.tint;
+      for (let i = 0; i < N; i++) {
+        const cx = off * Math.cos(t), cy = off * Math.sin(t), d = Math.hypot(X[i] - cx, Y[i] - cy);
+        const v = clamp01((RIM - R[i]) / 30) * clamp01((d - 560) / 25) * 0.9 + 0.03;
+        set(o, i, v * tr, v * tg, v * tb, v * 0.35);
+      }
+    } },
+  { id: 'd-loader', name: 'Rim counter', group: 'Dome studies', p1: 'Segments', p1d: 0.5,
+    desc: 'A dashed white ring rotating on the outermost pixel rows — mechanical and pixel-precise — while the interior holds a dim, slowly cooling glow.',
+    fn(o, c) {
+      const t = c.t * c.speed, seg = 6 + Math.round(c.p1 * 18);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, a = TH[i] / 360, dash = fract(a * seg - t * 0.5) < 0.5 ? 1 : 0.05, ring = r > 0.965 ? dash : r > 0.93 ? dash * 0.25 : 0;
+        const glow = 0.1 * Math.pow(1 - r, 1.2) * (0.6 + 0.4 * Math.sin(t * 0.3));
+        set(o, i, glow * 0.9 + ring * 0.2, glow * 0.5 + ring * 0.2, glow * 0.2 + ring * 0.25, glow * 0.5 + ring);
+      }
+    } },
+  { id: 'd-lightning', name: 'Lightning', group: 'Dome studies', p1: 'Frequency', p1d: 0.3,
+    desc: 'A dark sun. Once in a while a jagged bolt tears from the rim toward the centre: hard white pixels at the edge, a diffuse flash bloom where it hits the dome.',
+    fn(o, c) {
+      const t = c.t * c.speed, period = 1.5 + 5 * (1 - c.p1), n = Math.floor(t / period), ph = fract(t / period);
+      const flash = Math.pow(Math.max(0, 1 - ph * 6), 1.5) + 0.35 * Math.pow(Math.max(0, 1 - Math.abs(ph - 0.22) * 12), 2);
+      const a0 = hash1(n * 17 + 3) * TAU, ca = Math.cos(a0), sa = Math.sin(a0);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, g = 0.02 + 0.02 * (1 - r); let v = 0;
+        if (flash > 0.01) {
+          const along = X[i] * ca + Y[i] * sa, across = -X[i] * sa + Y[i] * ca;
+          if (along > 150 && along < RIM) { const jag = (vnoise(along / 90 + n * 7, n * 3, 0) - 0.5) * 180 * (1 - along / RIM * 0.6); const d = Math.abs(across - jag); v = Math.exp(-d * d / (2 * 18 * 18)) * flash * Math.pow(along / RIM, 1.5); }
+          v += Math.exp(-Math.pow(r / 0.5, 2)) * flash * 0.12;                             // diffuse flash in the dome
+        }
+        set(o, i, g * 0.6 + v * 0.7, g * 0.6 + v * 0.8, g + v, v);
+      }
+    } },
+
+  /* ── Rim ↔ dome: energy handed back and forth between the crisp rim and the soft centre. All written for the sun palette (energy in, colour from the ramp). ── */
+  { id: 'x-tide', name: 'Tide', group: 'Rim ↔ dome', p1: 'Slosh angle', p1d: 0.5,
+    desc: 'Light sloshes between rim and centre like liquid in a bowl, with a lag around the circle so one side is at the rim while the other is pooled in the middle.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.8;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, a = TH[i] * Math.PI / 180, ph = t + c.p1 * 2 * Math.cos(a - t * 0.3);
+        const target = 0.5 + 0.45 * Math.sin(ph), v = Math.exp(-Math.pow((r - target) / 0.22, 2)) * 0.9 + 0.05;
+        set(o, i, v, v * 0.6, v * 0.2, v * 0.3);
+      }
+    } },
+  { id: 'x-echo', name: 'Call and response', group: 'Rim ↔ dome', p1: 'Delay', p1d: 0.4,
+    desc: 'The rim flashes; a beat later the centre answers with a soft bloom; the rim answers back dimmer — a decaying conversation between the two resolutions.',
+    fn(o, c) {
+      const period = 4, t = fract(c.t * c.speed / period) * period, dl = 0.4 + 0.8 * c.p1;
+      const hit = (t0, w) => Math.exp(-Math.pow(Math.max(0, t - t0) / w, 1.2)) * (t >= t0 ? 1 : 0);
+      const rimA = hit(0, 0.35) + 0.4 * hit(2 * dl, 0.35) + 0.15 * hit(4 * dl, 0.35), coreA = 0.8 * hit(dl, 0.9) + 0.3 * hit(3 * dl, 0.9);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, rim = Math.pow(clamp01((r - 0.86) / 0.14), 1.5) * rimA, core = Math.pow(1 - r, 1.3) * coreA;
+        const v = rim + core + 0.04; set(o, i, v, v * 0.6, v * 0.2, v * 0.4);
+      }
+    } },
+  { id: 'x-handoff', name: 'Hand-off', group: 'Rim ↔ dome', p1: 'Ring speed', p1d: 0.4,
+    desc: 'A crisp ring leaves the rim and travels inward; as the dome blurs it away, the centre glow rises to hold the same energy — sharpness traded for volume.',
+    fn(o, c) {
+      const period = 3 + 4 * (1 - c.p1), ph = fract(c.t * c.speed / period), rr = RIM * (1 - ph), lost = Math.pow(ph, 1.5);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, d = Math.abs(R[i] - rr), ring = Math.exp(-d * d / (2 * 22 * 22)) * (1 - lost) * 1.2;
+        const core = Math.pow(1 - r, 1.5) * lost * 0.8 * (1 - ph * 0.5);
+        const v = ring + core + 0.03; set(o, i, v, v * 0.6, v * 0.2, v * 0.3);
+      }
+    } },
+  { id: 'x-horizon', name: 'Horizon', group: 'Rim ↔ dome', p1: 'Line weight', p1d: 0.4,
+    desc: 'A bright horizon line rising and falling across the disc. Where it meets the rim it is a hard pixel row; across the dome it is a glowing band; the two fuse at the ends.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.4, y0 = Math.sin(t) * 650, w = 25 + 60 * c.p1;
+      for (let i = 0; i < N; i++) {
+        const d = Math.abs(Y[i] - y0), v = Math.exp(-d * d / (2 * w * w)) + 0.25 * clamp01(1 - (Y[i] - y0) / 400) * (Y[i] < y0 ? 1 : 0) * 0.5 + 0.03;
+        set(o, i, v, v * 0.55, v * 0.15, v * 0.35);
+      }
+    } },
+  { id: 'x-pendulum', name: 'Pendulum', group: 'Rim ↔ dome', p1: 'Swing', p1d: 0.6,
+    desc: 'One blob swinging along a slowly turning diameter. At each end of the swing it snaps into pixels on the rim; through the middle it dissolves into the dome.',
+    fn(o, c) {
+      const t = c.t * c.speed, amp = 500 + 350 * c.p1, a = t * 0.11, s_ = Math.sin(t * 1.4) * amp, bx = s_ * Math.cos(a), by = s_ * Math.sin(a);
+      for (let i = 0; i < N; i++) {
+        const d = Math.hypot(X[i] - bx, Y[i] - by), v = Math.exp(-d * d / (2 * 110 * 110)) + 0.04 * (1 - R[i] / RIM);
+        set(o, i, v, v * 0.6, v * 0.2, v * 0.5);
+      }
+    } },
+  { id: 'x-orbits', name: 'Locked orbits', group: 'Rim ↔ dome', p1: 'Ratio', p1d: 0.5,
+    desc: 'Two bodies in phase-locked orbits: a small crisp one on the outer rows, a large soft one deep in the dome, meeting on the same radius twice a cycle.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.5, k = 1 + Math.round(c.p1 * 3);
+      const a1 = t * k, a2 = t, r1 = RIM - 20, r2 = 280;
+      const x1 = r1 * Math.cos(a1), y1 = r1 * Math.sin(a1), x2 = r2 * Math.cos(a2), y2 = r2 * Math.sin(a2);
+      for (let i = 0; i < N; i++) {
+        const d1 = Math.hypot(X[i] - x1, Y[i] - y1), d2 = Math.hypot(X[i] - x2, Y[i] - y2);
+        const v = Math.exp(-d1 * d1 / (2 * 40 * 40)) * 1.2 + Math.exp(-d2 * d2 / (2 * 150 * 150)) * 0.9 + 0.03;
+        set(o, i, v, v * 0.6, v * 0.2, v * 0.4);
+      }
+    } },
+  { id: 'x-iris', name: 'Iris', group: 'Rim ↔ dome', p1: 'Dwell', p1d: 0.5,
+    desc: 'An aperture breathing between a thin hard ring at the rim and a fat soft disc at the centre, pausing at each extreme like an eye adjusting.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.5, sm = Math.sin(t), e = Math.sign(sm) * Math.pow(Math.abs(sm), 1 - 0.7 * c.p1), target = 0.5 + 0.47 * e;
+      const w = 0.03 + 0.25 * (1 - target);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, v = Math.exp(-Math.pow((r - target) / w, 2)) * (0.6 + 0.6 * target) + Math.pow(1 - r, 2) * 0.15 * (1 - target) + 0.03;
+        set(o, i, v, v * 0.6, v * 0.2, v * 0.4);
+      }
+    } },
+  { id: 'x-drops', name: 'Rim drops', group: 'Rim ↔ dome', p1: 'Rate', p1d: 0.4,
+    desc: 'Drops detach from rim pixels and fall inward under an imagined gravity, accelerating and blurring into the dome, leaving a fading wake behind them.',
+    fn(o, c) {
+      const t = c.t * c.speed, nD = 6 + Math.round(c.p1 * 14);
+      for (let i = 0; i < N; i++) { const g = 0.04 + 0.05 * (1 - R[i] / RIM); set(o, i, g, g * 0.5, g * 0.15, g * 0.3); }
+      for (let k = 0; k < nD; k++) {
+        const life = 2.2 + 1.5 * hash1(k * 3), ph = fract(t / life + hash1(k * 7 + 1)), gen = Math.floor(t / life + hash1(k * 7 + 1)), a = hash1(k * 11 + gen * 13) * TAU;
+        const rr = RIM * (1 - ph * ph * 0.95), dx = rr * Math.cos(a), dy = rr * Math.sin(a), ca = Math.cos(a), sa = Math.sin(a);
+        for (let i = 0; i < N; i++) {
+          const d = Math.hypot(X[i] - dx, Y[i] - dy); const along = X[i] * ca + Y[i] * sa, across = Math.abs(-X[i] * sa + Y[i] * ca);
+          let v = Math.exp(-d * d / (2 * 30 * 30)) * (1 - ph * 0.6);
+          if (along > rr && across < 40) v += Math.exp(-across * across / 800) * Math.exp(-(along - rr) / 200) * 0.35 * ph;   // wake toward the rim
+          if (v > 0.002) { const q = 4 * i; o[q] += v; o[q + 1] += v * 0.6; o[q + 2] += v * 0.2; o[q + 3] += v * 0.4; }
+        }
+      }
+    } },
+  { id: 'x-granules', name: 'Granule flow', group: 'Rim ↔ dome', p1: 'Flow speed', p1d: 0.5,
+    desc: 'Granules are born as soft blooms at the centre, drift outward, sharpen as the dome thins, and cool to red as they reach the rim and die.',
+    fn(o, c) {
+      const t = c.t * c.speed * (0.15 + 0.35 * c.p1);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, lr = Math.log(0.12 + r) - t, f = FEAT(R[i]) / 900;
+        const n = vnoise(lr / f * 0.45, TH[i] / 360 / f * 1.4, 3.0), n2 = vnoise(lr / f * 0.9 + 5, TH[i] / 360 / f * 2.8, 7.0);
+        const v = clamp01((0.55 * n + 0.45 * n2 - 0.32) * 2.2) * (0.5 + 0.5 * (1 - r)) + 0.05;
+        set(o, i, v, v * 0.6 * (1 - r * 0.6), v * 0.2 * (1 - r), v * 0.4 * (1 - r));
+      }
+    } },
+  { id: 'x-dawn', name: 'Dawn', group: 'Rim ↔ dome', p1: 'Day length', p1d: 0.5,
+    desc: 'The disc brightens from the bottom rim upward like a sunrise. The terminator is a sharp row where it meets the rim, a soft gradient over the dome.',
+    fn(o, c) {
+      const period = 8 + 16 * c.p1, ph = fract(c.t * c.speed / period), lvl = -RIM - 200 + (2 * RIM + 400) * (0.5 - 0.5 * Math.cos(ph * TAU));
+      for (let i = 0; i < N; i++) {
+        const below = clamp01((lvl - Y[i]) / 120), glow = Math.exp(-Math.pow((Y[i] - lvl) / 160, 2)) * 0.6;
+        const v = below * (0.55 + 0.3 * (1 - R[i] / RIM)) + glow + 0.03; set(o, i, v, v * 0.55, v * 0.15, v * 0.3);
+      }
+    } },
+  { id: 'x-spiral', name: 'Spiral arms', group: 'Rim ↔ dome', p1: 'Arms', p1d: 0.4,
+    desc: 'Logarithmic spiral arms turning about the centre, drawn thin at the rim and fat at the core so each arm reads at the local resolution.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.4, arms = 2 + Math.round(c.p1 * 3);
+      for (let i = 0; i < N; i++) {
+        const r = Math.max(30, R[i]), a = TH[i] * Math.PI / 180, ph = fract((a - 2.2 * Math.log(r / 60) + t) * arms / TAU);
+        const w = 0.06 + 0.25 * FEAT(R[i]) / 400, d = Math.min(ph, 1 - ph), v = Math.exp(-d * d / (2 * w * w)) * 0.9 + 0.08 * (1 - R[i] / RIM);
+        set(o, i, v, v * 0.6, v * 0.2, v * 0.35);
+      }
+    } },
+  { id: 'x-sector', name: 'Sector to core', group: 'Rim ↔ dome', p1: 'Interval', p1d: 0.4,
+    desc: 'One wedge flashes at the rim, and the pulse runs down the wedge into the centre where it spreads into the glow and fades — a nerve firing.',
+    fn(o, c) {
+      const period = 1.2 + 2 * c.p1, t = c.t * c.speed, n = Math.floor(t / period), ph = fract(t / period), sec = Math.floor(hash1(n * 5 + 1) * 12);
+      const front = RIM * (1 - Math.pow(ph, 0.8));
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, mine = Math.floor(((TH[i] - 60 + 360) % 360) / 30) === sec ? 1 : 0.15 * (1 - r), d = Math.abs(R[i] - front);
+        const pulse = Math.exp(-d * d / (2 * Math.pow(30 + 120 * ph, 2))) * mine * (1 - ph * 0.4), core = Math.pow(1 - r, 2) * Math.pow(ph, 2) * 0.7;
+        const v = pulse + core + 0.03; set(o, i, v, v * 0.6, v * 0.2, v * 0.4);
+      }
+    } },
+  { id: 'x-shimmer', name: 'Two timescales', group: 'Rim ↔ dome', p1: 'Twinkle', p1d: 0.5,
+    desc: 'The centre breathes slowly on one timescale while the rim scintillates fast on another — the piece uses low frequencies where it is blurry and high where it is sharp.',
+    fn(o, c) {
+      const t = c.t * c.speed;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, slow = 0.45 + 0.35 * vnoise(X[i] / 400 + t * 0.15, Y[i] / 400, t * 0.1);
+        const h = hash1(i * 5 + 3), fast = 0.5 + 0.5 * Math.sin(t * (6 + 6 * h) + h * 50), mix = Math.pow(r, 4) * c.p1;
+        const v = slow * (1 - mix) + fast * mix * 1.1; set(o, i, v, v * 0.6, v * 0.2, v * 0.4);
+      }
+    } },
+  { id: 'x-coronal', name: 'Coronal rain', group: 'Rim ↔ dome', p1: 'Density', p1d: 0.5,
+    desc: 'Bright drops condense on the upper rim and fall inward along magnetic arcs, dimming as they enter the dome. The lower half stays a quiet ember glow.',
+    fn(o, c) {
+      const t = c.t * c.speed, nD = 8 + Math.round(c.p1 * 16);
+      for (let i = 0; i < N; i++) { const g = 0.05 + 0.06 * (1 - R[i] / RIM) * (0.5 - 0.5 * Y[i] / RIM); set(o, i, g, g * 0.5, g * 0.15, g * 0.25); }
+      for (let k = 0; k < nD; k++) {
+        const life = 1.8 + 1.4 * hash1(k * 3 + 2), ph = fract(t / life + hash1(k * 7)), gen = Math.floor(t / life + hash1(k * 7));
+        const a0 = (0.15 + 0.7 * hash1(k * 11 + gen * 3)) * Math.PI, rr = RIM * (1 - ph * 0.8), a = a0 + ph * 0.6 * (hash1(k) - 0.5);
+        const dx = rr * Math.cos(a), dy = rr * Math.sin(a), amp = Math.sin(Math.PI * Math.min(1, ph * 1.3)) * (1 - ph * 0.5);
+        for (let i = 0; i < N; i++) { const d = Math.hypot(X[i] - dx, Y[i] - dy); if (d > 120) continue; const v = Math.exp(-d * d / (2 * 32 * 32)) * amp; const q = 4 * i; o[q] += v; o[q + 1] += v * 0.7; o[q + 2] += v * 0.3; o[q + 3] += v * 0.6; }
+      }
+    } },
+  { id: 'x-invert', name: 'Inversion', group: 'Rim ↔ dome', p1: 'Period', p1d: 0.5,
+    desc: 'A radial gradient that slowly flips: bright rim and dark core becomes dark rim and bright core and back, passing through a flat grey moment in between.',
+    fn(o, c) {
+      const period = 6 + 14 * c.p1, ph = Math.sin(c.t * c.speed * TAU / period);
+      for (let i = 0; i < N; i++) { const r = R[i] / RIM, v = clamp01(0.45 + 0.45 * ph * (2 * Math.pow(r, 1.5) - 1)); set(o, i, v, v * 0.6, v * 0.2, v * 0.4); }
+    } },
+  { id: 'x-twins', name: 'Twin suns', group: 'Rim ↔ dome', p1: 'Separation', p1d: 0.5,
+    desc: 'Two soft cores orbit each other deep in the dome; where their combined glow reaches the rim it breaks into crisp waves of pixels.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.4, sep = 150 + 300 * c.p1, x1 = sep * Math.cos(t), y1 = sep * Math.sin(t);
+      for (let i = 0; i < N; i++) {
+        const d1 = Math.hypot(X[i] - x1, Y[i] - y1), d2 = Math.hypot(X[i] + x1, Y[i] + y1), r = R[i] / RIM;
+        let v = Math.exp(-d1 * d1 / (2 * 190 * 190)) + Math.exp(-d2 * d2 / (2 * 190 * 190));
+        v += Math.pow(clamp01((r - 0.85) / 0.15), 2) * v * (0.5 + 0.5 * Math.sin(TH[i] * Math.PI / 180 * 12 - t * 6)) * 1.5;
+        set(o, i, v, v * 0.6, v * 0.2, v * 0.4);
+      }
+    } },
+  { id: 'x-fuse', name: 'Fuse', group: 'Rim ↔ dome', p1: 'Burn speed', p1d: 0.4,
+    desc: 'A white-hot point burns its way round the rim, pixel by pixel, while its heat leaks inward as a soft wake that the dome smears behind it.',
+    fn(o, c) {
+      const t = c.t * c.speed * (0.3 + 0.9 * c.p1), a = t % TAU, hx = (RIM - 18) * Math.cos(a), hy = (RIM - 18) * Math.sin(a);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, d = Math.hypot(X[i] - hx, Y[i] - hy), da = ((a - TH[i] * Math.PI / 180) % TAU + TAU) % TAU;   // how far behind the head
+        const head = Math.exp(-d * d / (2 * 30 * 30)) * 1.5, wake = Math.exp(-da * 1.2) * Math.exp(-Math.pow((r - 0.75) / 0.25, 2)) * 0.5;
+        const v = head + wake + 0.03; set(o, i, v, v * 0.6, v * 0.2, v * 0.5);
+      }
+    } },
+  { id: 'x-quench', name: 'Quench and reignite', group: 'Rim ↔ dome', p1: 'Cycle', p1d: 0.5,
+    desc: 'A full sun goes dark from the centre outward until only a thin hard rim ring survives — then fire comes back from the rim inward and floods the dome.',
+    fn(o, c) {
+      const period = 6 + 10 * c.p1, ph = fract(c.t * c.speed / period), out = ph < 0.5, k = out ? ph * 2 : (ph - 0.5) * 2;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM;
+        const front = Math.pow(k, 0.7) * 0.98, lit = out ? clamp01((r - front) / 0.08) : clamp01((r - (1 - front)) / 0.08);   // out: dark grows from the centre; in: fire returns from the rim
+        const ring = Math.pow(clamp01((r - 0.94) / 0.06), 2) * 0.9, v = Math.max(lit, 0) * (0.8 - 0.3 * r) + ring + 0.02;
+        set(o, i, v, v * 0.6, v * 0.2, v * 0.35);
+      }
+    } },
+  { id: 'x-fringes', name: 'Interference', group: 'Rim ↔ dome', p1: 'Source spacing', p1d: 0.5,
+    desc: 'Two off-centre ring sources interfere. The fringes are visible only near the rim where the dome is thin; the centre holds their average as a smooth glow.',
+    fn(o, c) {
+      const t = c.t * c.speed * 90, sep = 150 + 350 * c.p1, k = TAU / 110;
+      for (let i = 0; i < N; i++) {
+        const d1 = Math.hypot(X[i] - sep, Y[i]), d2 = Math.hypot(X[i] + sep, Y[i]);
+        const v = clamp01(0.45 + 0.45 * Math.sin(k * d1 - t / 110) * Math.sin(k * d2 - t / 110) * 2) * 0.9;
+        set(o, i, v, v * 0.6, v * 0.2, v * 0.35);
+      }
+    } },
+  { id: 'x-zoom', name: 'Outflow', group: 'Rim ↔ dome', p1: 'Speed', p1d: 0.5,
+    desc: 'A noise field expanding radially forever, so texture emerges soft from the centre and streams out to the rim, where it finally resolves into pixels.',
+    fn(o, c) {
+      const t = c.t * c.speed * (0.2 + 0.6 * c.p1);
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, a = TH[i] * Math.PI / 180, lr = Math.log(0.08 + r) * 1.8 - t;
+        const n = vnoise(lr * 2.2, Math.cos(a) * 3, Math.sin(a) * 3), n2 = vnoise(lr * 4.5 + 3, Math.cos(a) * 6 + 3, Math.sin(a) * 6);
+        const v = clamp01((0.6 * n + 0.4 * n2 - 0.28) * 2.0) * (0.55 + 0.45 * r) + 0.04; set(o, i, v, v * 0.6, v * 0.2, v * 0.35);
+      }
+    } },
+
+  { id: 'crawl', name: '1 · Chain crawl', group: 'First light', p1: 'Tail length', p1d: 0.3,
+    desc: 'One bright pixel runs i = 0 → 2416 in output order with a fading amber tail. Verifies the map against reality.',
+    fn(o, c) {
+      const head = Math.floor(c.t * c.speed * 120) % N, tail = 4 + Math.round(c.p1 * 60);
+      o.fill(0);
+      for (let k = 0; k <= tail; k++) { const i = (head - k + N) % N, v = Math.pow(1 - k / (tail + 1), 2); set(o, i, v, v * 0.45, 0, k === 0 ? 1 : 0); }
+    } },
+  { id: 'board', name: '2 · Board ID', group: 'First light', p1: 'Brightness', p1d: 0.6,
+    desc: 'Each of the 25 boards a distinct hue (B ring saturated, C ring lighter, disc white). Verifies seams and run order.',
+    fn(o, c) {
+      for (let i = 0; i < N; i++) {
+        const b = BOARD[i];
+        if (b === 0) { set(o, i, 0, 0, 0, c.p1); continue; }
+        const k = sectorOf(b), outer = b > 12;
+        hsv(((k - 1) / 12 + (outer ? 1 / 24 : 0)) % 1, outer ? 0.55 : 1, c.p1, o, 4 * i); o[4 * i + 3] = outer ? c.p1 * 0.3 : 0;
+      }
+    } },
+  { id: 'uni', name: '3 · Universe boundaries', group: 'First light', p1: 'Ground level', p1d: 0.08,
+    desc: 'Pixels at ri % 128 == 0 flash white (start of a universe); run starts flash blue. Verifies addressing on the PixLite.',
+    fn(o, c) {
+      const on = (c.t * 2) % 1 < 0.5, g = c.p1;
+      for (let i = 0; i < N; i++) {
+        const ub = (RI[i] & 127) === 0, rs = RI[i] === 0;
+        if (rs && on) set(o, i, 0, 0.3, 1, 0.2); else if (ub && on) set(o, i, 0, 0, 0, 1); else set(o, i, g, g * 0.5, 0, 0);
+      }
+    } },
+  { id: 'white', name: '4 · White-current step', group: 'First light', p1: 'Level', p1d: 0.1,
+    desc: 'Full white (R=G=B=W) at the slider level, snapped to 10 % steps. Watch the power estimate against the PSUs.',
+    fn(o, c) { const v = Math.round(c.p1 * 10) / 10; for (let i = 0; i < N; i++) set(o, i, v, v, v, v); } },
+];
+
+/* output pipeline: intent → master → cap → gamma → bytes on the wire */
+const intent = new Float32Array(N * 4), wire = new Uint8Array(N * 4);
+const GLUT = new Uint8Array(4096); for (let k = 0; k < 4096; k++) GLUT[k] = Math.round(255 * Math.pow(k / 4095 * CAP, GAMMA));
+/* Sun palette: every pattern's per-pixel energy is re-coloured along one ramp — deep red → orange → amber → white-gold (W carries the highlights). Portable: a 1-D ramp lookup. */
+const SUN_RAMP = [[0, 0, 0, 0], [0.55, 0.04, 0, 0], [1.0, 0.22, 0, 0], [1.0, 0.45, 0.02, 0.12], [1.0, 0.62, 0.10, 0.45], [1.0, 0.78, 0.30, 1.0]];
+function sunify() {
+  for (let i = 0; i < N; i++) {
+    const k = 4 * i, e = clamp01(0.3 * intent[k] + 0.5 * intent[k + 1] + 0.2 * intent[k + 2] + 0.9 * intent[k + 3]);   // energy, W weighted as a real white
+    const p = Math.pow(e, 0.85) * (SUN_RAMP.length - 1), j = Math.min(SUN_RAMP.length - 2, Math.floor(p)), f = p - j, A = SUN_RAMP[j], B = SUN_RAMP[j + 1];
+    intent[k] = A[0] + (B[0] - A[0]) * f; intent[k + 1] = A[1] + (B[1] - A[1]) * f; intent[k + 2] = A[2] + (B[2] - A[2]) * f; intent[k + 3] = A[3] + (B[3] - A[3]) * f;
+  }
+}
+function quantize(master) {
+  if (S.sunPalette) sunify();
+  for (let k = 0; k < N * 4; k++) { const v = clamp01(intent[k] * master); wire[k] = GLUT[(v * 4095) | 0]; }
+}
+
+/* ───────────────────────── state ───────────────────────── */
+const S = { pattern: PATTERNS[0], speed: 1, master: 1, p1: PATTERNS[0].p1d, tint: [1, 0.6, 0.18], playing: true, t: 0, frame: 0, tick: 40, live: false, hang: 0, explode: 0, sunPalette: true, exposure: 1,
+  layers: { pcb: true, leds: true, skel: true, ring: true, mount: true, tray: true, stand: true, dome: false, flat: false, labels: false, floor: true },
+  light: { bloom: true, halo: true, work: false }, ambient: 0.12 };
+const $ = id => document.getElementById(id);
+
+/* ───────────────────────── scene ───────────────────────── */
+const canvas = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.NoToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x07080b);
+const camera = new THREE.PerspectiveCamera(38, 1, 10, 30000);
+const controls = new OrbitControls(camera, canvas); controls.enableDamping = true; controls.dampingFactor = 0.08; controls.maxDistance = 12000; controls.minDistance = 60;
+const sun = new THREE.Group(); scene.add(sun);                       // everything that hangs; rotated by "hang"
+
+let bloom = null;
+const hemi = new THREE.HemisphereLight(0x8a93a8, 0x1a1712, 0.35); scene.add(hemi);
+const key = new THREE.DirectionalLight(0xfff1dc, 0.5); key.position.set(1500, 2200, 2600); scene.add(key);
+const fill = new THREE.DirectionalLight(0xb9c2d4, 0.25); fill.position.set(-1800, -400, -2000); scene.add(fill);
+const back = new THREE.DirectionalLight(0xd8dce6, 0.35); back.position.set(900, 1600, -2600); scene.add(back);
+function applyRoomLight() { const a = S.ambient, w = S.light.work ? 1 : 0; hemi.intensity = 0.1 + a * 1.2 + w * 0.6; key.intensity = 0.15 + a * 1.4 + w * 0.9; fill.intensity = 0.1 + a * 0.6 + w * 0.5; back.intensity = 0.3 + a * 1.2 + w * 0.8; if (bloom) bloom.threshold = w ? 1.05 : 0.62; }
+applyRoomLight();
+
+const RANK = { dome: 3, flat: 2, leds: 0, pcb: 0, labels: 0, skel: -1, ring: -1.6, mount: -2.4, tray: -3.2, stand: -4.2, floor: 0 };   // explode order, front → back
+const L = {};                                                      // layer groups
+for (const k of Object.keys(S.layers)) { L[k] = new THREE.Group(); (k === 'floor' ? scene : sun).add(L[k]); }
+
+/* ── model frame: Fusion export is X right, Z up, Y toward the back → sim (x, y, z) = (X, Z, −Y).
+   PCB front face is at z = 40 in that frame; the floor is 1165 mm below centre. ── */
+const Z0 = 40;
+function b64(str) { const b = atob(str), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; }
+function buildLayer(key, base) {
+  const g = new THREE.Group();
+  for (const ch of SUN_MODEL[key]) {
+    const q = new Int16Array(b64(ch.p)), pos = new Float32Array(q.length);
+    for (let i = 0; i < q.length; i += 3) { pos[i] = q[i] / 10 + ch.o[0]; pos[i + 1] = q[i + 1] / 10 + ch.o[1]; pos[i + 2] = q[i + 2] / 10 + ch.o[2]; }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setIndex(new THREE.BufferAttribute(new Uint16Array(b64(ch.i)), 1)); geo.computeVertexNormals();
+    const m = base.clone(); if (!base.userData.fixedColor) m.color.setRGB(ch.c[0], ch.c[1], ch.c[2], THREE.SRGBColorSpace);
+    g.add(new THREE.Mesh(geo, m));
+  }
+  return g;
+}
+const matPCB = new THREE.MeshStandardMaterial({ color: 0x0f1113, roughness: 0.82, metalness: 0.05 });
+const matPCBEdge = new THREE.LineBasicMaterial({ color: 0x2b2f38 });
+const matPkg = new THREE.MeshStandardMaterial({ color: 0xd9d3b4, roughness: 0.45, metalness: 0.02 });
+const matAlu = new THREE.MeshStandardMaterial({ color: 0xc4c8cf, roughness: 0.62, metalness: 0.55 });
+const matSteel = new THREE.MeshStandardMaterial({ color: 0x555a63, roughness: 0.55, metalness: 0.6 });
+const matDark = new THREE.MeshStandardMaterial({ color: 0x33363c, roughness: 0.7, metalness: 0.4 });
+const matOpal = new THREE.MeshStandardMaterial({ color: 0x4a4843, roughness: 1, metalness: 0, transparent: true, opacity: 0.985, side: THREE.DoubleSide }); matOpal.userData.fixedColor = true;   // 3 mm PMMA 乳白板, frosted both faces — a volume diffuser, unlit it reads as a pale grey sheet
+const matDome = new THREE.MeshPhysicalMaterial({ color: 0x3a3937, roughness: 0.9, metalness: 0, transparent: true, opacity: 0.93, side: THREE.DoubleSide, clearcoat: 0.15, clearcoatRoughness: 0.8 }); matDome.userData.fixedColor = true;   // clear acrylic, outer face hand-sanded matte — a surface diffuser
+
+/* boards: A disc + 12 B + 12 C, 3 mm as modelled, front face at z = Z0 */
+const deg = a => a * Math.PI / 180;
+const HALF_W = deg(29.83 / 2);                                     // wedge half-angle (2 mm channel gaps)
+function wedgeShape(r0, r1, a0, a1) { const s = new THREE.Shape(); s.absarc(0, 0, r1, a0, a1, false); s.absarc(0, 0, r0, a1, a0, true); s.closePath(); return s; }
+function addBoard(shape, name) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth: 3, bevelEnabled: false }); g.translate(0, 0, Z0 - 3);
+  const m = new THREE.Mesh(g, matPCB); m.name = name; L.pcb.add(m);
+  L.pcb.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), matPCBEdge));
+}
+const discShape = new THREE.Shape(); discShape.absarc(0, 0, 224, 0, TAU, false); addBoard(discShape, 'A');
+for (let k = 1; k <= 12; k++) { const ac = deg(75 + 30 * (k - 1)); addBoard(wedgeShape(226, 674, ac - HALF_W, ac + HALF_W), 'B' + k); addBoard(wedgeShape(676, 854, ac - HALF_W, ac + HALF_W), 'C' + k); }
+
+/* STEP parts (BIG LIGHT 9.1) */
+L.skel.add(buildLayer('skel', matDark));
+L.ring.add(buildLayer('ring', matAlu));
+L.mount.add(buildLayer('mount', matAlu));
+L.tray.add(buildLayer('tray', matSteel));
+L.stand.add(buildLayer('stand', matSteel));
+const domeGroup = buildLayer('dome', matDome), flatGroup = buildLayer('flat', matOpal);
+L.dome.add(domeGroup); L.flat.add(flatGroup);
+domeGroup.children.forEach(m => m.renderOrder = 3); flatGroup.children.forEach(m => m.renderOrder = 2);
+const DOME_Z = SUN_MODEL.domeZ;                                    // front surface z at r = 0, 25, … 900
+const domeZ = r => { const k = Math.min(r / 25, DOME_Z.length - 1.001), i = Math.floor(k), f = k - i; return DOME_Z[i] * (1 - f) + DOME_Z[i + 1] * f; };
+const FLAT_Z = 57.6;                                               // opal sheet front face
+const OPAL_SIZE = 30 + 3.0 * (FLAT_Z - Z0 - 3.5);                    // ≈72 mm: 3 mm double-frosted opal scatters near-Lambertian, so a pixel 14 mm behind it spreads ~2.5× the gap
+
+/* labels */
+function makeLabel(text, color, px) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
+  g.font = `500 ${px * 2}px "JetBrains Mono", monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = color; g.fillText(text, 256, 64);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+}
+{
+  const cen = Array.from({ length: 25 }, () => [0, 0, 0]);
+  for (let i = 0; i < N; i++) { const c = cen[BOARD[i]]; c[0] += X[i]; c[1] += Y[i]; c[2]++; }
+  cen.forEach((c, b) => { const run = RUN[BOARD.indexOf(b)]; const s = makeLabel(`${BOARDS[b]} · run ${run}`, '#ffcf7a', 26); s.position.set(c[0] / c[2], c[1] / c[2], Z0 + 12); s.scale.set(160, 40, 1); L.labels.add(s); });
+}
+/* floor: the stand's feet are 1165 mm below centre */
+{ const g = new THREE.GridHelper(6000, 60, 0x1b1e26, 0x12141a); g.position.y = -1165; L.floor.add(g); }
+
+/* ── the 2,417 pixels: package (lit by room light) + emitter face (wire colour) + halo (additive) ── */
+const colors = new Float32Array(N * 3);                            // linear display colour per pixel
+const M4 = new THREE.Matrix4();
+const pkg = new THREE.InstancedMesh(new THREE.BoxGeometry(5, 5, 1.6), matPkg, N);
+const emit = new THREE.InstancedMesh(new THREE.PlaneGeometry(4.4, 4.4), new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false,
+  vertexShader: `varying vec3 vC; void main(){ vC = instanceColor; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position,1.0); }`,
+  fragmentShader: `varying vec3 vC; void main(){ float m = max(vC.r, max(vC.g, vC.b)); gl_FragColor = vec4(vC, clamp(m * 8.0, 0.0, 1.0)); }`,
+}), N);
+const haloMat = new THREE.ShaderMaterial({
+  /* Each pixel's footprint on a diffusing screen at height d above a Lambertian source follows the cos⁴ law:
+     E(ρ) = K · d² / (d² + ρ²)²  — integrates to π·K for every d, so energy is conserved as the dome rises and
+     the peak falls as 1/d². d and the quad size ride in the instance matrix (z-basis length and x-basis length). */
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  uniforms: { uK: { value: 286.0 } },                              // pitch²/π → a full-white field sums to ~1.0 × transmission
+  vertexShader: `varying vec2 vUv; varying vec3 vC; varying float vD, vS; void main(){ vUv = uv; vC = instanceColor; vS = length(instanceMatrix[0].xyz); vD = length(instanceMatrix[2].xyz); gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position,1.0); }`,
+  fragmentShader: `varying vec2 vUv; varying vec3 vC; varying float vD, vS; uniform float uK; void main(){ vec2 rho = (vUv - 0.5) * vS; float d2 = vD * vD; float q = d2 + dot(rho, rho); float edge = smoothstep(0.5, 0.42, max(abs(vUv.x - 0.5), abs(vUv.y - 0.5))); gl_FragColor = vec4(vC * (uK * d2 / (q * q)) * edge, 1.0); }`,
+});
+const halo = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), haloMat, N);
+const colorAttr = new THREE.InstancedBufferAttribute(colors, 3); colorAttr.setUsage(THREE.DynamicDrawUsage);
+emit.instanceColor = colorAttr; halo.instanceColor = colorAttr;   // package keeps its own material colour
+for (let i = 0; i < N; i++) { M4.makeTranslation(X[i], Y[i], Z0 + 0.8); pkg.setMatrixAt(i, M4); M4.makeTranslation(X[i], Y[i], Z0 + 1.65); emit.setMatrixAt(i, M4); }
+L.leds.add(pkg); sun.add(emit); sun.add(halo);
+emit.frustumCulled = halo.frustumCulled = pkg.frustumCulled = false;
+emit.renderOrder = 1; halo.renderOrder = 4;                           // halos composite over both diffusers
+const _ax = new THREE.Vector3(), _ay = new THREE.Vector3(), _az = new THREE.Vector3();
+/* Optics from spec: opal = 3 mm PMMA double-frosted (volume diffuser, ~50 % transmission, equivalent screen height ≈ 56 mm → 72 mm FWHM);
+   dome = 8 mm cast PMMA, 91 % LT @3 mm (SGS GZMR240802243501), outer face sanded → acts as a screen; ×0.86 for entry Fresnel + sanded-face back-scatter. */
+const D_OPAL = 56, T_OPAL = 0.5, T_DOME = 0.86, D_LED = 12;
+function layoutHalo() {
+  const dome = S.layers.dome, flat = S.layers.flat;
+  for (let i = 0; i < N; i++) {
+    if (dome) {
+      const r = R[i], z = domeZ(r), slope = (domeZ(r + 10) - domeZ(Math.max(0, r - 10))) / 20;
+      const d = Math.hypot(D_OPAL, z - FLAT_Z), size = Math.min(420, 5 * d);
+      const ct = r > 1 ? X[i] / r : 1, st = r > 1 ? Y[i] / r : 0;
+      _ay.set(ct, st, slope).normalize(); _ax.set(-st, ct, 0); _az.crossVectors(_ay, _ax).normalize();
+      M4.makeBasis(_ax.multiplyScalar(size), _ay.multiplyScalar(size), _az.clone().multiplyScalar(d));
+      M4.setPosition(X[i] + _az.x * 6, Y[i] + _az.y * 6, z + _az.z * 6);
+    } else if (flat) { M4.makeScale(280, 280, D_OPAL); M4.setPosition(X[i], Y[i], FLAT_Z + 0.5); }
+    else { M4.makeScale(60, 60, D_LED); M4.setPosition(X[i], Y[i], Z0 + 1.7); }
+    halo.setMatrixAt(i, M4);
+  }
+  halo.instanceMatrix.needsUpdate = true;
+  haloMat.uniforms.uK.value = 286 * S.exposure * (dome ? T_OPAL * T_DOME : flat ? T_OPAL : 0.35);   // bare: only the package's own spill onto the PCB
+  halo.position.z = S.explode * (dome ? RANK.dome : flat ? RANK.flat : 0);
+}
+layoutHalo();
+
+/* post */
+const composer = new EffectComposer(renderer);
+const renderPass = new RenderPass(scene, camera); composer.addPass(renderPass);
+bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.75, 0.45, 0.62); composer.addPass(bloom);
+composer.addPass(new OutputPass());
+applyRoomLight();
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+/* camera views */
+const VIEWS = { front: [0, 0, 3100], iso: [2000, -700, 2500], back: [-1700, 500, -2900], close: [420, 120, 560] };
+function view(k) { const p = VIEWS[k]; camera.position.set(...p); controls.target.set(k === 'close' ? 380 : 0, k === 'close' ? 60 : -150, k === 'close' ? Z0 : 0); controls.update(); }
+view('iso');
+
+/* ───────────────────────── frame loop ───────────────────────── */
+const W_TINT = [1.0, 0.92, 0.78];                                  // SK6812 W die, warm-neutral, linear
+let lastEngine = 0, acc = 0, engineRate = 0, fpsN = 0, fpsT = performance.now(), litN = 0, peak = 0;
+const zoneW = new Float32Array(7);
+function engineTick(dt) {
+  if (!S.live) {
+    S.pattern.fn(intent, { t: S.t, dt, speed: S.speed, p1: S.p1, tint: S.tint });
+    quantize(S.master);
+  }
+  S.t += dt; S.frame++;
+  presentWire();
+}
+function presentWire() {                                           // wire bytes → linear display colour + stats
+  zoneW.fill(0); litN = 0; peak = 0;
+  for (let i = 0; i < N; i++) {
+    const r = wire[4 * i], g = wire[4 * i + 1], b = wire[4 * i + 2], w = wire[4 * i + 3], s = r + g + b + w;
+    if (s) litN++; const mx = Math.max(r, g, b, w); if (mx > peak) peak = mx;
+    zoneW[ZONE[i]] += s;                                            // Σ bytes → mA later
+    const wl = w / 255;
+    colors[3 * i] = r / 255 + wl * W_TINT[0]; colors[3 * i + 1] = g / 255 + wl * W_TINT[1]; colors[3 * i + 2] = b / 255 + wl * W_TINT[2];
+  }
+  colorAttr.needsUpdate = true;
+}
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dtReal = Math.min(0.1, (now - lastEngine) / 1000); lastEngine = now;
+  if (S.playing && !S.live) { acc += dtReal; const step = 1 / S.tick; let n = 0; while (acc >= step && n < 4) { engineTick(step); acc -= step; n++; } if (acc >= step) acc = 0; }
+  controls.update();
+  halo.visible = S.light.halo; bloom.enabled = S.light.bloom;
+  if (S.light.bloom) composer.render(); else renderer.render(scene, camera);
+  fpsN++; if (now - fpsT > 500) { $('o-fps').textContent = Math.round(fpsN * 1000 / (now - fpsT)) + ' fps'; fpsN = 0; fpsT = now; updateStats(); }
+}
+function updateStats() {
+  let tot = 0; const rows = zonesEl.children;
+  for (let z = 0; z < 7; z++) { const A = zoneW[z] / 255 * 0.02, W = A * 5; tot += W; const pct = W / 150 * 100; const bar = rows[z].querySelector('i'); bar.style.width = Math.min(100, pct) + '%'; bar.className = pct > 100 ? 'bad' : pct > 80 ? 'warn' : ''; rows[z].querySelector('b').textContent = W.toFixed(0) + ' W'; }
+  $('o-power').textContent = `${tot.toFixed(0)} W · ${(tot / 5).toFixed(1)} A`; $('o-pct').textContent = (tot / 967 * 100).toFixed(0) + ' %';
+  $('s-power').textContent = tot.toFixed(0) + ' W'; $('s-frame').textContent = S.frame; $('s-t').textContent = S.t.toFixed(1) + ' s';
+  $('o-lit').textContent = `${litN} / ${N}`; $('o-peak').textContent = peak + ' / 255';
+}
+engineTick(0); requestAnimationFrame(t => { lastEngine = t; loop(t); });
+
+/* ───────────────────────── hover inspector ───────────────────────── */
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(); const insp = $('insp'); let hoverId = -1;
+canvas.addEventListener('pointermove', e => {
+  ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObject(pkg, false)[0];
+  if (!hit || hit.instanceId == null) { hoverId = -1; insp.hidden = true; return; }
+  const i = hoverId = hit.instanceId, b = BOARD[i], bi = i - BOARD.indexOf(b);
+  const r = wire[4 * i], g = wire[4 * i + 1], bl = wire[4 * i + 2], w = wire[4 * i + 3];
+  insp.innerHTML = `<b>pixel ${i}</b> · ${BOARDS[b]} #${bi + 1}<br>run ${RUN[i]} · ri ${RI[i]} · uni ${uniOf(i)} ch ${chOf(i)}<br>x ${X[i].toFixed(1)}  y ${Y[i].toFixed(1)}  r ${R[i].toFixed(0)}  θ ${TH[i].toFixed(1)}°<br><span class="sw" style="background:rgb(${r},${g},${bl})"></span>R ${r} G ${g} B ${bl} W ${w} · zone ${ZONE[i]}<br>DDP offset ${4 * i}`;
+  insp.hidden = false; insp.style.left = Math.min(innerWidth - 230, e.clientX + 14) + 'px'; insp.style.top = Math.min(innerHeight - 110, e.clientY + 14) + 'px';
+});
+canvas.addEventListener('pointerleave', () => { insp.hidden = true; });
+
+/* ───────────────────────── UI wiring ───────────────────────── */
+const sel = $('pattern');
+for (const grp of ['Rim ↔ dome', 'Dome studies', 'Show', 'First light']) { const og = document.createElement('optgroup'); og.label = grp; PATTERNS.filter(p => p.group === grp).forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; og.appendChild(o); }); sel.appendChild(og); }
+function setPattern(id) { S.pattern = PATTERNS.find(p => p.id === id); S.p1 = S.pattern.p1d; $('p1').value = S.p1; $('p1-l').textContent = S.pattern.p1; $('p1-o').textContent = fmtP1(); $('pat-desc').textContent = S.pattern.desc; sel.value = id; if (!S.playing) engineTick(0); }
+const fmtP1 = () => S.pattern.id === 'white' ? Math.round(S.p1 * 10) * 10 + ' %' : S.pattern.id === 'rays' ? String(2 + Math.round(S.p1 * 14)) : S.p1.toFixed(2);
+sel.addEventListener('change', () => setPattern(sel.value));
+setPattern('x-tide');
+const bind = (id, fn, fmt) => { const el = $(id), out = $(id + '-o'); const h = () => { fn(+el.value); if (out) out.textContent = fmt(+el.value); }; el.addEventListener('input', h); h(); };
+bind('speed', v => S.speed = v, v => v.toFixed(2) + '×');
+bind('master', v => { S.master = v; if (!S.playing) engineTick(0); }, v => Math.round(v * 100) + '%');
+bind('p1', v => { S.p1 = v; if (!S.playing) engineTick(0); }, () => fmtP1());
+bind('hang', v => { S.hang = v; sun.rotation.z = deg(v); }, v => v + '°');
+bind('explode', v => { S.explode = v * 1.6; for (const k in L) if (k !== 'floor') L[k].position.z = RANK[k] * S.explode; layoutHalo(); }, v => v ? v + '%' : 'off');
+bind('ambient', v => { S.ambient = v; applyRoomLight(); }, v => Math.round(v * 100) + '%');
+bind('exposure', v => { S.exposure = v; layoutHalo(); }, v => v.toFixed(2) + '× (display only)');
+bind('tick', v => { S.tick = v; $('o-tick').textContent = v + ' Hz'; }, v => v + ' Hz');
+$('tint').addEventListener('input', e => { const h = e.target.value; $('tint-o').textContent = h; const c = new THREE.Color(h); S.tint = [c.r, c.g, c.b]; if (!S.playing) engineTick(0); });
+$('sunpal').addEventListener('click', e => { S.sunPalette = !S.sunPalette; e.target.setAttribute('aria-pressed', S.sunPalette); if (!S.playing) engineTick(0); });
+$('play').addEventListener('click', e => { S.playing = !S.playing; e.target.textContent = S.playing ? 'Pause' : 'Play'; e.target.setAttribute('aria-pressed', S.playing); acc = 0; });
+$('step').addEventListener('click', () => { engineTick(1 / S.tick); });
+$('reset').addEventListener('click', () => { S.t = 0; S.frame = 0; engineTick(0); });
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => view(b.dataset.view)));
+document.querySelectorAll('#layers button').forEach(b => b.addEventListener('click', () => { const k = b.dataset.layer; S.layers[k] = !S.layers[k]; b.setAttribute('aria-pressed', S.layers[k]); L[k].visible = S.layers[k]; if (k === 'dome' || k === 'flat') layoutHalo(); }));
+document.querySelectorAll('#light button').forEach(b => b.addEventListener('click', () => { const k = b.dataset.opt; S.light[k] = !S.light[k]; b.setAttribute('aria-pressed', S.light[k]); applyRoomLight(); }));
+for (const k in S.layers) L[k].visible = S.layers[k];
+/* tabs */
+document.querySelectorAll('#panel [role=tab]').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('#panel [role=tab]').forEach(x => x.setAttribute('aria-selected', x === t));
+  document.querySelectorAll('#panel [data-pane]').forEach(p => p.hidden = p.dataset.pane !== t.dataset.tab);
+  try { localStorage.setItem('sun-tab', t.dataset.tab); } catch (e) {}
+}));
+try { const t = localStorage.getItem('sun-tab'); if (t) document.querySelector(`#panel [data-tab="${t}"]`)?.click(); } catch (e) {}
+$('panel-toggle').addEventListener('click', () => { const p = $('panel'); p.classList.toggle('collapsed'); });
+/* zones */
+const zonesEl = $('zones');
+['Z0 disc (A)', 'Z1 sectors 1–2', 'Z2 sectors 3–4', 'Z3 sectors 5–6', 'Z4 sectors 7–8', 'Z5 sectors 9–10', 'Z6 sectors 11–12'].forEach(n => { const d = document.createElement('div'); d.className = 'z'; d.innerHTML = `<span>${n}</span><div class="bar"><i></i></div><b>—</b>`; zonesEl.appendChild(d); });
+updateStats();
+
+/* ───────────────────────── live input (WebSocket, raw frame or DDP packets) ───────────────────────── */
+let ws = null, wsN = 0, wsT = [], pending = new Uint8Array(N * 4);
+const wsStatus = $('ws-status');
+function setStatus(cls, txt) { wsStatus.className = 'status ' + cls; wsStatus.textContent = txt; }
+$('ws-btn').addEventListener('click', () => {
+  if (ws) { ws.close(); return; }
+  let url = $('ws-url').value.trim(); if (!url) return;
+  try { ws = new WebSocket(url); } catch (e) { setStatus('err', 'bad URL'); ws = null; return; }
+  ws.binaryType = 'arraybuffer'; setStatus('', 'connecting…'); $('ws-btn').textContent = 'Disconnect';
+  ws.onopen = () => { setStatus('on', 'connected · waiting for frames'); S.live = true; $('hd-mode').textContent = 'live frames from controller'; };
+  ws.onerror = () => setStatus('err', 'connection failed (blocked here? open the file locally)');
+  ws.onclose = () => { setStatus('', 'not connected'); ws = null; S.live = false; $('ws-btn').textContent = 'Connect'; $('hd-mode').textContent = 'simulated frames · 40 Hz engine'; };
+  ws.onmessage = ev => {
+    const u = new Uint8Array(ev.data);
+    if (u.length === N * 4) { wire.set(u); commit(); return; }
+    if (u.length >= 10 && (u[0] & 0x40)) {                       // DDP header: flags seq type id offset(4) len(2)
+      const off = (u[4] << 24 | u[5] << 16 | u[6] << 8 | u[7]) >>> 0, len = u[8] << 8 | u[9];
+      const dataOff = (u[0] & 0x08) ? 14 : 10, payload = u.subarray(dataOff, dataOff + Math.min(len, u.length - dataOff));
+      if (off + payload.length <= pending.length) pending.set(payload, off);
+      if (u[0] & 0x01) { wire.set(pending); commit(); }
+      return;
+    }
+    setStatus('err', `unexpected message (${u.length} B)`);
+  };
+});
+function commit() { wsN++; const now = performance.now(); wsT.push(now); while (wsT.length && now - wsT[0] > 2000) wsT.shift(); setStatus('on', 'connected · receiving'); $('ws-n').textContent = wsN; $('ws-last').textContent = new Date().toLocaleTimeString(); $('ws-fps').textContent = (wsT.length / 2).toFixed(1) + ' fps'; S.frame++; presentWire(); }
+</script>
