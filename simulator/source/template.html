@@ -227,9 +227,11 @@ button.primary{background:var(--sun);color:#1a1205;border-color:var(--sun);font-
       </div>
       <details class="sec"><summary style="font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);cursor:pointer">Shared store (Firebase)</summary>
         <div style="margin-top:8px">
+          <textarea id="fb-paste" placeholder="Paste the whole firebaseConfig { … } block here, or fill the two fields below" style="min-height:64px;font:11px var(--mono);margin-bottom:6px"></textarea>
           <input type="text" id="fb-pid" placeholder="Firebase project ID" style="margin-bottom:6px">
           <input type="text" id="fb-key" placeholder="Web API key" style="margin-bottom:6px">
-          <div class="btns"><button id="fb-connect" class="act">Connect</button><button id="fb-forget" class="act">Use local only</button></div>
+          <div class="btns"><button id="fb-connect" class="act primary">Connect</button><button id="fb-setup" class="act">Copy setup link</button><button id="fb-forget" class="act">Use local only</button></div>
+          <div class="note">Connect keeps the values in this browser only — nothing is written into the page or the repo. "Copy setup link" gives you a private link that configures another browser the same way; send it to whoever should share the library.</div>
           <div class="note">Presets live in a Firestore collection called <code>presets</code>, shared by everyone who opens this page. Create a Firebase project, enable Firestore, and set these rules:<br><code>match /presets/{id} { allow read, create, delete: if true; allow update: if false; }</code><br>Both values are public by design (Firebase web config); they are kept in this browser and can be baked into the page.</div>
         </div>
       </details>
@@ -1523,7 +1525,10 @@ $('ps-link').addEventListener('click', e => copyLink(Object.assign(snapshot(), {
 $('ps-refresh').addEventListener('click', renderPresets);
 $('ps-author').value = LS.get('sun-author', '');
 function fbRefresh() { $('fb-pid').value = FB.projectId || ''; $('fb-key').value = FB.apiKey || ''; psStatus(fbOn() ? 'on' : '', fbOn() ? 'shared library · ' + FB.projectId : 'local library (this browser only)'); renderPresets(); }
-$('fb-connect').addEventListener('click', () => { FB = { projectId: $('fb-pid').value.trim(), apiKey: $('fb-key').value.trim() }; LS.set('sun-firebase', FB); fbRefresh(); });
+$('fb-paste').addEventListener('input', () => { const t = $('fb-paste').value, pid = t.match(/projectId\s*[:=]\s*["']([^"']+)["']/), key = t.match(/apiKey\s*[:=]\s*["']([^"']+)["']/); if (pid) $('fb-pid').value = pid[1]; if (key) $('fb-key').value = key[1]; });
+$('fb-connect').addEventListener('click', () => { FB = { projectId: $('fb-pid').value.trim(), apiKey: $('fb-key').value.trim() }; LS.set('sun-firebase', FB); $('fb-paste').value = ''; fbRefresh(); });
+$('fb-setup').addEventListener('click', async e => { if (!fbOn()) { psStatus('err', 'connect first'); return; } const url = location.href.split('#')[0] + '#fb=' + encodePreset(FB); try { await navigator.clipboard.writeText(url); e.target.textContent = 'Copied'; setTimeout(() => e.target.textContent = 'Copy setup link', 1500); } catch (err) { prompt('Copy this link', url); } });
+{ const m = location.hash.match(/fb=([^&]+)/); if (m) { const cfg = decodePreset(m[1]); if (cfg && cfg.projectId && cfg.apiKey) { FB = { projectId: cfg.projectId, apiKey: cfg.apiKey }; LS.set('sun-firebase', FB); history.replaceState(null, '', location.pathname + location.search); } } }
 $('fb-forget').addEventListener('click', () => { FB = Object.assign({}, FIREBASE); LS.set('sun-firebase', {}); fbRefresh(); });
 fbRefresh();
 { const m = location.hash.match(/preset=([^&]+)/); if (m) { const p = decodePreset(m[1]); if (p && p.pattern) { applyPreset(p); if (p.notes || p.name) $('pat-desc').textContent = `${p.name || ''}${p.author ? ' — ' + p.author : ''}${p.notes ? ': ' + p.notes : ''}`; } } }
