@@ -326,6 +326,11 @@ function hsv(h, s, v, o, k) {                                       // h 0..1 �
 }
 const DEPTH = r => 8 + 200 * Math.pow(Math.max(0, Math.cos(Math.PI * Math.min(r, 700) / 1400)), 1.5);   // dome stand-off above the opal, mm (fits the STEP profile)
 const FEAT = r => 30 + 1.8 * DEPTH(r);                                                                   // smallest feature the dome preserves at radius r, mm
+/* Sky colour keyframes over the day (0 = midnight): [tod, r, g, b, w]. Zenith set and horizon set. */
+const SKY_Z = [[0, 0.02, 0.0, 0.03, 0], [0.18, 0.02, 0.02, 0.1, 0], [0.24, 0.15, 0.1, 0.35, 0.05], [0.3, 0.2, 0.4, 0.9, 0.45], [0.4, 0.2, 0.45, 1.0, 0.6], [0.5, 0.25, 0.5, 1.0, 0.7], [0.62, 0.25, 0.45, 0.95, 0.6], [0.72, 0.3, 0.35, 0.8, 0.4], [0.8, 0.35, 0.15, 0.45, 0.1], [0.86, 0.1, 0.05, 0.3, 0.02], [0.92, 0.03, 0.03, 0.12, 0], [1, 0.02, 0.0, 0.03, 0]];
+const SKY_H = [[0, 0.06, 0.01, 0.0, 0], [0.18, 0.1, 0.03, 0.08, 0], [0.24, 0.9, 0.25, 0.05, 0.1], [0.3, 1.0, 0.6, 0.2, 0.5], [0.4, 0.9, 0.85, 0.6, 1.0], [0.5, 0.8, 0.85, 0.75, 1.0], [0.62, 0.9, 0.8, 0.55, 1.0], [0.72, 1.0, 0.6, 0.2, 0.6], [0.8, 1.0, 0.25, 0.05, 0.15], [0.86, 0.5, 0.1, 0.2, 0.02], [0.92, 0.1, 0.03, 0.06, 0], [1, 0.06, 0.01, 0.0, 0]];
+function skyAt(tod, horizon) { const K = horizon ? SKY_H : SKY_Z; let j = 0; while (j < K.length - 2 && tod > K[j + 1][0]) j++; const A = K[j], B = K[j + 1], f = clamp01((tod - A[0]) / Math.max(1e-6, B[0] - A[0])); return [A[1] + (B[1] - A[1]) * f, A[2] + (B[2] - A[2]) * f, A[3] + (B[3] - A[3]) * f, A[4] + (B[4] - A[4]) * f]; }
+function dayBright(tod) { const d = Math.cos((tod - 0.5) * TAU); return 0.06 + 0.94 * Math.pow(clamp01(d * 0.5 + 0.5), 1.6); }   // brightness envelope over the day
 const E = (o, i, v) => { o[4 * i] = v; o[4 * i + 1] = v * 0.6; o[4 * i + 2] = v * 0.2; o[4 * i + 3] = v * 0.4; };   // sun-energy shorthand
 const set = (o, i, r, g, b, w) => { o[4 * i] = r; o[4 * i + 1] = g; o[4 * i + 2] = b; o[4 * i + 3] = w; };
 
@@ -631,6 +636,212 @@ const PATTERNS = [
           v += Math.exp(-Math.pow(r / 0.5, 2)) * flash * 0.12;                             // diffuse flash in the dome
         }
         set(o, i, g * 0.6 + v * 0.7, g * 0.6 + v * 0.8, g + v, v);
+      }
+    } },
+
+  /* ── Circadian sky (after BIOS SkyView): light that behaves like the sky over a day. These write RGBW directly (noPal) —
+     sky blue needs B + W, which a sun ramp cannot make. Bottom of the disc = horizon, top = zenith. ── */
+  { id: 'c-day', name: 'Circadian day', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'len', n: 'Day length (s)', min: 10, max: 600, step: 1, d: 90 }, { k: 'start', n: 'Start (0=midnight)', min: 0, max: 1, step: 0.01, d: 0.26 }, { k: 'grad', n: 'Sky gradient', min: 0, max: 1.5, step: 0.01, d: 0.8 }, { k: 'cloud', n: 'Clouds', min: 0, max: 1, step: 0.01, d: 0.3 }],
+    desc: 'A whole day compressed: night → dawn at the bottom rim → morning → noon blue sky → golden hour → dusk → night. Sky colour and brightness follow the circadian curve; the horizon stays warmer than the zenith.',
+    fn(o, c) {
+      const tod = fract(c.P.start + c.t * c.speed / c.P.len), t = c.t * c.speed;
+      const Z = skyAt(tod), H = skyAt(tod, true), B = dayBright(tod);
+      for (let i = 0; i < N; i++) {
+        const h = clamp01((Y[i] / RIM + 1) / 2), k = Math.pow(h, 0.8) * c.P.grad, cl = c.P.cloud * B * 0.6 * Math.pow(vnoise(X[i] / 320 + t * 0.03, Y[i] / 200, t * 0.02), 3) * 3;
+        set(o, i, (H[0] * (1 - k) + Z[0] * k) * B + cl, (H[1] * (1 - k) + Z[1] * k) * B + cl, (H[2] * (1 - k) + Z[2] * k) * B + cl, (H[3] * (1 - k) + Z[3] * k) * B + cl);
+      }
+    } },
+  { id: 'c-gradient', name: 'Blue sky gradient', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'zen', n: 'Zenith blue', min: 0, max: 1.5, step: 0.01, d: 1 }, { k: 'hor', n: 'Horizon warmth', min: 0, max: 1.5, step: 0.01, d: 0.8 }, { k: 'lift', n: 'Horizon height', min: 0, max: 1, step: 0.01, d: 0.2 }, { k: 'drift', n: 'Drift', min: 0, max: 2, step: 0.01, d: 0.4 }],
+    desc: 'The SkyView signature: warm white at the horizon rising into deep melanopic blue at the zenith, with a slow drift of haze. The daytime resting state.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.25 * c.P.drift;
+      for (let i = 0; i < N; i++) {
+        const h = clamp01((Y[i] / RIM + 1) / 2), k = Math.pow(clamp01((h - c.P.lift * 0.5) / (1 - c.P.lift * 0.5)), 1.1), haze = 0.16 * (vnoise(X[i] / 400 + t, Y[i] / 260, t * 2) - 0.5);
+        const zr = 0.08 * c.P.zen, zg = 0.32 * c.P.zen, zb = 1.0 * c.P.zen, zw = 0.22, hr = 0.9 * c.P.hor, hg = 0.7 * c.P.hor, hb = 0.5, hw = 0.8;
+        set(o, i, hr * (1 - k) + zr * k + haze, hg * (1 - k) + zg * k + haze, hb * (1 - k) + zb * k + haze * 1.5, hw * (1 - k) + zw * k);
+      }
+    } },
+  { id: 'c-dawn', name: 'Sunrise', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'len', n: 'Duration (s)', min: 5, max: 300, step: 1, d: 40 }, { k: 'loop', n: 'Loop', min: 0, max: 1, step: 1, d: 1 }, { k: 'sky', n: 'Sky strength', min: 0, max: 1.5, step: 0.01, d: 1 }],
+    desc: 'Light climbs from the bottom rim: deep red, then orange and gold, while blue seeps into the top of the disc until it is full morning sky.',
+    fn(o, c) {
+      const ph = c.P.loop ? fract(c.t * c.speed / c.P.len) : Math.min(1, c.t * c.speed / c.P.len), tod = 0.2 + 0.22 * ph;
+      const Z = skyAt(tod), H = skyAt(tod, true), B = dayBright(tod), sunY = -RIM + ph * 1.4 * RIM;
+      for (let i = 0; i < N; i++) {
+        const h = clamp01((Y[i] / RIM + 1) / 2), k = Math.pow(h, 0.9), glow = Math.exp(-Math.pow((Y[i] - sunY) / 260, 2)) * (1 - ph * 0.6) * 0.8;
+        set(o, i, (H[0] * (1 - k) + Z[0] * k * c.P.sky) * B + glow, (H[1] * (1 - k) + Z[1] * k * c.P.sky) * B + glow * 0.5, (H[2] * (1 - k) + Z[2] * k * c.P.sky) * B + glow * 0.1, (H[3] * (1 - k) + Z[3] * k) * B + glow * 0.4);
+      }
+    } },
+  { id: 'c-sunset', name: 'Sunset and afterglow', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'len', n: 'Duration (s)', min: 5, max: 300, step: 1, d: 50 }, { k: 'loop', n: 'Loop', min: 0, max: 1, step: 1, d: 1 }, { k: 'after', n: 'Afterglow', min: 0, max: 1.5, step: 0.01, d: 0.8 }],
+    desc: 'The sky drains from blue to gold to amber, the sun sinks past the bottom rim and leaves a pink-violet afterglow that fades into blue hour.',
+    fn(o, c) {
+      const ph = c.P.loop ? fract(c.t * c.speed / c.P.len) : Math.min(1, c.t * c.speed / c.P.len), tod = 0.7 + 0.22 * ph;
+      const Z = skyAt(tod), H = skyAt(tod, true), B = dayBright(tod), sunY = 0.4 * RIM - ph * 1.6 * RIM;
+      for (let i = 0; i < N; i++) {
+        const h = clamp01((Y[i] / RIM + 1) / 2), k = Math.pow(h, 0.9), glow = Math.exp(-Math.pow((Y[i] - sunY) / 300, 2)) * 0.7, after = c.P.after * Math.exp(-Math.pow((h - 0.25) / 0.25, 2)) * Math.sin(Math.PI * ph) * 0.35;
+        set(o, i, (H[0] * (1 - k) + Z[0] * k) * B + glow + after, (H[1] * (1 - k) + Z[1] * k) * B + glow * 0.45 + after * 0.35, (H[2] * (1 - k) + Z[2] * k) * B + glow * 0.08 + after * 0.5, (H[3] * (1 - k) + Z[3] * k) * B + glow * 0.3);
+      }
+    } },
+  { id: 'c-noon', name: 'Noon with cumulus', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'cloud', n: 'Cloud cover', min: 0, max: 1, step: 0.01, d: 0.4 }, { k: 'size', n: 'Cloud size', min: 100, max: 600, step: 1, d: 300 }, { k: 'wind', n: 'Wind', min: 0, max: 3, step: 0.01, d: 1 }, { k: 'blue', n: 'Sky blue', min: 0, max: 1.5, step: 0.01, d: 1 }],
+    desc: 'Bright midday: high blue sky with white cumulus drifting across on the wind. Maximum melanopic signal.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.12 * c.P.wind;
+      for (let i = 0; i < N; i++) {
+        const h = clamp01((Y[i] / RIM + 1) / 2), n = vnoise(X[i] / c.P.size + t, Y[i] / (c.P.size * 0.6), t * 0.3) * 0.6 + vnoise(X[i] / (c.P.size * 0.35) + t * 1.5, Y[i] / (c.P.size * 0.35), 5 + t) * 0.4;
+        const cl = clamp01((n - (0.62 - c.P.cloud * 0.3)) * 5), br = 0.55 + 0.45 * h;
+        set(o, i, (0.2 + 0.3 * (1 - h)) * br * (1 - cl) + cl * 0.9, (0.45 + 0.2 * (1 - h)) * br * (1 - cl) + cl * 0.9, c.P.blue * br * (1 - cl) + cl * 0.85, (0.6 + 0.3 * (1 - h)) * (1 - cl) + cl * 1.0);
+      }
+    } },
+  { id: 'c-overcast', name: 'Overcast', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'level', n: 'Brightness', min: 0, max: 1.5, step: 0.01, d: 0.8 }, { k: 'var', n: 'Variation', min: 0, max: 1, step: 0.01, d: 0.4 }, { k: 'cool', n: 'Coolness', min: 0, max: 1, step: 0.01, d: 0.5 }],
+    desc: 'A flat white sky — soft, shadowless, slightly cool — with slow brightening and dimming as thicker cloud passes.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.04;
+      for (let i = 0; i < N; i++) {
+        const v = c.P.level * (0.8 + 0.2 * (Y[i] / RIM + 1) / 2) * (1 - c.P.var * 0.5 * vnoise(X[i] / 600 + t, Y[i] / 400, t * 3));
+        set(o, i, v * (0.55 - 0.15 * c.P.cool), v * (0.6 - 0.05 * c.P.cool), v * (0.6 + 0.4 * c.P.cool), v);
+      }
+    } },
+  { id: 'c-bluehour', name: 'Blue hour', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'depth', n: 'Depth of blue', min: 0, max: 1.5, step: 0.01, d: 1 }, { k: 'ember', n: 'Horizon ember', min: 0, max: 1, step: 0.01, d: 0.4 }, { k: 'breath', n: 'Breath', min: 0, max: 1, step: 0.01, d: 0.6 }],
+    desc: 'Deep cobalt after sunset, breathing slowly, with the last ember of warmth along the bottom rim.',
+    fn(o, c) {
+      const b = 1 - c.P.breath * 0.4 * (0.5 + 0.5 * Math.sin(c.t * c.speed * 0.8));
+      for (let i = 0; i < N; i++) {
+        const h = clamp01((Y[i] / RIM + 1) / 2), em = c.P.ember * Math.exp(-h * 6);
+        set(o, i, (0.02 + 0.03 * h) * b + em * 0.6, (0.05 + 0.08 * h) * b + em * 0.15, (0.35 + 0.45 * h) * c.P.depth * b, 0.05 * b + em * 0.1);
+      }
+    } },
+  { id: 'c-golden', name: 'Golden hour', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'side', n: 'Sun side (°)', min: 0, max: 360, step: 1, d: 200 }, { k: 'warm', n: 'Warmth', min: 0, max: 1.5, step: 0.01, d: 1 }, { k: 'rot', n: 'Drift', min: -1, max: 1, step: 0.01, d: 0.05 }],
+    desc: 'Low sun from one side: warm gold light raking across the disc, the far side falling into cool blue shadow.',
+    fn(o, c) {
+      const a = (c.P.side + c.t * c.speed * c.P.rot * 20) * Math.PI / 180, dx = Math.cos(a), dy = Math.sin(a);
+      for (let i = 0; i < N; i++) {
+        const k = clamp01(0.5 + 0.5 * (X[i] * dx + Y[i] * dy) / RIM), w = c.P.warm;
+        set(o, i, (0.15 + 0.85 * k) * w * 0.95 + 0.05, 0.15 + 0.45 * k * w, 0.35 * (1 - k) + 0.08, 0.15 + 0.7 * k);
+      }
+    } },
+  { id: 'c-melanopic', name: 'Melanopic pulse', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'rate', n: 'Breaths / min', min: 2, max: 20, step: 0.5, d: 6 }, { k: 'depth', n: 'Depth', min: 0, max: 1, step: 0.01, d: 0.5 }, { k: 'white', n: 'White base', min: 0, max: 1, step: 0.01, d: 0.5 }],
+    desc: 'The alertness signal itself: a slow breath of 490 nm sky-blue over a white base, at a calm breathing rate.',
+    fn(o, c) {
+      const b = 0.5 + 0.5 * Math.sin(c.t * c.speed * c.P.rate / 60 * TAU), k = 1 - c.P.depth + c.P.depth * b;
+      for (let i = 0; i < N; i++) { const r = R[i] / RIM, e = 0.85 + 0.15 * (1 - r); set(o, i, 0.05 * e, 0.45 * k * e, 1.0 * k * e, c.P.white * e); }
+    } },
+  { id: 'c-evening', name: 'Evening wind-down', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'len', n: 'Duration (s)', min: 10, max: 900, step: 1, d: 120 }, { k: 'loop', n: 'Loop', min: 0, max: 1, step: 1, d: 1 }, { k: 'floor', n: 'End level', min: 0, max: 0.5, step: 0.01, d: 0.12 }],
+    desc: 'SkyView evening mode: over the duration, cool daylight white slides to warm amber and dims, the blue draining out first — the signal to wind down.',
+    fn(o, c) {
+      const ph = c.P.loop ? fract(c.t * c.speed / c.P.len) : Math.min(1, c.t * c.speed / c.P.len), lvl = 1 - (1 - c.P.floor) * Math.pow(ph, 1.4), blue = Math.pow(1 - ph, 2.5), warm = ph;
+      for (let i = 0; i < N; i++) { const h = clamp01((Y[i] / RIM + 1) / 2), e = 0.85 + 0.15 * h; set(o, i, (0.3 + 0.7 * warm) * lvl * e, (0.5 - 0.15 * warm) * lvl * e, (0.9 * blue + 0.02) * lvl * e, (0.9 - 0.5 * warm) * lvl * e); }
+    } },
+  { id: 'c-night', name: 'Night light', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'level', n: 'Level', min: 0.02, max: 0.8, step: 0.005, d: 0.25 }, { k: 'pool', n: 'Pool size', min: 0.2, max: 1.5, step: 0.01, d: 0.7 }, { k: 'flicker', n: 'Flicker', min: 0, max: 1, step: 0.01, d: 0.2 }],
+    desc: 'Sleep mode: a very dim pool of deep amber-red with no blue at all — enough to see by, nothing to wake the clock.',
+    fn(o, c) {
+      const t = c.t * c.speed;
+      for (let i = 0; i < N; i++) { const r = R[i] / RIM, v = c.P.level * Math.exp(-Math.pow(r / c.P.pool, 2)) * (1 - c.P.flicker * 0.3 * (0.5 + 0.5 * Math.sin(t * 1.3 + r * 5))); set(o, i, v, v * 0.18, 0, 0); }
+    } },
+  { id: 'c-skylight', name: 'Skylight', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'size', n: 'Opening size', min: 0.3, max: 1, step: 0.01, d: 0.7 }, { k: 'cloud', n: 'Passing clouds', min: 0, max: 1, step: 0.01, d: 0.5 }, { k: 'wind', n: 'Wind', min: 0, max: 3, step: 0.01, d: 0.8 }],
+    desc: 'Daylight through a roof opening: a bright white core, sky-blue toward the edges, with cloud shadows passing across.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.1 * c.P.wind;
+      for (let i = 0; i < N; i++) {
+        const r = R[i] / RIM, core = Math.exp(-Math.pow(r / c.P.size, 3)), sh = 1 - c.P.cloud * 0.5 * clamp01((vnoise(X[i] / 350 + t, Y[i] / 350, t * 0.4) - 0.45) * 4);
+        set(o, i, (0.2 + 0.7 * core) * sh, (0.45 + 0.5 * core) * sh, (1.0 - 0.1 * core) * sh, (0.3 + 0.7 * core) * sh);
+      }
+    } },
+  { id: 'c-zenith', name: 'Rising horizon', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'len', n: 'Period (s)', min: 5, max: 300, step: 1, d: 60 }, { k: 'soft', n: 'Boundary softness', min: 0.02, max: 0.6, step: 0.01, d: 0.2 }],
+    desc: 'Warm horizon light below, blue sky above; the boundary rises through the morning and sinks through the afternoon.',
+    fn(o, c) {
+      const ph = 0.5 - 0.5 * Math.cos(c.t * c.speed * TAU / c.P.len), lvl = -0.9 + 1.6 * ph;
+      for (let i = 0; i < N; i++) {
+        const k = clamp01((Y[i] / RIM - lvl) / c.P.soft * 0.5 + 0.5);
+        set(o, i, 1.0 * (1 - k) + 0.2 * k, 0.75 * (1 - k) + 0.45 * k, 0.4 * (1 - k) + 1.0 * k, 0.9 * (1 - k) + 0.6 * k);
+      }
+    } },
+  { id: 'c-cloudshadow', name: 'Cloud shadows', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'cover', n: 'Cover', min: 0, max: 1, step: 0.01, d: 0.5 }, { k: 'size', n: 'Cloud size', min: 100, max: 800, step: 1, d: 400 }, { k: 'wind', n: 'Wind', min: 0, max: 3, step: 0.01, d: 1 }, { k: 'dir', n: 'Wind direction (°)', min: 0, max: 360, step: 1, d: 20 }],
+    desc: 'A bright sky with soft cloud shadows sweeping over it — the way a room dims and brightens under a moving sky.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.15 * c.P.wind, a = c.P.dir * Math.PI / 180, dx = Math.cos(a) * t * 500, dy = Math.sin(a) * t * 500;
+      for (let i = 0; i < N; i++) {
+        const n = vnoise((X[i] - dx) / c.P.size, (Y[i] - dy) / c.P.size, 2) * 0.6 + vnoise((X[i] - dx) / (c.P.size * 0.4), (Y[i] - dy) / (c.P.size * 0.4), 7) * 0.4;
+        const sh = 1 - c.P.cover * 0.6 * clamp01((n - 0.45) * 4), h = clamp01((Y[i] / RIM + 1) / 2);
+        set(o, i, (0.5 - 0.25 * h) * sh, (0.6 - 0.1 * h) * sh, (0.75 + 0.25 * h) * sh, (0.9 - 0.3 * h) * sh);
+      }
+    } },
+  { id: 'c-seahorizon', name: 'Sea horizon', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'line', n: 'Horizon height', min: -0.8, max: 0.8, step: 0.01, d: -0.1 }, { k: 'glow', n: 'Horizon glow', min: 0, max: 1.5, step: 0.01, d: 0.8 }, { k: 'swell', n: 'Swell', min: 0, max: 1, step: 0.01, d: 0.4 }],
+    desc: 'Sky above a sea: a thin bright band at the horizon, blue sky graded above, darker rippling blue-green below.',
+    fn(o, c) {
+      const t = c.t * c.speed, ly = c.P.line * RIM;
+      for (let i = 0; i < N; i++) {
+        const d = Y[i] - ly, above = d > 0, g = c.P.glow * Math.exp(-Math.abs(d) / 90), h = clamp01(d / RIM);
+        if (above) set(o, i, 0.25 * (1 - h) + 0.15 * h + g, 0.45 + g * 0.9, 0.85 + 0.15 * h + g * 0.7, 0.5 * (1 - h) + 0.55 * h + g);
+        else { const w = 0.5 + 0.5 * Math.sin(Y[i] / 40 + X[i] / 300 + t * 2.2) * c.P.swell * (0.6 + 0.4 * Math.sin(X[i] / 90 - t * 1.3)); set(o, i, 0.02 + g * 0.7, 0.15 + 0.25 * w + g * 0.6, 0.3 + 0.35 * w + g * 0.5, 0.05 + g * 0.7); }
+      }
+    } },
+  { id: 'c-daylight-aurora', name: 'Sky curtains', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'curt', n: 'Curtains', min: 1, max: 6, step: 1, d: 3 }, { k: 'speed', n: 'Sway', min: 0, max: 2, step: 0.01, d: 0.6 }, { k: 'base', n: 'Sky base', min: 0, max: 1, step: 0.01, d: 0.45 }],
+    desc: 'Cool blue-white curtains swaying over a pale sky — daylight made kinetic without losing its melanopic character.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.35 * c.P.speed;
+      for (let i = 0; i < N; i++) {
+        const wob = (vnoise(X[i] / 500 + t * 0.3, Y[i] / 300, t) - 0.5) * 300; let v = 0;
+        for (let k = 0; k < c.P.curt; k++) { const cx = Math.sin(t * (0.4 + 0.13 * k) + k * 2.1) * 650 + wob, w = 70 + 40 * k; v += Math.exp(-Math.pow((X[i] - cx) / w, 2)) * (0.5 + 0.3 * vnoise(Y[i] / 120 + t * 2, k * 3, t)); }
+        v = clamp01(v); const b = c.P.base;
+        set(o, i, 0.15 * b + v * 0.4, 0.35 * b + v * 0.7, 0.8 * b + v * 0.9, 0.4 * b + v * 0.9);
+      }
+    } },
+  { id: 'c-dappled', name: 'Dappled sun', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'leaf', n: 'Leaf size', min: 30, max: 200, step: 1, d: 80 }, { k: 'breeze', n: 'Breeze', min: 0, max: 3, step: 0.01, d: 1 }, { k: 'shade', n: 'Shade', min: 0, max: 1, step: 0.01, d: 0.6 }],
+    desc: 'Sunlight through leaves: bright warm-white spots flicker over a cool green-blue shade as the canopy moves.',
+    fn(o, c) {
+      const t = c.t * c.speed * 0.6 * c.P.breeze;
+      for (let i = 0; i < N; i++) {
+        const n = vnoise(X[i] / c.P.leaf + t * 0.7, Y[i] / c.P.leaf - t * 0.4, t * 1.5) * 0.6 + vnoise(X[i] / (c.P.leaf * 0.5) - t, Y[i] / (c.P.leaf * 0.5), 3 + t * 2) * 0.4;
+        const sun = Math.pow(clamp01((n - 0.5) * 3), 1.5), sh = 1 - c.P.shade;
+        set(o, i, sun * 1.0 + sh * 0.1, sun * 0.85 + sh * 0.3 + 0.05, sun * 0.5 + sh * 0.4 + 0.05, sun * 1.0 + sh * 0.2);
+      }
+    } },
+  { id: 'c-mist', name: 'Morning mist', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'len', n: 'Lift time (s)', min: 5, max: 300, step: 1, d: 60 }, { k: 'loop', n: 'Loop', min: 0, max: 1, step: 1, d: 1 }, { k: 'dens', n: 'Mist density', min: 0, max: 1.5, step: 0.01, d: 1 }],
+    desc: 'A white mist fills the disc, then lifts from the top down, revealing blue sky above and warm ground light below.',
+    fn(o, c) {
+      const ph = c.P.loop ? fract(c.t * c.speed / c.P.len) : Math.min(1, c.t * c.speed / c.P.len), t = c.t * c.speed, top = 1.2 - 2.4 * ph;
+      for (let i = 0; i < N; i++) {
+        const h = Y[i] / RIM, n = vnoise(X[i] / 300 + t * 0.05, Y[i] / 200, t * 0.1), mist = clamp01((top - h) * 1.5 + (n - 0.5) * 0.8) * c.P.dens;
+        const hh = clamp01((h + 1) / 2), sr = 0.2 + 0.6 * (1 - hh), sg = 0.45 + 0.2 * (1 - hh), sb = 1.0 - 0.3 * (1 - hh), sw = 0.5 + 0.4 * (1 - hh);
+        set(o, i, sr * (1 - mist) + 0.7 * mist, sg * (1 - mist) + 0.75 * mist, sb * (1 - mist) + 0.8 * mist, sw * (1 - mist) + 1.0 * mist);
+      }
+    } },
+  { id: 'c-venus', name: 'Belt of Venus', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'len', n: 'Period (s)', min: 10, max: 300, step: 1, d: 80 }, { k: 'pink', n: 'Pink band', min: 0, max: 1.5, step: 0.01, d: 1 }],
+    desc: 'The anti-twilight arch: a rose-pink band rising above the blue-grey shadow of the Earth, opposite the setting sun.',
+    fn(o, c) {
+      const ph = fract(c.t * c.speed / c.P.len), lvl = -0.9 + 1.3 * ph;
+      for (let i = 0; i < N; i++) {
+        const h = Y[i] / RIM, d = h - lvl, pink = c.P.pink * Math.exp(-Math.pow((d - 0.12) / 0.18, 2)), shadow = clamp01(-d * 3), sky = clamp01(d * 2);
+        set(o, i, 0.9 * pink + 0.1 * shadow + 0.15 * sky, 0.35 * pink + 0.12 * shadow + 0.35 * sky, 0.45 * pink + 0.35 * shadow + 0.9 * sky, 0.3 * pink + 0.5 * sky);
+      }
+    } },
+  { id: 'c-clock', name: 'Circadian clock', group: 'Circadian sky', noPal: true,
+    params: [{ k: 'len', n: 'Day length (s)', min: 10, max: 600, step: 1, d: 120 }, { k: 'trail', n: 'Hand glow', min: 0, max: 1, step: 0.01, d: 0.6 }],
+    desc: 'The twelve wedges as hours of daylight, each tinted with the sky colour of its hour; a bright hand sweeps the current time round the rim.',
+    fn(o, c) {
+      const ph = fract(c.t * c.speed / c.P.len), hand = 90 - ph * 360;
+      for (let i = 0; i < N; i++) {
+        const sec = Math.floor(((90 - TH[i] + 360) % 360) / 30), tod = 0.25 + sec / 12 * 0.5 + 0.02, C = skyAt(tod), B = 0.6 + 0.5 * dayBright(tod);
+        const da = Math.abs(((TH[i] - hand) % 360 + 540) % 360 - 180), r = R[i] / RIM, hnd = Math.exp(-da * da / 40) * Math.pow(r, 2) * 1.2 + c.P.trail * Math.exp(-da / 25) * r * 0.5;
+        set(o, i, C[0] * B + hnd, C[1] * B + hnd, C[2] * B + hnd * 0.6, C[3] * B + hnd);
       }
     } },
 
@@ -1134,6 +1345,14 @@ const PALETTES = {
   'Ice':        [[0, 0, 0, 0, 0], [0.4, 0.05, 0.25, 0.6, 0], [0.8, 0.3, 0.7, 1.0, 0.3], [1, 0.8, 0.95, 1.0, 1.0]],
   'Aurora':     [[0, 0, 0, 0, 0], [0.3, 0.0, 0.35, 0.2, 0], [0.6, 0.1, 1.0, 0.4, 0], [0.85, 0.6, 0.3, 1.0, 0.1], [1, 1.0, 0.8, 0.9, 0.8]],
   'Mono white': [[0, 0, 0, 0, 0], [1, 0.3, 0.3, 0.3, 1.0]],
+  'Sky day':    [[0, 0, 0, 0, 0], [0.3, 0.05, 0.12, 0.45, 0], [0.6, 0.2, 0.45, 1.0, 0.4], [0.85, 0.5, 0.7, 1.0, 0.8], [1, 0.9, 0.95, 1.0, 1.0]],
+  'Melanopic':  [[0, 0, 0, 0, 0], [0.4, 0.0, 0.25, 0.7, 0], [0.75, 0.05, 0.5, 1.0, 0.4], [1, 0.4, 0.8, 1.0, 1.0]],
+  'Dawn':       [[0, 0, 0, 0, 0], [0.25, 0.3, 0.02, 0.1, 0], [0.5, 1.0, 0.3, 0.1, 0.1], [0.75, 1.0, 0.65, 0.25, 0.5], [1, 0.7, 0.85, 1.0, 1.0]],
+  'Golden hour':[[0, 0, 0, 0, 0], [0.4, 0.6, 0.2, 0.02, 0.05], [0.75, 1.0, 0.6, 0.15, 0.5], [1, 1.0, 0.85, 0.5, 1.0]],
+  'Dusk':       [[0, 0, 0, 0, 0], [0.3, 0.1, 0.02, 0.2, 0], [0.6, 0.7, 0.15, 0.3, 0.05], [0.85, 1.0, 0.45, 0.15, 0.3], [1, 1.0, 0.7, 0.3, 0.6]],
+  'Blue hour':  [[0, 0, 0, 0, 0], [0.5, 0.02, 0.06, 0.4, 0], [0.85, 0.1, 0.2, 0.9, 0.1], [1, 0.4, 0.5, 1.0, 0.5]],
+  'Night amber':[[0, 0, 0, 0, 0], [0.6, 0.5, 0.08, 0, 0], [1, 1.0, 0.35, 0.02, 0.1]],
+  'Overcast':   [[0, 0, 0, 0, 0], [0.5, 0.25, 0.28, 0.35, 0.2], [1, 0.6, 0.65, 0.75, 1.0]],
 };
 const RLUT = new Float32Array(256 * 4);                          // energy → RGBW, rebuilt when the ramp changes
 function buildLUT() {
@@ -1153,7 +1372,7 @@ function sunify() {
   }
 }
 function quantize(master) {
-  if (S.sunPalette && S.pattern.group !== 'First light') sunify(); else if (S.contrast !== 1) for (let k = 0; k < N * 4; k++) intent[k] = Math.pow(clamp01(intent[k]), S.contrast);
+  if (S.sunPalette && S.pattern.group !== 'First light' && !S.pattern.noPal) sunify(); else if (S.contrast !== 1) for (let k = 0; k < N * 4; k++) intent[k] = Math.pow(clamp01(intent[k]), S.contrast);
   for (let k = 0; k < N * 4; k++) { const v = clamp01(intent[k] * master); wire[k] = GLUT[(v * 4095) | 0]; }
 }
 
@@ -1394,7 +1613,7 @@ canvas.addEventListener('pointerleave', () => { insp.hidden = true; });
 /* ───────────────────────── UI wiring ───────────────────────── */
 const sel = $('pattern');
 for (const p of PATTERNS) if (!p.params) p.params = p.p1 ? [{ k: 'p1', n: p.p1, min: 0, max: 1, step: 0.01, d: p.p1d ?? 0.5 }] : [];
-for (const grp of ['Natural sun', 'Rim ↔ dome', 'Dome studies', 'Show', 'First light']) { const og = document.createElement('optgroup'); og.label = grp; PATTERNS.filter(p => p.group === grp).forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; og.appendChild(o); }); sel.appendChild(og); }
+for (const grp of ['Circadian sky', 'Natural sun', 'Rim ↔ dome', 'Dome studies', 'Show', 'First light']) { const og = document.createElement('optgroup'); og.label = grp; PATTERNS.filter(p => p.group === grp).forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; og.appendChild(o); }); sel.appendChild(og); }
 const GLOBALS = [
   { k: 'speed', n: 'Speed', min: 0, max: 3, step: 0.01, d: 1, fmt: v => v.toFixed(2) + '×' },
   { k: 'master', n: 'Master', min: 0, max: 1, step: 0.01, d: 1, fmt: v => Math.round(v * 100) + '%' },
