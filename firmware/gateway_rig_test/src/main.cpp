@@ -130,6 +130,9 @@ static void onNetEvent(arduino_event_id_t ev) {
     case ARDUINO_EVENT_ETH_CONNECTED:    ethLink = true;  Serial.println("[eth] link up"); break;
     case ARDUINO_EVENT_ETH_DISCONNECTED: ethLink = false; Serial.println("[eth] link down"); break;
     case ARDUINO_EVENT_ETH_STOP:         ethLink = false; break;
+    case ARDUINO_EVENT_WIFI_AP_STACONNECTED:    Serial.println("[wifi] station joined"); break;
+    case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED: Serial.println("[wifi] station left"); break;
+    case ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED:   Serial.println("[wifi] station got an IP"); break;
     default: break;
   }
 }
@@ -287,7 +290,8 @@ static void handleText(const String &s) {
 }
 
 static void onWs(AsyncWebSocket *, AsyncWebSocketClient *, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-  if (type == WS_EVT_CONNECT) { lastWebMs = millis(); return; }
+  if (type == WS_EVT_CONNECT) { lastWebMs = millis(); Serial.println("[ws] client connected"); return; }
+  if (type == WS_EVT_DISCONNECT) { Serial.println("[ws] client disconnected"); return; }
   if (type != WS_EVT_DATA) return;
   AwsFrameInfo *info = (AwsFrameInfo *)arg;
   if (!info->final || info->index != 0 || info->len != len || len == 0) return;
@@ -387,18 +391,19 @@ void setup() {
   ws.onEvent(onWs);
   server.addHandler(&ws);
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *r) {          // gzip'd page streamed straight from flash
-    lastWebMs = millis();
+    lastWebMs = millis(); Serial.printf("[http] GET / from %s · heap %u\n", r->client()->remoteIP().toString().c_str(), (unsigned)ESP.getFreeHeap());
     AsyncWebServerResponse *res = r->beginResponse(200, "text/html", INDEX_HTML_GZ, (size_t)INDEX_HTML_GZ_LEN);
     res->addHeader("Content-Encoding", "gzip"); res->addHeader("Cache-Control", "no-cache");
     r->send(res);
   });
   server.on("/scenes.json", HTTP_GET, [](AsyncWebServerRequest *r) {
-    lastWebMs = millis();
+    lastWebMs = millis(); Serial.printf("[http] GET /scenes.json · heap %u\n", (unsigned)ESP.getFreeHeap());
     String j = "{\"scenes\":[";
     for (int i = 0; i < sc::N_SCENES; i++) { if (i) j += ","; j += "{\"n\":\"" + String(sc::SCENES[i].name) + "\",\"g\":\"" + sc::SCENES[i].group + "\",\"p\":\"" + sc::SCENES[i].p1name + "\",\"np\":" + (sc::SCENES[i].noPal ? 1 : 0) + "}"; }
     j += "],\"pal\":[";
     for (int i = 0; i < sc::N_PAL; i++) { if (i) j += ","; j += "\"" + String(sc::PALETTES[i].name) + "\""; }
     j += "]}";
+    Serial.printf("[http] scenes.json is %u bytes\n", (unsigned)j.length());
     AsyncWebServerResponse *res = r->beginResponse(200, "application/json", j); res->addHeader("Cache-Control", "max-age=86400"); r->send(res);
   });
   server.on("/config.json", HTTP_GET, [](AsyncWebServerRequest *r) {
@@ -419,7 +424,7 @@ void setup() {
 #endif
   xTaskCreatePinnedToCore(houseTask, "house", 8192, nullptr, 3, nullptr, 0);             // core 0: status, OTA, saves
 
-  Serial.printf("\n[sun] rig · build " __DATE__ " " __TIME__ " · %u px · %d universes · free heap %u · reset reason %d\n", (unsigned)N, nUni, (unsigned)ESP.getFreeHeap(), (int)esp_reset_reason());
+  Serial.printf("\n[sun] rig · build " __DATE__ " " __TIME__ " · %u px · %d universes · %d scenes · free heap %u · reset reason %d\n", (unsigned)N, nUni, sc::N_SCENES, (unsigned)ESP.getFreeHeap(), (int)esp_reset_reason());
   Serial.printf("[sun] AP \"%s\" / \"%s\" → http://192.168.4.1 · OTA :3232 · eth %s → %s uni %u\n", AP_SSID, AP_PASS, cfg.ethIp.toString().c_str(), cfg.target.toString().c_str(), cfg.uni);
 }
 
