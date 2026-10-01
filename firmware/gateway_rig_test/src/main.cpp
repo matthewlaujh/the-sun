@@ -149,9 +149,13 @@ static bool sendArtDmx(uint16_t universe, const uint8_t *data, uint16_t len) {
   if (len & 1) len++;
   p[16] = len >> 8; p[17] = len & 0xFF;
   memcpy(p + 18, data, len);
-  if (!udp.beginPacket(cfg.target, 6454)) return false;
-  udp.write(p, 18 + len);
-  return udp.endPacket();
+  for (int attempt = 0; attempt < 2; attempt++) {
+    if (!udp.beginPacket(cfg.target, 6454)) return false;
+    udp.write(p, 18 + len);
+    if (udp.endPacket()) return true;              // errno 12 (ENOMEM) = lwIP out of pbufs mid-burst: give it a tick and try once more
+    vTaskDelay(1);
+  }
+  return false;
 }
 
 // ---------------- scene rendering on both cores ----------------
@@ -313,7 +317,7 @@ static void pushStatus() {
   j += ",\"shon\":" + String(shadeOn ? 1 : 0) + ",\"shk\":[";
   for (int r = 0; r < RINGS; r++) { if (r) j += ","; j += String(shadeRing[r]); }
   j += "],\"hto\":" + String((unsigned long)helperTimeouts) + ",\"rst\":" + String((int)esp_reset_reason()) + ",\"up\":" + String(millis() / 1000);
-  j += ",\"heap\":" + String((unsigned long)ESP.getFreeHeap()) + ",\"ota\":" + String(otaActive ? 1 : 0) + ",\"safe\":" + String(safeMode ? 1 : 0) + ",\"crashes\":" + String((unsigned long)crashCount)
+  j += ",\"sta\":" + String((int)WiFi.softAPgetStationNum()) + ",\"heap\":" + String((unsigned long)ESP.getFreeHeap()) + ",\"ota\":" + String(otaActive ? 1 : 0) + ",\"safe\":" + String(safeMode ? 1 : 0) + ",\"crashes\":" + String((unsigned long)crashCount)
      + ",\"build\":\"" __DATE__ " " __TIME__ "\",\"dark\":" + String((int)UI_DARK) + "}";
   ws.textAll(j);
 }
@@ -360,6 +364,7 @@ static void houseTask(void *) {
     uint32_t now = millis();
     if (shadeDirty && now - shadeDirtyMs > 1500) { shadeDirty = false; saveShade(); }
     if (crashCount && now > 90000) { crashCount = 0; Serial.println("[sun] 90 s healthy — crash counter cleared"); }
+    { static uint32_t tBeat = 0; if (now - tBeat >= 60000) { tBeat = now; Serial.printf("[sun] up %lus · %d Wi-Fi client(s) · %u frames · %u send errors · heap %u\n", now / 1000, (int)WiFi.softAPgetStationNum(), (unsigned)framesSent, (unsigned)pktErr, (unsigned)ESP.getFreeHeap()); } }
     if (now - tStatus >= 1000) { tStatus = now; ws.cleanupClients(); if (ws.count() && ws.availableForWriteAll()) pushStatus(); }
     vTaskDelay(pdMS_TO_TICKS(10));
   }
@@ -421,7 +426,7 @@ void setup() {
     });
   server.onNotFound([](AsyncWebServerRequest *r) { r->redirect("/"); });
   server.begin();
-  Serial.printf("[sun] network up · free heap %u\n", (unsigned)ESP.getFreeHeap());
+  Serial.printf("[sun] network up · AP %s at %s · free heap %u\n", WiFi.softAPSSID().c_str(), WiFi.softAPIP().toString().c_str(), (unsigned)ESP.getFreeHeap());
 
   // our big buffers come AFTER the Wi-Fi/Ethernet drivers have taken what they need (they want large contiguous DMA-capable blocks)
   sc::buildGeom();
