@@ -108,7 +108,7 @@ h4{margin:10px 0 2px;font-size:11px;font-weight:600;letter-spacing:.06em;text-tr
 </div>
 
 <details id="shd"><summary>Dome shading <span id="shInfo" style="font-size:12px"></span></summary>
- <div style="font-size:12px;color:var(--mute);margin:4px 0 6px">Radial gain applied to everything sent (except Board / Universe / Ends / Spot). Dim the rim where the dome is thin and the pixels show through; lift the dark ring inboard of it. 1.00 = no change. Saved on the ESP.</div>
+ <div style="font-size:12px;color:var(--mute);margin:4px 0 6px">Gain per pixel ring (30 mm pitch), applied to everything sent except Board / Universe / Ends / Spot. Dim the rings where the dome is thin and the pixels show through; lift the dark ring inboard. 1.00 = no change, 0 = off. Saved on the ESP.</div>
  <div class="row"><label class="inl">apply<input id="shon" type="checkbox" checked></label><button class="sm" id="shReset">Reset to defaults</button><canvas id="shcv" width="300" height="60" style="width:300px;height:60px;border-radius:6px;border:1px solid var(--line);background:var(--cv)"></canvas></div>
  <div id="shk"></div>
 </details>
@@ -129,6 +129,8 @@ h4{margin:10px 0 2px;font-size:11px;font-weight:600;letter-spacing:.06em;text-tr
 
 <script>
 const $=id=>document.getElementById(id);
+const touch={};document.addEventListener('input',e=>{if(e.target&&e.target.id)touch[e.target.id]=Date.now();},true);document.addEventListener('change',e=>{if(e.target&&e.target.id)touch[e.target.id]=Date.now();},true);
+const recent=id=>(touch[id]||0)>Date.now()-1500;
 const MODES=['Off','Solid','Chase','Wipe','Cycle','Board step','Universe step','Ends','Rainbow','Breathe','Radial','Spot','Scene'];
 const MODE_HELP=['everything dark','selection in colour A','one head per selected run, wire order (tail = length)','fill each run head→tail, then drain','R · G · B · W · RGB white · RGBW white · A on the selection','one board at a time (ignores selection)','one universe at a time (ignores selection)','first px of each board = A, last px = B','hue by angle, rotating','A breathing 0→100 % — PSU / thermal test','ring expanding centre→rim','one pixel — tap the map or type its index','simulator patterns and shaders running on the ESP — pick one below'];
 const BOARDS=['A','B1','B2','B3','B4','B5','B6','B7','B8','B9','B10','B11','B12','C1','C2','C3','C4','C5','C6','C7','C8','C9','C10','C11','C12'];
@@ -207,10 +209,10 @@ const SL=['r','g','b','w'];
 function cur(){return edit==='A'?colA:colB;}
 function showCol(){$('curA').style.background=css(...colA);$('curB').style.background=css(...colB);
   $('curA').classList.toggle('on',edit==='A');$('curB').classList.toggle('on',edit==='B');
-  const c=cur();SL.forEach((k,j)=>{if(document.activeElement!==$(k))$(k).value=c[j];$(k+'v').textContent=c[j];});}
+  const c=cur();SL.forEach((k,j)=>{if(!recent(k))$(k).value=c[j];$(k+'v').textContent=c[j];});}
 function pushCol(){send(edit==='A'?{a:colA.join(',')}:{b:colB.join(',')});}
 SL.forEach((k,j)=>$(k).oninput=e=>{cur()[j]=+e.target.value;showCol();pushCol();});
-document.querySelectorAll('.sw').forEach(b=>b.onclick=()=>{const c=b.dataset.c.split(',').map(Number);if(edit==='A')colA=c;else colB=c;showCol();pushCol();});
+document.querySelectorAll('.sw').forEach(b=>b.onclick=()=>{touch.col=Date.now();const c=b.dataset.c.split(',').map(Number);if(edit==='A')colA=c;else colB=c;showCol();pushCol();});
 $('curA').onclick=()=>{edit='A';showCol();};$('curB').onclick=()=>{edit='B';showCol();};
 showCol();
 
@@ -238,28 +240,32 @@ $('p1').oninput=e=>{$('p1v').textContent=(e.target.value/100).toFixed(2);send({p
 $('con').oninput=e=>{$('conv').textContent=(e.target.value/100).toFixed(2);send({con:+e.target.value});};
 $('wa').oninput=e=>{$('wav').textContent=(e.target.value/100).toFixed(2);send({wa:+e.target.value});};
 
-// --- dome shading
-const SH_R=[0,0.5,0.7,0.82,0.92,1.0],SH_N=['centre','50 % r','70 % r','82 % r (dark ring)','92 % r (hot band)','rim'];let shk=[100,100,110,115,70,45],shT=null;
-SH_R.forEach((r,j)=>{const row=document.createElement('div');row.className='sl';row.style.gridTemplateColumns='120px 1fr 44px';
-  row.innerHTML=`<span>${SH_N[j]}</span><input type="range" id="shk${j}" min="0" max="200" value="${shk[j]}"><span id="shk${j}v">${(shk[j]/100).toFixed(2)}</span>`;$('shk').appendChild(row);
-  $('shk'+j).oninput=e=>{shk[j]=+e.target.value;$('shk'+j+'v').textContent=(shk[j]/100).toFixed(2);shDraw();clearTimeout(shT);shT=setTimeout(()=>ws&&ws.send(JSON.stringify({t:'shade',k:shk.join(',')})),80);};});
+// --- dome shading (per ring; rings 0–16 = 0–480 mm share one slider)
+const RING_MM=i=>i*30, RING_BOARD=i=>i<=7?'A':(i<=22?'B':'C'), SH_FIRST=17;
+let shk=new Array(29).fill(100),shT=null;
+function shRow(label,id,val,onin){const row=document.createElement('div');row.className='sl';row.style.gridTemplateColumns='130px 1fr 44px';
+  row.innerHTML=`<span>${label}</span><input type="range" id="${id}" min="0" max="200" value="${val}"><span id="${id}v">${(val/100).toFixed(2)}</span>`;$('shk').appendChild(row);$(id).oninput=onin;}
+shRow('inner · 0–480 mm (A, B)','shin',100,e=>{const g=+e.target.value;for(let r=0;r<SH_FIRST;r++)shk[r]=g;$('shinv').textContent=(g/100).toFixed(2);shDraw();if(ws)ws.send(JSON.stringify({t:'shade',inner:g}));});
+for(let r=28;r>=SH_FIRST;r--)shRow(`${RING_MM(r)} mm · ${RING_BOARD(r)}${r===28?' (rim)':''}`,'shr'+r,shk[r],e=>{const g=+e.target.value;shk[r]=g;$('shr'+r+'v').textContent=(g/100).toFixed(2);shDraw();if(ws)ws.send(JSON.stringify({t:'shade',ring:r,g}));});
 $('shon').onchange=e=>ws&&ws.send(JSON.stringify({t:'shade',on:e.target.checked?1:0}));
 $('shReset').onclick=()=>ws&&ws.send(JSON.stringify({t:'shade',reset:1}));
-function shDraw(){const c=$('shcv').getContext('2d');c.clearRect(0,0,300,60);c.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--line');c.beginPath();c.moveTo(0,60-60*100/200);c.lineTo(300,60-60*100/200);c.stroke();
-  c.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--acc');c.lineWidth=2;c.beginPath();for(let x=0;x<=300;x++){const r=x/300;let j=0;while(j<SH_R.length-2&&r>SH_R[j+1])j++;const f=(r-SH_R[j])/(SH_R[j+1]-SH_R[j]);const g=shk[j]+(shk[j+1]-shk[j])*f;const y=60-60*g/200;x?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();}
+function shDraw(){const c=$('shcv').getContext('2d');c.clearRect(0,0,300,60);const cs=getComputedStyle(document.documentElement);
+  c.strokeStyle=cs.getPropertyValue('--line');c.beginPath();c.moveTo(0,30);c.lineTo(300,30);c.stroke();
+  c.fillStyle=cs.getPropertyValue('--acc');for(let r=0;r<29;r++){const h=60*shk[r]/200;c.fillRect(r*300/29+1,60-h,300/29-2,h);}}
+function shShow(){$('shin').value=shk[0];$('shinv').textContent=(shk[0]/100).toFixed(2);for(let r=SH_FIRST;r<29;r++){$('shr'+r).value=shk[r];$('shr'+r+'v').textContent=(shk[r]/100).toFixed(2);}shDraw();}
 shDraw();
 
 // --- status → UI
 function pw(id,w,lim){const e=$(id);e.textContent=`${id[2]} ${w.toFixed(0)} W`;e.className='pill '+(w>lim*0.9?'bad':(w>lim*0.7?'warn':''));}
 function applyStatus(s){
   const prev=st; st=s;
-  const sync=(id,v,fmt)=>{if(document.activeElement!==$(id)){$(id).value=v;$(id+'v').textContent=fmt?fmt(v):v;}};
+  const sync=(id,v,fmt)=>{if(!recent(id)){$(id).value=v;$(id+'v').textContent=fmt?fmt(v):v;}};
   $('eth').textContent=s.link?`eth ${s.speed}M · ${s.eip}`:'eth link down';$('eth').className='pill '+(s.link?'ok':'bad');
   $('fps').textContent=s.ota?'OTA…':`${s.fps} fps${s.ren?` · render ${s.ren} ms`:''} · ${s.proto?'DDP':'Art-Net'} → ${s.tip}${s.err?` · ${s.err} err`:''}`;
   if(s.build)$('build').textContent='build '+s.build+(s.dark?' · dark':' · light');
   if(s.heap!==undefined)$('build').textContent+=' · heap '+Math.round(s.heap/1024)+' kB';
   if(s.up!==undefined){const R={1:'power-on',3:'sw reset',4:'panic',5:'int WDT',6:'task WDT',7:'WDT',8:'deep sleep',9:'brown-out'};$('build').textContent+=' · up '+(s.up<120?s.up+' s':Math.round(s.up/60)+' min')+(s.rst&&s.rst!==1&&s.rst!==3?' · last reset: '+(R[s.rst]||s.rst):'');}
-  if(s.shk){$('shon').checked=!!s.shon;$('shInfo').textContent=s.shon?'— on':'— off';if(!SH_R.some((_,j)=>document.activeElement===$('shk'+j))){shk=s.shk.slice();SH_R.forEach((_,j)=>{$('shk'+j).value=shk[j];$('shk'+j+'v').textContent=(shk[j]/100).toFixed(2);});shDraw();}}
+  if(s.shk&&s.shk.length===29){$('shon').checked=!!s.shon;$('shInfo').textContent=s.shon?'— on':'— off';if(!recent('shin')&&![...Array(29).keys()].some(r=>recent('shr'+r))){shk=s.shk.slice();shShow();}}
   if(!!s.dark!==dark){dark=!!s.dark;document.documentElement.dataset.theme=dark?'dark':'light';for(let r=1;r<=8;r++)runBtn[r].style.borderColor=`hsl(${RUN_HUE[r]} ${dark?'40% 30%':'50% 65%'})`;draw();}
   pw('pwD',s.pw[0],PSU[0]);pw('pwE',s.pw[1],PSU[1]);pw('pwW',s.pw[2],PSU[2]);
   [...modes.children].forEach((b,k)=>b.classList.toggle('on',k===s.mode));
@@ -271,13 +277,13 @@ function applyStatus(s){
   const stepMode=s.steps>1;$('stepRow').classList.toggle('hide',!stepMode);$('spotRow').classList.toggle('hide',s.mode!==11);
   $('sceneBox').classList.toggle('hide',s.mode!==12);
   if(SC){document.querySelectorAll('#scenes .chip').forEach(b=>b.classList.toggle('on',+b.dataset.k===s.sc));const scn=SC.scenes[s.sc];if(scn){$('p1n').textContent=scn.p;$('scInfo').textContent='— '+scn.g+' · '+scn.n+(scn.np?' (writes its own colours; palette optional)':'');}
-    if(document.activeElement!==$('pal'))$('pal').value=s.pal;
+    if(!recent('pal'))$('pal').value=s.pal;
     sync('ss',s.ss,v=>(v/10).toFixed(1)+'×');sync('p1',s.p1,v=>(v/100).toFixed(2));sync('con',s.con,v=>(v/100).toFixed(2));sync('wa',s.wa,v=>(v/100).toFixed(2));}
   $('lbl').textContent=s.lbl||MODE_HELP[s.mode]; if(s.mode===11)$('info').textContent=s.lbl;
-  $('hold').checked=!!s.hold; if(document.activeElement!==$('spot'))$('spot').value=s.spot;
+  $('hold').checked=!!s.hold; if(!recent('spot'))$('spot').value=s.spot;
   sync('m',s.master,v=>Math.round(v/2.55)+'%');sync('spd',s.spd);sync('tail',s.tail);
   const a=s.a.split(',').map(Number),b=s.b.split(',').map(Number);
-  if(first||!SL.some(k=>document.activeElement===$(k))){colA=a;colB=b;showCol();}
+  if(first||!(SL.some(recent)||recent('col'))){colA=a;colB=b;showCol();}
   if(first){$('proto').value=s.proto;$('tip').value=s.tip;$('uni').value=s.uni;$('eip').value=s.eip;first=false;}
   if(s.nodes)$('nodes').textContent=s.nodes.length?s.nodes.map(n=>`${n.ip}  ${n.name}`).join('\n'):($('nodes').textContent==='polling…'?'polling…':'');
   if(!prev||prev.mode!==s.mode||prev.spot!==s.spot)draw();

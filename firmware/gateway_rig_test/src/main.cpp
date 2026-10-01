@@ -26,6 +26,7 @@
 #include <ESPAsyncWebServer.h>
 #include "index_html.h"
 #include "sun_map.h"
+#pragma GCC optimize("O2", "fast-math")   // the render path: Arduino builds -Os; the Xtensa FPU has no divide, fast-math lets GCC use reciprocals
 #include "scenes.h"      // simulator patterns + fluid shaders + palettes
 
 // ---------------- user settings ----------------
@@ -87,22 +88,18 @@ static volatile uint8_t  sceneCon  = 100;        // ×0.01 → contrast 0.25 …
 static volatile int8_t   sceneWarm = 0;          // ×0.01 → warmth −1 … 1
 static volatile uint8_t  sceneP1   = 50;         // 0..100 → p1 0..1
 static volatile uint32_t renderUs  = 0;          // last scene render time
-// dome shading — radial gain curve to tame the rim (dome stand-off → ~8 mm there: pixels show through, band looks hot)
-// and lift the dark ring just inboard of it. Knots at fixed radii (fraction of rim), gains ×100 (100 = unity, max 200). Saved in NVS.
-#define SHADE_K 6
-static const float   SHADE_R[SHADE_K] = {0.0f, 0.50f, 0.70f, 0.82f, 0.92f, 1.0f};
-static const uint8_t SHADE_DEF[SHADE_K] = {100, 100, 110, 115, 70, 45};
-static uint8_t  shadeK[SHADE_K];
+// dome shading — per-ring gain to tame the rim (dome stand-off → ~8 mm there: pixels show through, band looks hot) and lift the
+// dark ring inboard of it. The map has exactly 29 pixel rings at 30 mm pitch (ring = R/30). Gains ×100 (100 = unity, 0 … 200). Saved in NVS.
+#define RINGS 29
+static const uint8_t SHADE_DEF[RINGS] = {100,100,100,100,100,100,100,100, 100,100,100,100,100,100,100,100,100,  // 0–480 mm (A + inner B)
+                                         100,100,105,110,110,110,                                              // 510–660 mm (outer B)
+                                         115,110,95,80,60,40};                                                 // 690–840 mm (C)
+static uint8_t  shadeRing[RINGS];
 static volatile bool shadeOn = true;
 static volatile bool shadeDirty = false; static volatile uint32_t shadeDirtyMs = 0;
-static uint8_t  shadeGain[N];                    // per-pixel gain ×64 (64 = unity, 255 ≈ 4×)
+static uint8_t  shadeGain[N];                    // per-pixel gain ×64 (64 = unity, 128 = 2×)
 static void buildShade() {
-  for (int i = 0; i < N; i++) {
-    float r = SUN_R10[i] * 0.1f / SUN_RIM_R_MM; int j = 0; while (j < SHADE_K - 2 && r > SHADE_R[j + 1]) j++;
-    float f = (r - SHADE_R[j]) / (SHADE_R[j + 1] - SHADE_R[j]); f = f < 0 ? 0 : (f > 1 ? 1 : f);
-    float g = (shadeK[j] + (shadeK[j + 1] - shadeK[j]) * f) * 0.01f;
-    int v = (int)(g * 64 + 0.5f); shadeGain[i] = v > 255 ? 255 : v;
-  }
+  for (int i = 0; i < N; i++) { int ring = (SUN_R10[i] + 150) / 300; if (ring >= RINGS) ring = RINGS - 1; shadeGain[i] = (uint8_t)((shadeRing[ring] * 64 + 50) / 100); }
 }
 static float            *intent = nullptr;       // per-pixel RGBW floats (the simulator's "intent" buffer), heap-allocated in setup()
 
@@ -156,7 +153,7 @@ static inline bool selRun(uint8_t r) { return ((runMask >> r) & 1) || (runBoards
 static void loadCfg() {
   prefs.begin("sunrig", true);
   shadeOn = prefs.getBool("shon", true);
-  if (prefs.getBytesLength("shk") == SHADE_K) prefs.getBytes("shk", shadeK, SHADE_K); else memcpy(shadeK, SHADE_DEF, SHADE_K);
+  if (prefs.getBytesLength("shr") == RINGS) prefs.getBytes("shr", shadeRing, RINGS); else memcpy(shadeRing, SHADE_DEF, RINGS);
   if (prefs.getUChar("ver", 0) != CFG_VERSION) { prefs.end(); prefs.begin("sunrig", false); prefs.clear(); prefs.putUChar("ver", CFG_VERSION); prefs.end(); prefs.begin("sunrig", true); }
   cfg.proto = prefs.getUChar("proto", DEF_PROTO);
   cfg.uni   = prefs.getUShort("uni", DEF_UNIVERSE);
@@ -173,7 +170,7 @@ static void saveCfg() {
   prefs.putString("eip", cfg.ethIp.toString());
   prefs.end();
 }
-static void saveShade() { prefs.begin("sunrig", false); prefs.putBool("shon", shadeOn); prefs.putBytes("shk", shadeK, SHADE_K); prefs.end(); }
+static void saveShade() { prefs.begin("sunrig", false); prefs.putBool("shon", shadeOn); prefs.putBytes("shr", shadeRing, RINGS); prefs.end(); }
 static void applyEthIp() {
   IPAddress mask(255, 255, 255, 0), gw(0, 0, 0, 0);
   ETH.config(cfg.ethIp, gw, mask);               // static — no DHCP on a point-to-point cable
@@ -408,17 +405,17 @@ static void outputTask(void *) {
 
     render(out, pos, phase);
 
-    // dome shading (not for the diagnostic modes — those must show raw channels)
-    if (shadeOn && mode != M_BOARD && mode != M_UNI && mode != M_ENDS && mode != M_SPOT)
-      for (int i = 0; i < N; i++) { const uint32_t g = shadeGain[i]; if (g == 64) continue; uint8_t *o = out + i * 4;
-        for (int c = 0; c < 4; c++) { uint32_t v = (o[c] * g) >> 6; o[c] = v > 255 ? 255 : v; } }
+    // dome shading (not for the diagnostic modes — those must show raw channels), folded into the master pass below
+    const bool shade = shadeOn && mode != M_BOARD && mode != M_UNI && mode != M_ENDS && mode != M_SPOT;
 
     // master × cap, plus the PSU load estimate of what actually leaves
     const uint32_t k = (uint32_t)(master * BRIGHTNESS_CAP * 256.0f / 255.0f);   // 8.8 fixed point
     uint32_t sum[3] = {0, 0, 0};
     for (int i = 0; i < N; i++) {
       uint8_t *o = out + i * 4;
-      o[0] = (o[0] * k) >> 8; o[1] = (o[1] * k) >> 8; o[2] = (o[2] * k) >> 8; o[3] = (o[3] * k) >> 8;
+      const uint32_t kk = shade ? (k * shadeGain[i]) >> 6 : k;          // master × ring gain, 8.8 fixed point
+      uint32_t v0 = (o[0] * kk) >> 8, v1 = (o[1] * kk) >> 8, v2 = (o[2] * kk) >> 8, v3 = (o[3] * kk) >> 8;
+      o[0] = v0 > 255 ? 255 : v0; o[1] = v1 > 255 ? 255 : v1; o[2] = v2 > 255 ? 255 : v2; o[3] = v3 > 255 ? 255 : v3;
       const uint8_t z = sun_zone(i);             // 0 disc · 1–3 East (wedges 1–6) · 4–6 West (7–12)
       sum[z == 0 ? 0 : (z <= 3 ? 1 : 2)] += o[0] + o[1] + o[2] + o[3];
     }
@@ -485,11 +482,12 @@ static void handleText(const String &s) {
     v = jsonStr(s, "p1");    if (v.length()) { long n = v.toInt(); sceneP1 = n < 0 ? 0 : (n > 100 ? 100 : n); }
     return;
   }
-  if (t == "shade") {                                 // {"on":0/1,"k":"g0,g1,g2,g3,g4,g5"} gains ×100
+  if (t == "shade") {                                 // {"on":0/1} · {"ring":n,"g":gain} · {"inner":gain} (rings 0–16) · {"reset":1}; gains ×100
     v = jsonStr(s, "on"); if (v.length()) shadeOn = v.toInt() != 0;
-    v = jsonStr(s, "k");
-    if (v.length()) { int p = 0; for (int j = 0; j < SHADE_K; j++) { int q = v.indexOf(',', p); if (q < 0) q = v.length(); long x = v.substring(p, q).toInt(); shadeK[j] = x < 0 ? 0 : (x > 200 ? 200 : x); p = q + 1; if (p > (int)v.length()) break; } }
-    v = jsonStr(s, "reset"); if (v.length() && v.toInt()) memcpy(shadeK, SHADE_DEF, SHADE_K);
+    String g = jsonStr(s, "g"); v = jsonStr(s, "ring");
+    if (v.length() && g.length()) { long r = v.toInt(), x = g.toInt(); if (r >= 0 && r < RINGS) shadeRing[r] = x < 0 ? 0 : (x > 200 ? 200 : x); }
+    v = jsonStr(s, "inner"); if (v.length()) { long x = v.toInt(); x = x < 0 ? 0 : (x > 200 ? 200 : x); for (int r = 0; r <= 16; r++) shadeRing[r] = x; }
+    v = jsonStr(s, "reset"); if (v.length() && v.toInt()) memcpy(shadeRing, SHADE_DEF, RINGS);
     buildShade(); shadeDirtyMs = millis(); shadeDirty = true;   // saved from loop() 1.5 s after the last change (not on every slider tick)
     return;
   }
@@ -550,7 +548,9 @@ static void pushStatus() {
   j += ",\"sc\":" + String((int)sceneId) + ",\"pal\":" + String((int)palId) + ",\"ss\":" + String((int)sceneSpd) + ",\"con\":" + String((int)sceneCon)
      + ",\"wa\":" + String((int)sceneWarm) + ",\"p1\":" + String((int)sceneP1) + ",\"ren\":" + String(mode == M_SCENE ? (int)(renderUs / 1000) : 0);
   j += ",\"pw\":[" + String(pwrW[0], 1) + "," + String(pwrW[1], 1) + "," + String(pwrW[2], 1) + "]";
-  j += ",\"shon\":" + String(shadeOn ? 1 : 0) + ",\"shk\":[" + String(shadeK[0]) + "," + shadeK[1] + "," + shadeK[2] + "," + shadeK[3] + "," + shadeK[4] + "," + shadeK[5] + "]";
+  j += ",\"shon\":" + String(shadeOn ? 1 : 0) + ",\"shk\":[";
+  for (int r = 0; r < RINGS; r++) { if (r) j += ","; j += String(shadeRing[r]); }
+  j += "]";
   j += ",\"rst\":" + String((int)esp_reset_reason()) + ",\"up\":" + String(millis() / 1000);
   j += ",\"heap\":" + String((unsigned long)ESP.getFreeHeap()) + ",\"ota\":" + String(otaActive ? 1 : 0) + ",\"build\":\"" __DATE__ " " __TIME__ "\",\"dark\":" + String((int)UI_DARK);
   j += ",\"nodes\":[";
