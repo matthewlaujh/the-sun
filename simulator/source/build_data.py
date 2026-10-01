@@ -1,6 +1,6 @@
 """Compact sun-map.json → JS data block + C header for the ESP32 port."""
 import json, math, os
-K = os.path.dirname(__file__) + '/sun-visualizer-kit'
+K = os.path.dirname(__file__) + '/..'
 d = json.load(open(K + '/sun-map.json'))
 px = d['pixels']; N = len(px)
 BOARDS = ['A'] + [f'B{k}' for k in range(1, 13)] + [f'C{k}' for k in range(1, 13)]
