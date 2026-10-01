@@ -258,6 +258,7 @@ function applyStatus(s){
   $('fps').textContent=s.ota?'OTA…':`${s.fps} fps${s.ren?` · render ${s.ren} ms`:''} · ${s.proto?'DDP':'Art-Net'} → ${s.tip}${s.err?` · ${s.err} err`:''}`;
   if(s.build)$('build').textContent='build '+s.build+(s.dark?' · dark':' · light');
   if(s.heap!==undefined)$('build').textContent+=' · heap '+Math.round(s.heap/1024)+' kB';
+  if(s.up!==undefined){const R={1:'power-on',3:'sw reset',4:'panic',5:'int WDT',6:'task WDT',7:'WDT',8:'deep sleep',9:'brown-out'};$('build').textContent+=' · up '+(s.up<120?s.up+' s':Math.round(s.up/60)+' min')+(s.rst&&s.rst!==1&&s.rst!==3?' · last reset: '+(R[s.rst]||s.rst):'');}
   if(s.shk){$('shon').checked=!!s.shon;$('shInfo').textContent=s.shon?'— on':'— off';if(!SH_R.some((_,j)=>document.activeElement===$('shk'+j))){shk=s.shk.slice();SH_R.forEach((_,j)=>{$('shk'+j).value=shk[j];$('shk'+j+'v').textContent=(shk[j]/100).toFixed(2);});shDraw();}}
   if(!!s.dark!==dark){dark=!!s.dark;document.documentElement.dataset.theme=dark?'dark':'light';for(let r=1;r<=8;r++)runBtn[r].style.borderColor=`hsl(${RUN_HUE[r]} ${dark?'40% 30%':'50% 65%'})`;draw();}
   pw('pwD',s.pw[0],PSU[0]);pw('pwE',s.pw[1],PSU[1]);pw('pwW',s.pw[2],PSU[2]);

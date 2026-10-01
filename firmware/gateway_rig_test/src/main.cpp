@@ -41,7 +41,8 @@ static const char *OTA_PASS = "sunshine26-ota"; // must match upload_flags --aut
 #define NB              25                        // boards: A, B1–B12, C1–C12 (SunBoard order)
 #define PX_PER_UNI      SUN_PX_PER_UNIVERSE       // 128 RGBW px / universe
 #define BRIGHTNESS_CAP  SUN_BRIGHTNESS_CAP        // 0.90 power budget — keep
-#define FRAME_MS        25                        // 40 fps
+#define FRAME_MS        25                        // 40 fps target
+#define MIN_YIELD_MS    5                         // output task always sleeps at least this long per frame so loop()/OTA get core 1
 #define STATUS_LED      33                        // ESP32-GATEWAY user LED
 #define W_PER_PX_FULL   0.40f                     // 967 W / 2417 px at full RGBW white (wiring notes §7)
 
@@ -93,6 +94,7 @@ static const float   SHADE_R[SHADE_K] = {0.0f, 0.50f, 0.70f, 0.82f, 0.92f, 1.0f}
 static const uint8_t SHADE_DEF[SHADE_K] = {100, 100, 110, 115, 70, 45};
 static uint8_t  shadeK[SHADE_K];
 static volatile bool shadeOn = true;
+static volatile bool shadeDirty = false; static volatile uint32_t shadeDirtyMs = 0;
 static uint8_t  shadeGain[N];                    // per-pixel gain ×64 (64 = unity, 255 ≈ 4×)
 static void buildShade() {
   for (int i = 0; i < N; i++) {
@@ -364,6 +366,7 @@ static void render(uint8_t *out, float pos, float phase) {
 
     case M_SCENE: {                              // simulator pattern / shader; colour A = tint for the patterns that use one
       const float tint[3] = {colA[0] / 255.0f, colA[1] / 255.0f, colA[2] / 255.0f};
+      if (!intent) break;
       const int64_t t0 = esp_timer_get_time();
       sc::render(out, intent, sceneId, sceneT, sceneSpd * 0.1f, sceneP1 * 0.01f, tint, palId, sceneCon * 0.01f, sceneWarm * 0.01f);
       renderUs = (uint32_t)(esp_timer_get_time() - t0);
@@ -376,10 +379,16 @@ static void render(uint8_t *out, float pos, float phase) {
 // ---------------- output task (own core, fixed rate) ----------------
 static void outputTask(void *) {
   static uint8_t out[N * 4];
-  TickType_t last = xTaskGetTickCount();
   float pos = 0, phase = 0; uint32_t stepAcc = 0; uint8_t lastMode = 0xFF;
+  uint32_t lastMs = millis();
   for (;;) {
-    vTaskDelayUntil(&last, pdMS_TO_TICKS(FRAME_MS));
+    // Pace to FRAME_MS, but ALWAYS sleep at least MIN_YIELD_MS. This task (prio 3) shares core 1 with Arduino loop() (prio 1);
+    // with vTaskDelayUntil a frame longer than FRAME_MS never slept, loop() starved, and the page/OTA/status went dead.
+    { static uint32_t frameStart = 0; uint32_t spent = millis() - frameStart;
+      uint32_t wait = spent < FRAME_MS ? FRAME_MS - spent : 0; if (wait < MIN_YIELD_MS) wait = MIN_YIELD_MS;
+      vTaskDelay(pdMS_TO_TICKS(wait)); frameStart = millis(); }
+    const uint32_t nowMs = millis(); float dt = (nowMs - lastMs) * 0.001f; lastMs = nowMs; if (dt > 0.25f) dt = 0.25f;
+    const uint32_t dtMs = (uint32_t)(dt * 1000 + 0.5f);
 
     if (cfgChanged) { cfgChanged = false; applyEthIp(); }
     if (pollRequested) { pollRequested = false; portENTER_CRITICAL(&nodeLock); nodeCount = 0; portEXIT_CRITICAL(&nodeLock); sendArtPoll(); }
@@ -388,11 +397,11 @@ static void outputTask(void *) {
     // animation clocks
     if (mode != lastMode) { lastMode = mode; pos = 0; phase = 0; stepAcc = 0; if (step >= stepCount()) step = 0; }
     if (stepReset) { stepReset = false; stepAcc = 0; }
-    { static uint32_t lastMs = 0; uint32_t nowMs = millis(); if (lastMs) sceneT += (nowMs - lastMs) * 0.001f; lastMs = nowMs; }
-    pos   += pxPerSec()   * FRAME_MS * 0.001f;
-    phase += cyclesPerS() * FRAME_MS * 0.001f; if (phase > 1e6f) phase -= 1e6f;
+    sceneT += dt;
+    pos   += pxPerSec()   * dt;
+    phase += cyclesPerS() * dt; if (phase > 1e6f) phase -= 1e6f;
     if (stepCount() > 1 && !hold) {
-      stepAcc += FRAME_MS;
+      stepAcc += dtMs;
       const uint32_t per = stepMs();
       while (stepAcc >= per) { stepAcc -= per; step = (step + 1) % stepCount(); }
     }
@@ -481,7 +490,7 @@ static void handleText(const String &s) {
     v = jsonStr(s, "k");
     if (v.length()) { int p = 0; for (int j = 0; j < SHADE_K; j++) { int q = v.indexOf(',', p); if (q < 0) q = v.length(); long x = v.substring(p, q).toInt(); shadeK[j] = x < 0 ? 0 : (x > 200 ? 200 : x); p = q + 1; if (p > (int)v.length()) break; } }
     v = jsonStr(s, "reset"); if (v.length() && v.toInt()) memcpy(shadeK, SHADE_DEF, SHADE_K);
-    buildShade(); saveShade();
+    buildShade(); shadeDirtyMs = millis(); shadeDirty = true;   // saved from loop() 1.5 s after the last change (not on every slider tick)
     return;
   }
   if (t == "step") {                                  // {"d":±1} or {"to":n}
@@ -542,6 +551,7 @@ static void pushStatus() {
      + ",\"wa\":" + String((int)sceneWarm) + ",\"p1\":" + String((int)sceneP1) + ",\"ren\":" + String(mode == M_SCENE ? (int)(renderUs / 1000) : 0);
   j += ",\"pw\":[" + String(pwrW[0], 1) + "," + String(pwrW[1], 1) + "," + String(pwrW[2], 1) + "]";
   j += ",\"shon\":" + String(shadeOn ? 1 : 0) + ",\"shk\":[" + String(shadeK[0]) + "," + shadeK[1] + "," + shadeK[2] + "," + shadeK[3] + "," + shadeK[4] + "," + shadeK[5] + "]";
+  j += ",\"rst\":" + String((int)esp_reset_reason()) + ",\"up\":" + String(millis() / 1000);
   j += ",\"heap\":" + String((unsigned long)ESP.getFreeHeap()) + ",\"ota\":" + String(otaActive ? 1 : 0) + ",\"build\":\"" __DATE__ " " __TIME__ "\",\"dark\":" + String((int)UI_DARK);
   j += ",\"nodes\":[";
   portENTER_CRITICAL(&nodeLock);
@@ -640,7 +650,7 @@ void setup() {
   // Output on core 1 at higher priority than loop(); WiFi/AsyncTCP/OTA live on core 0.
   xTaskCreatePinnedToCore(outputTask, "pixout", 12288, nullptr, 3, &outTask, 1);
 
-  Serial.printf("[sun] free heap after setup: %u bytes\n", (unsigned)ESP.getFreeHeap());
+  Serial.printf("[sun] free heap after setup: %u bytes · reset reason %d (1 power-on, 3 software, 4 panic, 5/6 WDT, 7 task-WDT, 8 deep-sleep, 9 brown-out)\n", (unsigned)ESP.getFreeHeap(), (int)esp_reset_reason());
   Serial.printf("\n[sun] rig test · build " __DATE__ " " __TIME__ " · %u px · %d runs · %d universes\n", (unsigned)N, SUN_RUNS, nUni);
   Serial.printf("[sun] AP \"%s\" / \"%s\" → http://192.168.4.1  ·  OTA :3232  ·  eth %s → %s (%s, uni %u)\n",
                 AP_SSID, AP_PASS, cfg.ethIp.toString().c_str(), cfg.target.toString().c_str(),
@@ -655,6 +665,7 @@ void loop() {
     static uint8_t msg[1 + N * 4]; msg[0] = 'L'; mirrorDirty = false;
     memcpy(msg + 1, mirror, N * 4); ws.binaryAll(msg, sizeof msg);
   }
-  if (now - tStatus >= 500) { tStatus = now; ws.cleanupClients(); pushStatus(); }
+  if (shadeDirty && now - shadeDirtyMs > 1500) { shadeDirty = false; saveShade(); }
+  if (now - tStatus >= 500) { tStatus = now; ws.cleanupClients(); if (ws.availableForWriteAll()) pushStatus(); }
   delay(5);
 }
