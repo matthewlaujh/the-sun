@@ -25,7 +25,7 @@
 #include <ArduinoOTA.h>
 #include <Preferences.h>
 #include <ESPAsyncWebServer.h>
-#include "index_html.h"
+#include "index_html_gz.h"   // generated from index_html.h by tools/gen_html_gz.py (platformio.ini extra_scripts)
 #include "sun_map.h"
 #pragma GCC optimize("O2", "fast-math")   // the render path: Arduino builds -Os; the Xtensa FPU has no divide, fast-math lets GCC use reciprocals
 #include "scenes.h"      // simulator patterns + fluid shaders + palettes
@@ -105,11 +105,11 @@ static const uint8_t HL_COL[4] = {255, 0, 255, 0};
 static void buildShade() {
   for (int i = 0; i < N; i++) { int ring = (SUN_R10[i] + 150) / 300; if (ring >= RINGS) ring = RINGS - 1; shadeGain[i] = (uint8_t)((shadeRing[ring] * 64 + 50) / 100); }
 }
-static float            *intent = nullptr;       // per-pixel RGBW floats (the simulator's "intent" buffer), heap-allocated in setup()
+static sc::ib_t         *intent = nullptr;       // per-pixel RGBW intent, 16-bit fixed point (19 kB), heap-allocated in setup()
 
 static volatile float    pwrW[3]   = {0, 0, 0};  // estimated load: disc, East, West (W) of the frame being sent
 static volatile bool     otaActive = false;
-static uint8_t           mirror[N * 4];          // last frame, echoed to the page
+static uint8_t           mirrorMsg[1 + N * 4];   // 'L' + last frame, echoed to the page (written by the output task, sent by housekeeping; tearing is fine for a preview)
 static volatile bool     mirrorDirty = false;
 
 struct Cfg { uint8_t proto; IPAddress target; uint16_t uni; IPAddress ethIp; } cfg;
@@ -477,7 +477,7 @@ static void outputTask(void *) {
       for (int i = 0; i < N; i++) { int ring = (sc::gR10[i] + 150) / 300; if (ring == hr || (hr == -2 && ring <= 16)) { uint8_t *o = out + i * 4; for (int c = 0; c < 4; c++) o[c] = (HL_COL[c] * hk) >> 8; } }
     } else if (hlRing != -1) hlRing = -1;
 
-    if ((framesSent % 10) == 0) { memcpy(mirror, out, sizeof mirror); mirrorDirty = true; }  // ~4 fps preview to the page
+    if ((framesSent % 10) == 0 && !mirrorDirty) { memcpy(mirrorMsg + 1, out, N * 4); mirrorDirty = true; }  // ~4 fps preview to the page
 
     if (!ethLink) { framesSent++; continue; }
     bool ok = true;
@@ -686,7 +686,7 @@ void setup() {
   buildTables();
   sc::buildGeom();
   buildShade();
-  intent = (float *)malloc(N * 4 * sizeof(float));
+  intent = (sc::ib_t *)malloc(N * 4 * sizeof(sc::ib_t));
 
   WiFi.onEvent(onNetEvent);
   WiFi.mode(WIFI_AP);
@@ -708,9 +708,11 @@ void setup() {
 
   ws.onEvent(onWs);
   server.addHandler(&ws);
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *r) {          // stream the page straight from flash — no 20 kB heap copy
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *r) {          // gzip'd page streamed straight from flash (~6 kB on the wire, no heap copy)
     lastWebMs = millis();
-    r->send(r->beginResponse_P(200, "text/html", (const uint8_t *)INDEX_HTML, strlen_P(INDEX_HTML)));
+    AsyncWebServerResponse *res = r->beginResponse_P(200, "text/html", INDEX_HTML_GZ, INDEX_HTML_GZ_LEN);
+    res->addHeader("Content-Encoding", "gzip"); res->addHeader("Cache-Control", "no-cache");
+    r->send(res);
   });
   // Pixel map for the page, straight from sun_map.h: N × { int16 x·10, int16 y·10, uint8 board, uint8 run } little-endian
   server.on("/map.bin", HTTP_GET, [](AsyncWebServerRequest *r) {
@@ -772,8 +774,7 @@ static void houseTask(void *) {
     ArduinoOTA.handle();                            // blocks for the duration of an upload; output task is suspended meanwhile
     uint32_t now = millis();
     if (mirrorDirty && ws.count() && ws.availableForWriteAll() && ESP.getFreeHeap() > 40000) {   // live preview ('L'); skip if a client lags or heap is tight
-      static uint8_t msg[1 + N * 4]; msg[0] = 'L'; mirrorDirty = false;
-      memcpy(msg + 1, mirror, N * 4); ws.binaryAll(msg, sizeof msg);
+      mirrorMsg[0] = 'L'; ws.binaryAll(mirrorMsg, sizeof mirrorMsg); mirrorDirty = false;
     }
     if (shadeDirty && now - shadeDirtyMs > 1500) { shadeDirty = false; saveShade(); }
     if (now - tStatus >= 500) { tStatus = now; ws.cleanupClients(); if (ws.availableForWriteAll()) pushStatus(); }
