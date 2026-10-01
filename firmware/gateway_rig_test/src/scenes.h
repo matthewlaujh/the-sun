@@ -55,11 +55,6 @@ static inline float FEAT(float r) { return 30 + 1.8f * DEPTH(r); }              
 static int16_t  *gX10 = nullptr, *gY10 = nullptr;
 static uint16_t *gR10 = nullptr, *gTH10 = nullptr;
 static uint8_t  *gBoard = nullptr, *gRun = nullptr, *gZone = nullptr;
-static uint8_t  *gRing = nullptr;                                    // ring index 0..28 (30 mm pitch)
-static uint16_t *gK = nullptr;                                       // position around the ring, 0..RING_N[ring]-1 (anticlockwise from +x)
-static uint16_t  RING_N[29];                                         // pixels per ring (1, 6, 12 … 168)
-#define NRINGS 29
-#define CORE_R 17                                                    // rings < 17 (≤ 480 mm) read as blended glow under the dome; ≥ 23 (C) show pixels
 static uint16_t *FE10 = nullptr;                                     // FEAT(R) × 10
 #define X(i)  (gX10[i] * 0.1f)
 #define Y(i)  (gY10[i] * 0.1f)
@@ -74,10 +69,6 @@ static void buildGeom() {
   gBoard = (uint8_t *)malloc(SUN_N);    memcpy(gBoard, SUN_BOARD, SUN_N);
   gRun = (uint8_t *)malloc(SUN_N);      memcpy(gRun, SUN_RUN, SUN_N);
   gZone = (uint8_t *)malloc(SUN_N);     for (int i = 0; i < SUN_N; i++) gZone[i] = sun_zone(i);
-  gRing = (uint8_t *)malloc(SUN_N); gK = (uint16_t *)malloc(SUN_N * 2);
-  memset(RING_N, 0, sizeof RING_N);
-  for (int i = 0; i < SUN_N; i++) { int r = (gR10[i] + 150) / 300; if (r > 28) r = 28; gRing[i] = r; RING_N[r]++; }
-  for (int i = 0; i < SUN_N; i++) { int n = RING_N[gRing[i]]; int k = (int)(TH(i) / 360.0f * n + 0.5f) % n; gK[i] = k; }
   FE10 = (uint16_t *)malloc(SUN_N * 2);
   for (int i = 0; i < SUN_N; i++) FE10[i] = (uint16_t)(FEAT(R(i)) * 10 + 0.5f);
 }
@@ -233,94 +224,6 @@ static void p_spiral(ib_t *o, const Ctx &c, int i0, int i1) {                   
     set(o, i, v, v * 0.6f, v * 0.2f, v * 0.35f);
   }
 }
-// ============================ Pixel rim — the outer rings show their pixels, the core blends: use both ============================
-// Rim = rings 23–28 (C boards), crisp dots. Core = rings 0–16, soft glow. Rings 17–22 (outer B) are the hand-over zone.
-static inline float coreFall(int r) { return 1.0f - (float)r / CORE_R; }                // 1 at the centre → 0 at the core edge
-static inline float angDiff(float a, float b) { float d = fabsf(fmodf(a - b + 540.0f, 360.0f) - 180.0f); return d; }   // degrees, 0..180
-
-static void p_beads(ib_t *o, const Ctx &c, int i0, int i1) {         // Rim beads · p1 = Bead spacing (0.4)
-  const float t = c.t * c.speed; const int spacing = 3 + (int)(c.p1 * 9 + 0.5f);
-  const int step = (int)floorf(t * 2.5f); const float flash = expf(-fract(t * 2.5f) * 7) * 0.18f;   // beads hop 2.5 px/s; the core blinks on each hop
-  const float breathe = 0.20f + 0.14f * sinf(t * 0.6f);
-  for (int i = i0; i < i1; i++) {
-    const int r = gRing[i];
-    if (r >= 23) { const int dir = (r & 1) ? 1 : -1; int ph = ((int)gK[i] + dir * step + r * 7) % spacing; if (ph < 0) ph += spacing;
-      E(o, i, ph == 0 ? 1.0f : (ph == 1 ? 0.22f : 0.03f)); }
-    else if (r >= CORE_R) E(o, i, 0.06f + 0.04f * (r - CORE_R) / 6.0f);
-    else { const float f = coreFall(r); E(o, i, (breathe + flash) * (0.35f + 0.65f * f)); }
-  }
-}
-static void p_comet(ib_t *o, const Ctx &c, int i0, int i1) {         // Comet ring · p1 = Tail length (0.5)
-  const float t = c.t * c.speed, lap = fract(t * 0.25f), head = lap * 360.0f;                       // one lap per 4 s
-  const float head2 = fract(-t * 0.15f + 0.5f) * 360.0f, tail = 4 + c.p1 * 24;
-  const float wave = lap * (CORE_R + 3);                                                          // a soft wave leaves the centre once per lap
-  for (int i = i0; i < i1; i++) {
-    const int r = gRing[i]; const int n = RING_N[r];
-    if (r == 28 || r == 27) {
-      const float h = r == 28 ? head : head2; const int kh = (int)(h / 360.0f * n) % n;
-      int d = (kh - (int)gK[i] + n) % n;                                                          // pixels behind the head
-      float v = expf(-d / tail) * (r == 28 ? 1.0f : 0.45f); if (d == 0) v = r == 28 ? 1.0f : 0.6f;
-      E(o, i, v + 0.02f);
-    } else if (r >= CORE_R) E(o, i, 0.03f + 0.05f * expf(-sqf_((TH(i) - head) / 25.0f)));
-    else { const float f = coreFall(r), dw = (float)r - wave;
-      const float ring = expf(-dw * dw * 0.5f) * 0.5f, toward = 0.55f + 0.45f * cosf((TH(i) - head) * (PI_ / 180));
-      E(o, i, (0.10f + 0.10f * f) * toward + ring * (0.4f + 0.6f * f)); }
-  }
-}
-static void p_twinkle(ib_t *o, const Ctx &c, int i0, int i1) {       // Rim twinkle · p1 = Density (0.5)
-  const float t = c.t * c.speed, dens = 0.15f + 0.75f * c.p1;
-  const float core = 0.18f + 0.12f * sinf(t * 0.45f);                                             // slow core breath; twinkles follow it
-  for (int i = i0; i < i1; i++) {
-    const int r = gRing[i];
-    if (r >= 24) {
-      const float h = hash1(i * 7 + 1), h2 = hash1(i * 13 + 5), h3 = hash1(i * 29 + 11);
-      if (h3 > dens) { E(o, i, 0.02f); continue; }
-      const float per = 1.2f + 2.2f * h2, ph = fract(t / per + h);
-      const float v = ph < 0.08f ? ph / 0.08f : expf(-(ph - 0.08f) * 5.5f);                      // sharp attack, slow decay
-      E(o, i, 0.02f + v * (0.55f + 1.5f * core));
-    } else if (r >= CORE_R) E(o, i, 0.04f + 0.03f * (r - CORE_R) / 7.0f);
-    else E(o, i, core * (0.4f + 0.6f * coreFall(r)));
-  }
-}
-#define RAIN_MAX 40
-static void p_rain(ib_t *o, const Ctx &c, int i0, int i1) {          // Pixel rain · p1 = Drops (0.4)
-  const float t = c.t * c.speed; const int nd = 6 + (int)(c.p1 * (RAIN_MAX - 6) + 0.5f);
-  float dAng[RAIN_MAX], dLand[RAIN_MAX]; int dRing[RAIN_MAX];
-  for (int d = 0; d < nd; d++) {                                                                  // each drop: angle, fall from ring 28 to the centre, then its glow fades
-    const float per = 4.0f + 3.0f * hash1(d * 17 + 3), u = fract(t / per + hash1(d * 31 + 7));
-    dAng[d] = hash1(d * 13 + 1) * 360.0f;
-    const float pos = 28.0f - u * 42.0f;                                                          // 28 → -14 over one period
-    dRing[d] = (int)floorf(pos);
-    dLand[d] = pos < CORE_R ? expf(-(CORE_R - pos) * 0.12f) : 0;                                  // glow once it has entered the core, fading as it sinks
-  }
-  for (int i = i0; i < i1; i++) {
-    const int r = gRing[i]; const float a = TH(i); float v = r >= CORE_R ? 0.025f : 0.08f * (0.4f + 0.6f * coreFall(r));
-    if (r >= CORE_R) {
-      const float halfPx = 180.0f / RING_N[r];
-      for (int d = 0; d < nd; d++) { if (dRing[d] == r && angDiff(a, dAng[d]) < halfPx) v = 1.0f; else if (dRing[d] + 1 == r && angDiff(a, dAng[d]) < halfPx) v = v < 0.3f ? 0.3f : v; }
-    } else {
-      float g = 0; for (int d = 0; d < nd; d++) if (dLand[d] > 0) g += dLand[d] * expf(-sqf_(angDiff(a, dAng[d]) / 20.0f));
-      v += g * 0.22f * (0.3f + 0.7f * (1 - coreFall(r)));                                         // lands at the core edge and soaks inward
-    }
-    E(o, i, v);
-  }
-}
-static void p_dial(ib_t *o, const Ctx &c, int i0, int i1) {          // Dial · p1 = Sweep speed (0.3)
-  const float t = c.t * c.speed, hz = 0.02f + 0.18f * c.p1, lap = fract(t * hz), hand = 90.0f - lap * 360.0f;   // clockwise from the top (math angle)
-  const float tick = fract(lap * 12), pulse = expf(-tick * 6) * 0.35f;                           // the core pulses as the hand passes each wedge boundary
-  for (int i = i0; i < i1; i++) {
-    const int r = gRing[i]; const int n = RING_N[r]; const float a = TH(i);
-    if (r == 28) {
-      const float pxw = 360.0f / n, major = angDiff(fmodf(a + 270.0f, 30.0f), 0) < pxw * 0.5f ? 1.0f : 0.0f;   // wedge boundaries every 30° (clockwise from top)
-      const int k = (int)gK[i], kh = (int)(fmodf(hand + 720.0f, 360.0f) / 360.0f * n) % n; int d = (kh - k + n) % n;
-      float v = 0.08f + (k % 2 == 0 ? 0.22f : 0) + major * 0.7f; if (d == 0) v = 1.0f; else if (d <= 6) v += 0.6f * expf(-d * 0.6f);
-      E(o, i, v);
-    } else if (r == 27) { const int kh = (int)(fmodf(hand + 720.0f, 360.0f) / 360.0f * n) % n; int d = (kh - (int)gK[i] + n) % n; E(o, i, 0.03f + (d == 0 ? 0.5f : 0.35f * expf(-d * 0.7f))); }
-    else if (r >= CORE_R) E(o, i, 0.03f);
-    else { const float f = coreFall(r), sector = expf(-sqf_(angDiff(a, hand) / 35.0f)); E(o, i, 0.12f * (0.4f + 0.6f * f) + pulse * sector * (0.5f + 0.5f * (1 - f))); }
-  }
-}
-
 // ============================ Shaders (fluid.h) — p1 = zoom (-3..3), tint unused ============================
 static void shader(ib_t *o, const Ctx &c, int i0, int i1, uint8_t which) {
   FluidParams P; P.shader = which; P.radius = RIM; P.speed = 1; P.zoom = c.p1 * 6 - 3; P.iter = which ? 5 : 6;
@@ -345,11 +248,6 @@ static const Scene SCENES[] = {
   {"Aurora curtains", "Dome",        "Turbulence",    0.5f,  false, p_aurora},
   {"Photosphere",     "Natural sun", "Granule size",  0.28f, false, p_photosphere},
   {"Spiral arms",     "Rim ↔ dome",  "Arms",          0.4f,  false, p_spiral},
-  {"Rim beads",       "Pixel rim",   "Bead spacing",  0.4f,  false, p_beads},
-  {"Comet ring",      "Pixel rim",   "Tail length",   0.5f,  false, p_comet},
-  {"Rim twinkle",     "Pixel rim",   "Density",       0.5f,  false, p_twinkle},
-  {"Pixel rain",      "Pixel rim",   "Drops",         0.4f,  false, p_rain},
-  {"Dial",            "Pixel rim",   "Sweep speed",   0.3f,  false, p_dial},
   {"Neon fluid",      "Shader",      "Zoom",          0.5f,  true,  p_fluid},
   {"Black-hole sunset","Shader",     "Zoom",          0.5f,  true,  p_blackhole},
 };
