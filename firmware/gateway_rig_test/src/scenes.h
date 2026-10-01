@@ -19,6 +19,11 @@ static inline float fract(float v) { return v - floorf(v); }
 static inline float maxf(float a, float b) { return a > b ? a : b; }
 static inline float minf(float a, float b) { return a < b ? a : b; }
 static inline float smooth(float t) { return t * t * (3 - 2 * t); }
+static inline float sqf_(float x) { return x * x; }
+static inline float cube(float x) { return x * x * x; }
+static inline float p5(float x) { float x2 = x * x; return x2 * x2 * x; }
+static inline float p6(float x) { float x3 = x * x * x; return x3 * x3; }
+static inline float p14(float x) { float x2 = x * x, x4 = x2 * x2, x8 = x4 * x4; return x8 * x4 * x2; }
 
 // hash1 / hash3 / vnoise — exact-int32 versions of the JS. NOTE the browser multiplies as doubles and loses bits above 2^53, so its
 // noise *field* differs from this one (same statistics, different seed). Verified 2026-09-30: with Math.imul on the JS side every
@@ -97,15 +102,24 @@ static void buildLUT(int pal) {
   }
   lutPal = pal;
 }
-// energy → palette, in place (the simulator's sunify)
-static void sunify(float *o, int pal, float contrast, float warmth) {
+// energy → palette, in place (the simulator's sunify). The contrast curve pow(e, 0.85·contrast) is a 256-entry table (e is 8-bit anyway).
+static uint8_t *CLUT = nullptr; static float clutCon = -1;
+static void buildCLUT(float contrast) {
+  if (!CLUT) CLUT = (uint8_t *)malloc(256);
+  const float ex = 0.85f * contrast;
+  for (int k = 0; k < 256; k++) CLUT[k] = (uint8_t)(powf(k / 255.0f, ex) * 255 + 0.5f);
+  clutCon = contrast;
+}
+static void sunify(float *o, int pal, float contrast, float warmth, int i0, int i1) {
   if (pal != lutPal) buildLUT(pal);
-  const float cool = maxf(0, warmth), warm = maxf(0, -warmth), ex = 0.85f * contrast;
-  for (int i = 0; i < SUN_N; i++) {
+  if (contrast != clutCon) buildCLUT(contrast);
+  const float cool = maxf(0, warmth), warm = maxf(0, -warmth);
+  const float g1 = 1 - 0.5f * warm, g2 = 1 - 0.8f * warm, g3 = 1 - warm, c1 = cool * 0.15f, c2 = cool * 0.2f, c3 = cool * 0.6f;
+  for (int i = i0; i < i1; i++) {
     float *k = o + 4 * i;
     float e = clamp01(0.3f * k[0] + 0.5f * k[1] + 0.2f * k[2] + 0.9f * k[3]);
-    int q = 4 * (int)(powf(e, ex) * 255 + 0.5f);
-    k[0] = RLUT[q]; k[1] = RLUT[q + 1] * (1 - 0.5f * warm) + cool * 0.15f * e; k[2] = RLUT[q + 2] * (1 - 0.8f * warm) + cool * 0.2f * e; k[3] = RLUT[q + 3] * (1 - warm) + cool * 0.6f * e;
+    int q = 4 * CLUT[(int)(e * 255 + 0.5f)];
+    k[0] = RLUT[q]; k[1] = RLUT[q + 1] * g1 + c1 * e; k[2] = RLUT[q + 2] * g2 + c2 * e; k[3] = RLUT[q + 3] * g3 + c3 * e;
   }
 }
 
@@ -115,102 +129,102 @@ static inline void set(float *o, int i, float r, float g, float b, float w) { fl
 static inline void E(float *o, int i, float v) { set(o, i, v, v * 0.6f, v * 0.2f, v * 0.4f); }   // sun-energy shorthand
 
 // ============================ Show ============================
-static void p_solar(float *o, const Ctx &c) {                        // Solar surface · p1 = Activity (0.55)
+static void p_solar(float *o, const Ctx &c, int i0, int i1) {                        // Solar surface · p1 = Activity (0.55)
   const float t = c.t * c.speed * 0.25f, act = c.p1;
-  for (int i = 0; i < SUN_N; i++) {
+  for (int i = i0; i < i1; i++) {
     float rr = R(i) / RIM, limb = sqrtf(maxf(0, 1 - rr * rr * 0.92f));
     float n1 = vnoise(X(i) / 110 + t, Y(i) / 110 - t * 0.6f, t * 0.7f);
     float n2 = vnoise(X(i) / 38 - t * 1.7f, Y(i) / 38 + t, 7 + t * 1.3f);
-    float flare = powf(vnoise(X(i) / 260 + 30, Y(i) / 260 + 30, t * 0.45f), 6) * 4 * act;
+    float flare = p6(vnoise(X(i) / 260 + 30, Y(i) / 260 + 30, t * 0.45f)) * 4 * act;
     float v = clamp01(limb * (0.35f + 0.65f * (0.55f * n1 + 0.45f * n2 - 0.15f + act * 0.25f)) + flare);
     float heat = clamp01(v * 1.3f - 0.25f);
     set(o, i, v, v * (0.28f + 0.5f * heat), v * 0.08f * heat, heat * heat * 0.9f);
   }
 }
-static void p_breath(float *o, const Ctx &c) {                       // Breathing rings · p1 = Ring width (0.5)
+static void p_breath(float *o, const Ctx &c, int i0, int i1) {                       // Breathing rings · p1 = Ring width (0.5)
   const float k = 1 / (60 + 140 * c.p1), t = c.t * c.speed * 2;
-  for (int i = 0; i < SUN_N; i++) { float v = 0.5f + 0.5f * sinf(R(i) * k - t); set(o, i, v, v * 0.55f, 0, v * 0.15f); }
+  for (int i = i0; i < i1; i++) { float v = 0.5f + 0.5f * sinf(R(i) * k - t); set(o, i, v, v * 0.55f, 0, v * 0.15f); }
 }
-static void p_rays(float *o, const Ctx &c) {                         // Rotating rays · p1 = Ray count (0.4) · uses tint
+static void p_rays(float *o, const Ctx &c, int i0, int i1) {                         // Rotating rays · p1 = Ray count (0.4) · uses tint
   const int n = 2 + (int)(c.p1 * 14 + 0.5f); const float w = c.t * c.speed * 0.6f;
-  for (int i = 0; i < SUN_N; i++) {
+  for (int i = i0; i < i1; i++) {
     float a = TH(i) * PI_ / 180;
-    float v = powf(0.5f + 0.5f * cosf(n * (a - w)), 3) * (0.35f + 0.65f * (1 - R(i) / RIM)) + 0.04f;
+    float v = cube(0.5f + 0.5f * cosf(n * (a - w))) * (0.35f + 0.65f * (1 - R(i) / RIM)) + 0.04f;
     set(o, i, v * c.tint[0], v * c.tint[1], v * c.tint[2], v * v * 0.3f);
   }
 }
-static void p_sweep(float *o, const Ctx &c) {                        // Radial pulse · p1 = Pulse spacing (0.5) · uses tint
+static void p_sweep(float *o, const Ctx &c, int i0, int i1) {                        // Radial pulse · p1 = Pulse spacing (0.5) · uses tint
   const float sp = 200 + 500 * c.p1, t = c.t * c.speed * 250;
-  for (int i = 0; i < SUN_N; i++) {
-    float ph = fract((R(i) - t) / sp), v = powf(1 - ph, 5), m = R(i) / RIM;
+  for (int i = i0; i < i1; i++) {
+    float ph = fract((R(i) - t) / sp), v = p5(1 - ph), m = R(i) / RIM;
     set(o, i, v * (c.tint[0] * (1 - m) + 1.0f * m), v * c.tint[1] * (1 - m), v * c.tint[2] * (1 - m), v * 0.2f * (1 - m));
   }
 }
-static void p_embers(float *o, const Ctx &c) {                       // Embers · p1 = Density (0.35)
+static void p_embers(float *o, const Ctx &c, int i0, int i1) {                       // Embers · p1 = Density (0.35)
   const float t = c.t * c.speed, dens = c.p1;
-  for (int i = 0; i < SUN_N; i++) {
+  for (int i = i0; i < i1; i++) {
     float h = hash1(i * 7 + 1), h2 = hash1(i * 13 + 5);
-    float s = powf(maxf(0, sinf(h * 200 + t * (0.4f + 1.2f * h2))), 14) * (h2 < dens ? 1 : 0);
+    float s = p14(maxf(0, sinf(h * 200 + t * (0.4f + 1.2f * h2)))) * (h2 < dens ? 1 : 0);
     float base = 0.03f + 0.03f * vnoise(X(i) / 200, Y(i) / 200, t * 0.2f);
     set(o, i, base + s, base * 0.3f + s * 0.6f, 0, s * 0.5f);
   }
 }
 // ============================ Dome studies ============================
-static void p_corona(float *o, const Ctx &c) {                       // Corona breath · p1 = Rim weight (0.6)
+static void p_corona(float *o, const Ctx &c, int i0, int i1) {                       // Corona breath · p1 = Rim weight (0.6)
   const float t = c.t * c.speed * 0.5f, b = 0.5f + 0.5f * sinf(t);
-  for (int i = 0; i < SUN_N; i++) {
-    float r = R(i) / RIM, rim = powf(clamp01((r - 0.78f) / 0.22f), 2) * (0.4f + 0.6f * (1 - b)) * (0.4f + 1.2f * c.p1);
-    float core = powf(1 - r, 1.6f) * (0.3f + 0.7f * b), wall = expf(-powf((r - 0.68f) / 0.12f, 2)) * 0.35f * b;
+  for (int i = i0; i < i1; i++) {
+    float r = R(i) / RIM, rim = sqf_(clamp01((r - 0.78f) / 0.22f)) * (0.4f + 0.6f * (1 - b)) * (0.4f + 1.2f * c.p1);
+    float core = powf(1 - r, 1.6f) * (0.3f + 0.7f * b), wall = expf(-sqf_((r - 0.68f) / 0.12f)) * 0.35f * b;
     set(o, i, rim + core + wall, rim * 0.8f + core * 0.45f + wall * 0.3f, rim * 0.35f, rim * 0.9f);
   }
 }
-static void p_heart(float *o, const Ctx &c) {                        // Heartbeat · p1 = Rate (0.4)
+static void p_heart(float *o, const Ctx &c, int i0, int i1) {                        // Heartbeat · p1 = Rate (0.4)
   const float bpm = 30 + 40 * c.p1, ph = fract(c.t * c.speed * bpm / 60);
-  const float beat = powf(maxf(0, 1 - ph * 3), 2) + 0.5f * powf(maxf(0, 1 - fabsf(ph - 0.25f) * 6), 2);
-  for (int i = 0; i < SUN_N; i++) {
+  const float beat = sqf_(maxf(0, 1 - ph * 3)) + 0.5f * sqf_(maxf(0, 1 - fabsf(ph - 0.25f) * 6));
+  for (int i = i0; i < i1; i++) {
     float r = R(i) / RIM, core = (0.18f + 0.3f * beat) * powf(1 - r, 0.7f), tick = r > 0.94f ? beat : 0;
     set(o, i, core * 0.9f + tick, core * 0.5f + tick, core * 0.15f + tick, core + tick);
   }
 }
-static void p_aurora(float *o, const Ctx &c) {                       // Aurora curtains · p1 = Turbulence (0.5)
+static void p_aurora(float *o, const Ctx &c, int i0, int i1) {                       // Aurora curtains · p1 = Turbulence (0.5)
   const float t = c.t * c.speed * 0.35f;
   float cx[3]; for (int k = 0; k < 3; k++) cx[k] = sinf(t * (0.4f + 0.15f * k) + k * 2.1f) * 600;
-  for (int i = 0; i < SUN_N; i++) {
+  for (int i = i0; i < i1; i++) {
     float wob = (vnoise(X(i) / 500 + t * 0.3f, Y(i) / 300, t) - 0.5f) * 400 * c.p1, v = 0;
-    for (int k = 0; k < 3; k++) { float w = 60 + 60 * k; v += expf(-powf((X(i) - (cx[k] + wob)) / w, 2)) * (0.4f + 0.3f * vnoise(Y(i) / 120 + t * 2, k * 3, t)); }
+    for (int k = 0; k < 3; k++) { float w = 60 + 60 * k; v += expf(-sqf_((X(i) - (cx[k] + wob)) / w)) * (0.4f + 0.3f * vnoise(Y(i) / 120 + t * 2, k * 3, t)); }
     v = clamp01(v) * (0.55f + 0.45f * (Y(i) / RIM)); set(o, i, v * 0.1f, v * 0.9f, v * 0.5f, v * 0.12f);
   }
 }
 // ============================ Natural sun ============================
-static void p_photosphere(float *o, const Ctx &c) {                  // Photosphere · p1 = Granule size (40..400 mm, default 140 ≈ 0.28); con 0.9, limb 0.7, drift 0.5, churn 0.6
+static void p_photosphere(float *o, const Ctx &c, int i0, int i1) {                  // Photosphere · p1 = Granule size (40..400 mm, default 140 ≈ 0.28); con 0.9, limb 0.7, drift 0.5, churn 0.6
   const float t = c.t * c.speed, g = 40 + 360 * c.p1, con = 0.9f, lim = 0.7f, drift = 0.5f, churn = 0.6f;
-  for (int i = 0; i < SUN_N; i++) {
+  for (int i = i0; i < i1; i++) {
     float r = R(i) / RIM, limb = 1 - lim * (1 - sqrtf(maxf(0, 1 - r * r)));
     float n1 = vnoise(X(i) / g + t * 0.35f * drift, Y(i) / g, t * 0.6f * churn), n2 = vnoise(X(i) / (g * 0.45f) - t * 0.5f * drift, Y(i) / (g * 0.45f) + 7, t * 1.2f * churn + 3), n3 = vnoise(X(i) / (g * 2.6f), Y(i) / (g * 2.6f) - t * 0.15f, t * 0.25f + 9);
     E(o, i, clamp01(limb * (0.62f + con * (0.55f * n1 + 0.3f * n2 + 0.15f * n3 - 0.5f))));
   }
 }
 // ============================ Rim ↔ dome ============================
-static void p_spiral(float *o, const Ctx &c) {                       // Spiral arms · p1 = Arms (0.4)
+static void p_spiral(float *o, const Ctx &c, int i0, int i1) {                       // Spiral arms · p1 = Arms (0.4)
   const float t = c.t * c.speed * 0.4f; const int arms = 2 + (int)(c.p1 * 3 + 0.5f);
-  for (int i = 0; i < SUN_N; i++) {
+  for (int i = i0; i < i1; i++) {
     float r = maxf(30, R(i)), a = TH(i) * PI_ / 180, ph = fract((a - 2.2f * logf(r / 60) + t) * arms / TAU);
     float w = 0.06f + 0.25f * FE(i) / 400, d = minf(ph, 1 - ph), v = expf(-d * d / (2 * w * w)) * 0.9f + 0.08f * (1 - R(i) / RIM);
     set(o, i, v, v * 0.6f, v * 0.2f, v * 0.35f);
   }
 }
 // ============================ Shaders (fluid.h) — p1 = zoom (-3..3), tint unused ============================
-static void shader(float *o, const Ctx &c, uint8_t which) {
+static void shader(float *o, const Ctx &c, int i0, int i1, uint8_t which) {
   FluidParams P; P.shader = which; P.radius = RIM; P.speed = 1; P.zoom = c.p1 * 6 - 3; P.iter = which ? 5 : 6;
   if (which) { P.glow = 1; P.bright = 1.4f; P.sat = 1.2f; }
   uint8_t px[4];
-  for (int i = 0; i < SUN_N; i++) { shaderPixel(X(i), Y(i), c.t * c.speed, P, px); set(o, i, px[0] / 255.0f, px[1] / 255.0f, px[2] / 255.0f, px[3] / 255.0f); }
+  for (int i = i0; i < i1; i++) { shaderPixel(X(i), Y(i), c.t * c.speed, P, px); set(o, i, px[0] / 255.0f, px[1] / 255.0f, px[2] / 255.0f, px[3] / 255.0f); }
 }
-static void p_fluid(float *o, const Ctx &c) { shader(o, c, 0); }
-static void p_blackhole(float *o, const Ctx &c) { shader(o, c, 1); }
+static void p_fluid(float *o, const Ctx &c, int i0, int i1) { shader(o, c, i0, i1, 0); }
+static void p_blackhole(float *o, const Ctx &c, int i0, int i1) { shader(o, c, i0, i1, 1); }
 
 // ---------------- scene table ----------------
-typedef void (*Fn)(float *, const Ctx &);
+typedef void (*Fn)(float *, const Ctx &, int, int);
 struct Scene { const char *name, *group, *p1name; float p1d; bool noPal; Fn fn; };
 static const Scene SCENES[] = {
   {"Solar surface",   "Show",        "Activity",      0.55f, false, p_solar},
@@ -228,14 +242,15 @@ static const Scene SCENES[] = {
 };
 static const int N_SCENES = sizeof(SCENES) / sizeof(SCENES[0]);
 
-// Render one frame: intent floats → RGBW bytes (linear). pal: -1 = pattern's own colours, else palette index.
-static void render(uint8_t *out, float *intent, int scene, float t, float speed, float p1, const float *tint, int pal, float contrast, float warmth) {
+// Render pixels [i0,i1) of one frame: intent floats → RGBW bytes (linear). pal: -1 = pattern's own colours, else palette index.
+// Called from two tasks (one per core) on disjoint ranges; per-frame scalars inside the patterns are recomputed by both — cheap and deterministic.
+static void render(uint8_t *out, float *intent, int scene, float t, float speed, float p1, const float *tint, int pal, float contrast, float warmth, int i0, int i1) {
   if (scene < 0 || scene >= N_SCENES) return;
   Ctx c; c.t = t; c.speed = speed; c.p1 = p1; c.tint[0] = tint[0]; c.tint[1] = tint[1]; c.tint[2] = tint[2];
-  SCENES[scene].fn(intent, c);
-  if (pal >= 0 && pal < N_PAL) sunify(intent, pal, contrast, warmth);
-  else if (contrast != 1) for (int k = 0; k < SUN_N * 4; k++) intent[k] = powf(clamp01(intent[k]), contrast);
-  for (int k = 0; k < SUN_N * 4; k++) out[k] = (uint8_t)(clamp01(intent[k]) * 255 + 0.5f);
+  SCENES[scene].fn(intent, c, i0, i1);
+  if (pal >= 0 && pal < N_PAL) sunify(intent, pal, contrast, warmth, i0, i1);
+  else if (contrast != 1) for (int k = i0 * 4; k < i1 * 4; k++) intent[k] = powf(clamp01(intent[k]), contrast);
+  for (int k = i0 * 4; k < i1 * 4; k++) out[k] = (uint8_t)(clamp01(intent[k]) * 255 + 0.5f);
 }
 
 } // namespace sc

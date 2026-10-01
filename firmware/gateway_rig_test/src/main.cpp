@@ -281,6 +281,41 @@ static inline float cyclesPerS() { return speed / 50.0f; }         // rainbow / 
 
 // ---------------- frame render ----------------
 static float sceneT = 0;                       // scene clock, seconds (advances by real elapsed time so motion speed is fps-independent)
+
+// ---- scene frames are rendered on BOTH cores: a helper task on core 0 takes pixels [0, split), the output task does the rest.
+// Core 0 also runs Wi-Fi/lwIP (which preempt the helper), so the split adapts to keep both halves finishing together.
+struct SceneJob { uint8_t *out; int scene; float t, speed, p1, con, warm; int pal; float tint[3]; int i0, i1; };
+static SceneJob helperJob;
+static TaskHandle_t helperTask = nullptr, mainTask = nullptr;
+static int   sceneSplit = N / 2;
+static void helperTaskFn(void *) {
+  for (;;) {
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);     // wait for a job
+    const SceneJob &j = helperJob;
+    sc::render(j.out, intent, j.scene, j.t, j.speed, j.p1, j.tint, j.pal, j.con, j.warm, j.i0, j.i1);
+    xTaskNotifyGive(mainTask);                   // done
+  }
+}
+static void renderScene(uint8_t *out) {
+  const float tint[3] = {colA[0] / 255.0f, colA[1] / 255.0f, colA[2] / 255.0f};
+  const int scn = sceneId, pal = palId; const float t = sceneT, sp = sceneSpd * 0.1f, p1 = sceneP1 * 0.01f, con = sceneCon * 0.01f, wa = sceneWarm * 0.01f;
+  if (!helperTask) { sc::render(out, intent, scn, t, sp, p1, tint, pal, con, wa, 0, N); return; }
+  helperJob = { out, scn, t, sp, p1, con, wa, pal, {tint[0], tint[1], tint[2]}, 0, sceneSplit };
+  const int64_t a = esp_timer_get_time();
+  xTaskNotifyGive(helperTask);
+  sc::render(out, intent, scn, t, sp, p1, tint, pal, con, wa, sceneSplit, N);
+  const int64_t b = esp_timer_get_time();
+  if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(500)) == 0) {           // helper stalled (shouldn't happen) — finish its half here
+    sc::render(out, intent, scn, t, sp, p1, tint, pal, con, wa, 0, sceneSplit);
+    return;
+  }
+  const int64_t c = esp_timer_get_time();
+  // balance: if we waited for the helper, give it fewer pixels next time; if it was idle, give it more (small steps, bounded)
+  const int64_t mine = b - a, waited = c - b;
+  if (waited > 1500) sceneSplit -= 40; else if (waited < 300 && mine > 2000) sceneSplit += 40;
+  if (sceneSplit < N / 8) sceneSplit = N / 8; if (sceneSplit > N * 3 / 4) sceneSplit = N * 3 / 4;
+}
+
 static void render(uint8_t *out, float pos, float phase) {
   memset(out, 0, N * 4);
   const uint8_t m = mode;
@@ -365,10 +400,9 @@ static void render(uint8_t *out, float pos, float phase) {
       break;
 
     case M_SCENE: {                              // simulator pattern / shader; colour A = tint for the patterns that use one
-      const float tint[3] = {colA[0] / 255.0f, colA[1] / 255.0f, colA[2] / 255.0f};
       if (!intent) break;
       const int64_t t0 = esp_timer_get_time();
-      sc::render(out, intent, sceneId, sceneT, sceneSpd * 0.1f, sceneP1 * 0.01f, tint, palId, sceneCon * 0.01f, sceneWarm * 0.01f);
+      renderScene(out);                          // both cores, see below
       renderUs = (uint32_t)(esp_timer_get_time() - t0);
     } break;
 
@@ -698,6 +732,8 @@ void setup() {
 
   // Output on core 1 at higher priority than loop(); WiFi/AsyncTCP/OTA live on core 0.
   xTaskCreatePinnedToCore(outputTask, "pixout", 12288, nullptr, 3, &outTask, 1);
+  mainTask = outTask;
+  xTaskCreatePinnedToCore(helperTaskFn, "pixout0", 8192, nullptr, 2, &helperTask, 0);   // core 0: below Wi-Fi/lwIP, above loop()-style idle work
 
   Serial.printf("[sun] free heap after setup: %u bytes · reset reason %d (1 power-on, 3 software, 4 panic, 5/6 WDT, 7 task-WDT, 8 deep-sleep, 9 brown-out)\n", (unsigned)ESP.getFreeHeap(), (int)esp_reset_reason());
   Serial.printf("\n[sun] rig test · build " __DATE__ " " __TIME__ " · %u px · %d runs · %d universes\n", (unsigned)N, SUN_RUNS, nUni);
