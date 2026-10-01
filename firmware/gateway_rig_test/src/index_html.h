@@ -153,6 +153,7 @@ function applyStatus(s){
   $('fps').textContent=s.ota?'OTA…':`${s.fps} fps${s.ren?` · render ${s.ren} ms`:''}${s.err?` · ${s.err} err`:''}`;
   const R={4:'panic',5:'int WDT',6:'task WDT',7:'WDT',9:'brown-out'};
   $('build').textContent=`build ${s.build} · ${s.dark?'dark':'light'} · heap ${Math.round(s.heap/1024)} kB · up ${s.up<120?s.up+' s':Math.round(s.up/60)+' min'}${R[s.rst]?' · last reset: '+R[s.rst]:''}${s.hto?' · helper late ×'+s.hto:''}`;
+  if(s.safe){$('build').textContent+=' · SAFE MODE after '+s.crashes+' crashes — scenes disabled; power-cycle or OTA a fix';$('build').className='pill bad';}else{$('build').className='pill';}
   if(!!s.dark!==dark){dark=!!s.dark;document.documentElement.dataset.theme=dark?'dark':'light';shDraw();}
   pw('pwD',s.pw[0],PSU[0]);pw('pwE',s.pw[1],PSU[1]);pw('pwW',s.pw[2],PSU[2]);
   document.querySelectorAll('#modes .chip').forEach(b=>b.classList.toggle('on',+b.dataset.m===s.mode));

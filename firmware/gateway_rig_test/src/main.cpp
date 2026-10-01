@@ -84,6 +84,11 @@ static void buildShade() {
 
 static volatile float    pwrW[3]   = {0, 0, 0};  // estimated load: disc, East, West (W) of the frame being sent
 static volatile bool     otaActive = false;
+// crash-loop guard: abnormal resets (panic / WDT / brown-out) are counted in RTC memory; 3 in a row → SAFE MODE: no render helper,
+// scenes disabled, output off, page still served and says so. Counter clears after 90 s of healthy uptime. Power cycle also clears it.
+RTC_NOINIT_ATTR uint32_t crashMagic; RTC_NOINIT_ATTR uint32_t crashCount;
+static bool safeMode = false; static int bootReason = 0;
+static bool abnormalReset(int r) { return r == ESP_RST_PANIC || r == ESP_RST_INT_WDT || r == ESP_RST_TASK_WDT || r == ESP_RST_WDT || r == ESP_RST_BROWNOUT; }
 
 struct Cfg { IPAddress target; uint16_t uni; IPAddress ethIp; } cfg;
 static volatile bool cfgChanged = false;
@@ -254,7 +259,7 @@ static inline long clampl(long x, long lo, long hi) { return x < lo ? lo : (x > 
 static void handleText(const String &s) {
   String t = jsonStr(s, "t"), v;
   if (t == "set") {                                   // any subset of the state
-    v = jsonStr(s, "mode");  if (v.length()) { long n = v.toInt(); if (n >= 0 && n < M_COUNT) mode = n; }
+    v = jsonStr(s, "mode");  if (v.length()) { long n = v.toInt(); if (n >= 0 && n < M_COUNT && !(safeMode && n == M_SCENE)) mode = n; }
     v = jsonStr(s, "a");     if (v.length()) parseCol(v, colA);
     v = jsonStr(s, "master");if (v.length()) master = clampl(v.toInt(), 0, 255);
     v = jsonStr(s, "sc");    if (v.length()) { long n = v.toInt(); if (n >= 0 && n < sc::N_SCENES) { sceneId = n; sceneP1 = (uint8_t)(sc::SCENES[n].p1d * 100 + 0.5f); palId = sc::SCENES[n].noPal ? -1 : (palId < 0 ? 0 : palId); } }
@@ -308,7 +313,8 @@ static void pushStatus() {
   j += ",\"shon\":" + String(shadeOn ? 1 : 0) + ",\"shk\":[";
   for (int r = 0; r < RINGS; r++) { if (r) j += ","; j += String(shadeRing[r]); }
   j += "],\"hto\":" + String((unsigned long)helperTimeouts) + ",\"rst\":" + String((int)esp_reset_reason()) + ",\"up\":" + String(millis() / 1000);
-  j += ",\"heap\":" + String((unsigned long)ESP.getFreeHeap()) + ",\"ota\":" + String(otaActive ? 1 : 0) + ",\"build\":\"" __DATE__ " " __TIME__ "\",\"dark\":" + String((int)UI_DARK) + "}";
+  j += ",\"heap\":" + String((unsigned long)ESP.getFreeHeap()) + ",\"ota\":" + String(otaActive ? 1 : 0) + ",\"safe\":" + String(safeMode ? 1 : 0) + ",\"crashes\":" + String((unsigned long)crashCount)
+     + ",\"build\":\"" __DATE__ " " __TIME__ "\",\"dark\":" + String((int)UI_DARK) + "}";
   ws.textAll(j);
 }
 
@@ -353,6 +359,7 @@ static void houseTask(void *) {
     ArduinoOTA.handle();                            // blocks for the duration of an upload; output task is suspended meanwhile
     uint32_t now = millis();
     if (shadeDirty && now - shadeDirtyMs > 1500) { shadeDirty = false; saveShade(); }
+    if (crashCount && now > 90000) { crashCount = 0; Serial.println("[sun] 90 s healthy — crash counter cleared"); }
     if (now - tStatus >= 1000) { tStatus = now; ws.cleanupClients(); if (ws.count() && ws.availableForWriteAll()) pushStatus(); }
     vTaskDelay(pdMS_TO_TICKS(10));
   }
@@ -362,11 +369,13 @@ static void houseTask(void *) {
 void setup() {
   Serial.begin(115200);
   pinMode(STATUS_LED, OUTPUT);
-  sc::buildGeom();                                  // RAM copies of the pixel tables (needed by buildShade and the render loops)
+  bootReason = (int)esp_reset_reason();
+  if (crashMagic != 0x50A1234u) { crashMagic = 0x50A1234u; crashCount = 0; }             // first boot after power-up: RTC memory is garbage
+  if (abnormalReset(bootReason)) crashCount++; else if (bootReason == ESP_RST_POWERON) crashCount = 0;
+  safeMode = crashCount >= 3;
+  Serial.printf("\n[sun] boot · reset reason %d · abnormal resets in a row %u%s · free heap %u\n", bootReason, (unsigned)crashCount, safeMode ? " → SAFE MODE (no scenes, no helper, output off)" : "", (unsigned)ESP.getFreeHeap());
   loadCfg();
   buildTables();
-  buildShade();
-  intent = (sc::ib_t *)malloc(N * 4 * sizeof(sc::ib_t));
 
   WiFi.onEvent(onNetEvent);
   WiFi.mode(WIFI_AP);
@@ -412,14 +421,21 @@ void setup() {
     });
   server.onNotFound([](AsyncWebServerRequest *r) { r->redirect("/"); });
   server.begin();
+  Serial.printf("[sun] network up · free heap %u\n", (unsigned)ESP.getFreeHeap());
+
+  // our big buffers come AFTER the Wi-Fi/Ethernet drivers have taken what they need (they want large contiguous DMA-capable blocks)
+  sc::buildGeom();
+  buildShade();
+  if (!safeMode) intent = (sc::ib_t *)malloc(N * 4 * sizeof(sc::ib_t));
+  Serial.printf("[sun] buffers allocated · free heap %u · largest block %u\n", (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 
   xTaskCreatePinnedToCore(outputTask, "pixout", 12288, nullptr, 3, &outTask, 1);          // core 1: render + send
 #ifndef SINGLE_CORE_RENDER
-  xTaskCreatePinnedToCore(helperTaskFn, "pixout0", 12288, nullptr, 1, &helperTask, 0);   // core 0: lowest real priority — below Wi-Fi/lwIP and housekeeping
+  if (!safeMode) xTaskCreatePinnedToCore(helperTaskFn, "pixout0", 12288, nullptr, 1, &helperTask, 0);   // core 0: below Wi-Fi/lwIP and housekeeping
 #endif
   xTaskCreatePinnedToCore(houseTask, "house", 8192, nullptr, 3, nullptr, 0);             // core 0: status, OTA, saves
 
-  Serial.printf("\n[sun] rig · build " __DATE__ " " __TIME__ " · %u px · %d universes · free heap %u · reset reason %d\n", (unsigned)N, nUni, (unsigned)ESP.getFreeHeap(), (int)esp_reset_reason());
+  Serial.printf("[sun] rig · build " __DATE__ " " __TIME__ " · %u px · %d universes\n", (unsigned)N, nUni);
   Serial.printf("[sun] AP \"%s\" / \"%s\" → http://192.168.4.1 · OTA :3232 · eth %s → %s uni %u\n", AP_SSID, AP_PASS, cfg.ethIp.toString().c_str(), cfg.target.toString().c_str(), cfg.uni);
 }
 
