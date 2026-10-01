@@ -8,7 +8,8 @@
 //   of every board) · rainbow · breathe (power test) · radial pulse · spot (one pixel, tap it on the page).
 // • Two colours (A, B), master brightness (boots at 30 %, ×0.90 power cap always applied), speed, chase tail, manual stepping.
 // • Live estimate of the load on each PSU (disc RSP-200, East / West RSP-500) from the frame actually being sent.
-// • Output: Art-Net (default) or DDP, 40 fps from its own FreeRTOS task on core 1; web server + OTA on core 0.
+// • Tasks: core 1 = output task only (render → shading/master → Art-Net); core 0 = Wi-Fi/lwIP + housekeeping task (status, page mirror,
+//   OTA, NVS saves) + an optional render helper that takes an adaptive share of each scene frame. Arduino loop() is empty.
 // • Pixel order / universes follow sun_map.h (generated from simulator/sun-map.csv, Rev Q — runs 6–8 in descending wedge order).
 //   px i → universe cfg.uni − 1 + SUN_RUN_UNI0[run] + RI/128, channel 1 + 4·(RI mod 128), GRBW handled by the PixLite (we send RGBW).
 // • OTA: ArduinoOTA on the same AP (192.168.4.1:3232). `pio run -e ota -t upload` from a laptop joined to SUN-DISC.
@@ -287,33 +288,45 @@ static float sceneT = 0;                       // scene clock, seconds (advances
 struct SceneJob { uint8_t *out; int scene; float t, speed, p1, con, warm; int pal; float tint[3]; int i0, i1; };
 static SceneJob helperJob;
 static TaskHandle_t helperTask = nullptr, mainTask = nullptr;
+static volatile bool helperBusy = false;         // set when a job is posted, cleared by the helper when it is done — never two jobs in flight
+static volatile uint32_t helperTimeouts = 0;
 static int   sceneSplit = N / 2;
+static uint8_t hbuf[N * 4];                      // helper renders here; main copies [0,split) in only after the helper reports done
 static void helperTaskFn(void *) {
   for (;;) {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);     // wait for a job
-    const SceneJob &j = helperJob;
-    sc::render(j.out, intent, j.scene, j.t, j.speed, j.p1, j.tint, j.pal, j.con, j.warm, j.i0, j.i1);
+    if (!helperBusy) continue;                   // stale wake-up
+    const SceneJob j = helperJob;                // copy: main never touches helperJob while helperBusy
+    const int mid = (j.i0 + j.i1) / 2;
+    sc::render(j.out, intent, j.scene, j.t, j.speed, j.p1, j.tint, j.pal, j.con, j.warm, j.i0, mid);
+    vTaskDelay(1);                               // give core 0's idle task (watched by the task WDT) and Wi-Fi a slot every frame
+    sc::render(j.out, intent, j.scene, j.t, j.speed, j.p1, j.tint, j.pal, j.con, j.warm, mid, j.i1);
+    helperBusy = false;
     xTaskNotifyGive(mainTask);                   // done
   }
 }
 static void renderScene(uint8_t *out) {
   const float tint[3] = {colA[0] / 255.0f, colA[1] / 255.0f, colA[2] / 255.0f};
   const int scn = sceneId, pal = palId; const float t = sceneT, sp = sceneSpd * 0.1f, p1 = sceneP1 * 0.01f, con = sceneCon * 0.01f, wa = sceneWarm * 0.01f;
-  if (!helperTask) { sc::render(out, intent, scn, t, sp, p1, tint, pal, con, wa, 0, N); return; }
-  helperJob = { out, scn, t, sp, p1, con, wa, pal, {tint[0], tint[1], tint[2]}, 0, sceneSplit };
+  if (!helperTask || helperBusy) {               // no helper, or it is still chewing on an old job: single-core frame, never touch its buffer concurrently
+    sc::render(out, intent, scn, t, sp, p1, tint, pal, con, wa, 0, N); return;
+  }
+  ulTaskNotifyTake(pdTRUE, 0);                   // drop any stale "done" notification before posting
+  helperJob = { hbuf, scn, t, sp, p1, con, wa, pal, {tint[0], tint[1], tint[2]}, 0, sceneSplit };
+  helperBusy = true;
   const int64_t a = esp_timer_get_time();
   xTaskNotifyGive(helperTask);
   sc::render(out, intent, scn, t, sp, p1, tint, pal, con, wa, sceneSplit, N);
   const int64_t b = esp_timer_get_time();
-  if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(500)) == 0) {           // helper stalled (shouldn't happen) — finish its half here
-    sc::render(out, intent, scn, t, sp, p1, tint, pal, con, wa, 0, sceneSplit);
-    return;
+  if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(300)) == 0) {           // helper late — it only ever writes hbuf, so just skip this frame's copy of that
+    helperTimeouts++; sceneSplit = N / 4; return;                     // part: the previous frame's bytes stay in out[]. Next frame goes single-core.
   }
   const int64_t c = esp_timer_get_time();
+  memcpy(out, hbuf, sceneSplit * 4);
   // balance: if we waited for the helper, give it fewer pixels next time; if it was idle, give it more (small steps, bounded)
   const int64_t mine = b - a, waited = c - b;
   if (waited > 1500) sceneSplit -= 40; else if (waited < 300 && mine > 2000) sceneSplit += 40;
-  if (sceneSplit < N / 8) sceneSplit = N / 8; if (sceneSplit > N * 3 / 4) sceneSplit = N * 3 / 4;
+  if (sceneSplit < N / 8) sceneSplit = N / 8; if (sceneSplit > N * 3 / 5) sceneSplit = N * 3 / 5;
 }
 
 static void render(uint8_t *out, float pos, float phase) {
@@ -595,7 +608,7 @@ static void pushStatus() {
   j += ",\"shon\":" + String(shadeOn ? 1 : 0) + ",\"shk\":[";
   for (int r = 0; r < RINGS; r++) { if (r) j += ","; j += String(shadeRing[r]); }
   j += "]";
-  j += ",\"rst\":" + String((int)esp_reset_reason()) + ",\"up\":" + String(millis() / 1000);
+  j += ",\"hto\":" + String((unsigned long)helperTimeouts) + ",\"rst\":" + String((int)esp_reset_reason()) + ",\"up\":" + String(millis() / 1000);
   j += ",\"heap\":" + String((unsigned long)ESP.getFreeHeap()) + ",\"ota\":" + String(otaActive ? 1 : 0) + ",\"build\":\"" __DATE__ " " __TIME__ "\",\"dark\":" + String((int)UI_DARK);
   j += ",\"nodes\":[";
   portENTER_CRITICAL(&nodeLock);
@@ -663,6 +676,7 @@ static void otaSetup() {
 }
 
 // ---------------- setup / loop ----------------
+static void houseTask(void *);
 void setup() {
   Serial.begin(115200);
   pinMode(STATUS_LED, OUTPUT);
@@ -733,7 +747,10 @@ void setup() {
   // Output on core 1 at higher priority than loop(); WiFi/AsyncTCP/OTA live on core 0.
   xTaskCreatePinnedToCore(outputTask, "pixout", 12288, nullptr, 3, &outTask, 1);
   mainTask = outTask;
-  xTaskCreatePinnedToCore(helperTaskFn, "pixout0", 8192, nullptr, 2, &helperTask, 0);   // core 0: below Wi-Fi/lwIP, above loop()-style idle work
+#ifndef SINGLE_CORE_RENDER                       // build with -DSINGLE_CORE_RENDER to keep core 0 free of rendering (one core of compute → heavy scenes ~18 fps)
+  xTaskCreatePinnedToCore(helperTaskFn, "pixout0", 12288, nullptr, 2, &helperTask, 0);   // core 0: below Wi-Fi/lwIP, above the housekeeping task
+#endif
+  xTaskCreatePinnedToCore(houseTask, "house", 8192, nullptr, 1, nullptr, 0);             // core 0: status, mirror, OTA, saves
 
   Serial.printf("[sun] free heap after setup: %u bytes · reset reason %d (1 power-on, 3 software, 4 panic, 5/6 WDT, 7 task-WDT, 8 deep-sleep, 9 brown-out)\n", (unsigned)ESP.getFreeHeap(), (int)esp_reset_reason());
   Serial.printf("\n[sun] rig test · build " __DATE__ " " __TIME__ " · %u px · %d runs · %d universes\n", (unsigned)N, SUN_RUNS, nUni);
@@ -742,15 +759,22 @@ void setup() {
                 cfg.proto ? "DDP" : "Art-Net", cfg.uni);
 }
 
-void loop() {
-  static uint32_t tStatus = 0;
-  ArduinoOTA.handle();                              // blocks for the duration of an upload; output task is suspended meanwhile
-  uint32_t now = millis();
-  if (mirrorDirty && ws.count() && ws.availableForWriteAll() && ESP.getFreeHeap() > 40000) {   // live preview ('L'); skip if a client lags or heap is tight
-    static uint8_t msg[1 + N * 4]; msg[0] = 'L'; mirrorDirty = false;
-    memcpy(msg + 1, mirror, N * 4); ws.binaryAll(msg, sizeof msg);
+// ---------------- housekeeping task (core 0, alongside Wi-Fi) ----------------
+// Status pushes, page mirror, OTA, WebSocket cleanup, deferred NVS saves. Pinned to core 0 so core 1 is render + send only
+// and nothing on the page can be starved by a heavy frame. Arduino's loop() (core 1) is left empty.
+static void houseTask(void *) {
+  uint32_t tStatus = 0;
+  for (;;) {
+    ArduinoOTA.handle();                            // blocks for the duration of an upload; output task is suspended meanwhile
+    uint32_t now = millis();
+    if (mirrorDirty && ws.count() && ws.availableForWriteAll() && ESP.getFreeHeap() > 40000) {   // live preview ('L'); skip if a client lags or heap is tight
+      static uint8_t msg[1 + N * 4]; msg[0] = 'L'; mirrorDirty = false;
+      memcpy(msg + 1, mirror, N * 4); ws.binaryAll(msg, sizeof msg);
+    }
+    if (shadeDirty && now - shadeDirtyMs > 1500) { shadeDirty = false; saveShade(); }
+    if (now - tStatus >= 500) { tStatus = now; ws.cleanupClients(); if (ws.availableForWriteAll()) pushStatus(); }
+    vTaskDelay(pdMS_TO_TICKS(5));
   }
-  if (shadeDirty && now - shadeDirtyMs > 1500) { shadeDirty = false; saveShade(); }
-  if (now - tStatus >= 500) { tStatus = now; ws.cleanupClients(); if (ws.availableForWriteAll()) pushStatus(); }
-  delay(5);
 }
+
+void loop() { vTaskDelay(pdMS_TO_TICKS(1000)); }   // everything lives in houseTask (core 0) and outputTask (core 1)
