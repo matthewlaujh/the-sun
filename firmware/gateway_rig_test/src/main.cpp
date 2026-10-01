@@ -21,6 +21,7 @@
 #include <Preferences.h>
 #include <ESPAsyncWebServer.h>
 #include "index_html_gz.h"   // generated from index_html.h by tools/gen_html_gz.py (platformio.ini extra_scripts)
+#include "index_html.h"      // the raw page too, served at /raw as a no-gzip fallback
 #include "sun_map.h"
 #pragma GCC optimize("O2", "fast-math")   // render path: Arduino builds -Os; the Xtensa FPU has no divide, fast-math lets GCC use reciprocals
 #include "scenes.h"          // simulator patterns + fluid shaders + palettes
@@ -135,6 +136,9 @@ static void onNetEvent(arduino_event_id_t ev) {
     case ARDUINO_EVENT_ETH_CONNECTED:    ethLink = true;  Serial.println("[eth] link up"); break;
     case ARDUINO_EVENT_ETH_DISCONNECTED: ethLink = false; Serial.println("[eth] link down"); break;
     case ARDUINO_EVENT_ETH_STOP:         ethLink = false; break;
+    case ARDUINO_EVENT_WIFI_AP_STACONNECTED:    Serial.println("[wifi] station joined SUN-DISC"); break;
+    case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED: Serial.println("[wifi] station left SUN-DISC"); break;
+    case ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED:   Serial.println("[wifi] station got an IP"); break;
     default: break;
   }
 }
@@ -296,7 +300,8 @@ static void handleText(const String &s) {
 }
 
 static void onWs(AsyncWebSocket *, AsyncWebSocketClient *, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-  if (type == WS_EVT_CONNECT) { lastWebMs = millis(); return; }
+  if (type == WS_EVT_CONNECT) { lastWebMs = millis(); Serial.println("[ws] client connected"); return; }
+  if (type == WS_EVT_DISCONNECT) { Serial.println("[ws] client disconnected"); return; }
   if (type != WS_EVT_DATA) return;
   AwsFrameInfo *info = (AwsFrameInfo *)arg;
   if (!info->final || info->index != 0 || info->len != len || len == 0) return;
@@ -401,13 +406,22 @@ void setup() {
   ws.onEvent(onWs);
   server.addHandler(&ws);
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *r) {          // gzip'd page streamed straight from flash
-    lastWebMs = millis();
+    lastWebMs = millis(); Serial.printf("[http] GET / from %s\n", r->client()->remoteIP().toString().c_str());
     AsyncWebServerResponse *res = r->beginResponse(200, "text/html", INDEX_HTML_GZ, (size_t)INDEX_HTML_GZ_LEN);
     res->addHeader("Content-Encoding", "gzip"); res->addHeader("Cache-Control", "no-cache");
     r->send(res);
   });
+  server.on("/raw", HTTP_GET, [](AsyncWebServerRequest *r) {       // same page, uncompressed — fallback / diagnosis
+    lastWebMs = millis(); Serial.printf("[http] GET /raw from %s\n", r->client()->remoteIP().toString().c_str());
+    AsyncWebServerResponse *res = r->beginResponse(200, "text/html", (const uint8_t *)INDEX_HTML, strlen(INDEX_HTML));
+    res->addHeader("Cache-Control", "no-cache"); r->send(res);
+  });
+  server.on("/ping", HTTP_GET, [](AsyncWebServerRequest *r) {      // smallest possible response — proves the server answers at all
+    Serial.printf("[http] GET /ping from %s\n", r->client()->remoteIP().toString().c_str());
+    r->send(200, "text/plain", String("ok · up ") + (millis() / 1000) + " s · heap " + ESP.getFreeHeap() + " · clients " + WiFi.softAPgetStationNum());
+  });
   server.on("/scenes.json", HTTP_GET, [](AsyncWebServerRequest *r) {
-    lastWebMs = millis();
+    lastWebMs = millis(); Serial.println("[http] GET /scenes.json");
     String j = "{\"scenes\":[";
     for (int i = 0; i < sc::N_SCENES; i++) { if (i) j += ","; j += "{\"n\":\"" + String(sc::SCENES[i].name) + "\",\"g\":\"" + sc::SCENES[i].group + "\",\"p\":\"" + sc::SCENES[i].p1name + "\",\"np\":" + (sc::SCENES[i].noPal ? 1 : 0) + "}"; }
     j += "],\"pal\":[";
