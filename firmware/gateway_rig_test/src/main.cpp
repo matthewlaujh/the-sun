@@ -98,6 +98,9 @@ static uint8_t  shadeRing[RINGS];
 static volatile bool shadeOn = true;
 static volatile bool shadeDirty = false; static volatile uint32_t shadeDirtyMs = 0;
 static uint8_t  shadeGain[N];                    // per-pixel gain ×64 (64 = unity, 128 = 2×)
+static volatile int8_t   hlRing = -1;            // ring being tuned on the page: lit magenta (−1 = none; −2 = the inner group 0–16); auto-clears
+static volatile uint32_t hlMs = 0;
+static const uint8_t HL_COL[4] = {255, 0, 255, 0};
 static void buildShade() {
   for (int i = 0; i < N; i++) { int ring = (SUN_R10[i] + 150) / 300; if (ring >= RINGS) ring = RINGS - 1; shadeGain[i] = (uint8_t)((shadeRing[ring] * 64 + 50) / 100); }
 }
@@ -421,6 +424,11 @@ static void outputTask(void *) {
     }
     for (int z = 0; z < 3; z++) pwrW[z] = sum[z] * (W_PER_PX_FULL / (4.0f * 255.0f));
 
+    if (hlRing != -1 && millis() - hlMs < 2500) {                     // light the ring being tuned (page sends it while a slider moves)
+      const int hr = hlRing; const uint32_t hk = (uint32_t)(master * BRIGHTNESS_CAP * 256.0f / 255.0f);
+      for (int i = 0; i < N; i++) { int ring = (SUN_R10[i] + 150) / 300; if (ring == hr || (hr == -2 && ring <= 16)) { uint8_t *o = out + i * 4; for (int c = 0; c < 4; c++) o[c] = (HL_COL[c] * hk) >> 8; } }
+    } else if (hlRing != -1) hlRing = -1;
+
     if ((framesSent % 10) == 0) { memcpy(mirror, out, sizeof mirror); mirrorDirty = true; }  // ~4 fps preview to the page
 
     if (!ethLink) { framesSent++; continue; }
@@ -488,6 +496,8 @@ static void handleText(const String &s) {
     if (v.length() && g.length()) { long r = v.toInt(), x = g.toInt(); if (r >= 0 && r < RINGS) shadeRing[r] = x < 0 ? 0 : (x > 200 ? 200 : x); }
     v = jsonStr(s, "inner"); if (v.length()) { long x = v.toInt(); x = x < 0 ? 0 : (x > 200 ? 200 : x); for (int r = 0; r <= 16; r++) shadeRing[r] = x; }
     v = jsonStr(s, "reset"); if (v.length() && v.toInt()) memcpy(shadeRing, SHADE_DEF, RINGS);
+    v = jsonStr(s, "hl"); if (v.length()) { long h = v.toInt(); hlRing = h < -2 || h >= RINGS ? -1 : h; hlMs = millis(); }
+    if (!g.length() && !jsonStr(s, "inner").length() && !jsonStr(s, "reset").length() && !jsonStr(s, "on").length()) return;   // highlight-only message: nothing to rebuild or save
     buildShade(); shadeDirtyMs = millis(); shadeDirty = true;   // saved from loop() 1.5 s after the last change (not on every slider tick)
     return;
   }
@@ -564,6 +574,36 @@ static void pushStatus() {
   }
   j += "]}";
   ws.textAll(j);
+}
+
+// ---------------- config export / import ----------------
+static String configJson() {
+  String j = "{\"v\":1,\"build\":\"" __DATE__ " " __TIME__ "\",\"net\":{\"proto\":" + String((int)cfg.proto) + ",\"tip\":\"" + cfg.target.toString() + "\",\"uni\":" + String((int)cfg.uni) + ",\"eip\":\"" + cfg.ethIp.toString() + "\"}";
+  j += ",\"shade\":{\"on\":" + String(shadeOn ? 1 : 0) + ",\"rings_mm\":\"index × 30 mm; gains ×100\",\"rings\":[";
+  for (int r = 0; r < RINGS; r++) { if (r) j += ","; j += String(shadeRing[r]); }
+  j += "]},\"state\":{\"mode\":" + String((int)mode) + ",\"run\":" + String((int)runMask) + ",\"board\":" + String((unsigned long)boardMask)
+     + ",\"a\":\"" + colStr(colA) + "\",\"b\":\"" + colStr(colB) + "\",\"master\":" + String((int)master) + ",\"speed\":" + String((int)speed) + ",\"tail\":" + String((int)tail)
+     + ",\"sc\":" + String((int)sceneId) + ",\"pal\":" + String((int)palId) + ",\"ss\":" + String((int)sceneSpd) + ",\"con\":" + String((int)sceneCon) + ",\"wa\":" + String((int)sceneWarm) + ",\"p1\":" + String((int)sceneP1) + "}}";
+  return j;
+}
+static void applyConfig(const String &s) {
+  String v;
+  // network
+  IPAddress tip, eip;
+  if (tip.fromString(jsonStr(s, "tip"))) cfg.target = tip;
+  if (eip.fromString(jsonStr(s, "eip")) && !(eip == cfg.ethIp)) { cfg.ethIp = eip; cfgChanged = true; }
+  v = jsonStr(s, "proto"); if (v.length()) cfg.proto = v.toInt() ? 1 : 0;
+  v = jsonStr(s, "uni");   if (v.length()) { long u = v.toInt(); if (u >= 1 && u < 32768 - SUN_UNIVERSES) cfg.uni = u; }
+  saveCfg();
+  // shading
+  int k = s.indexOf("\"rings\"");
+  if (k >= 0) { int a = s.indexOf('[', k), b = s.indexOf(']', a);
+    if (a > 0 && b > a) { int r = 0, p = a + 1; while (p < b && r < RINGS) { int q = s.indexOf(',', p); if (q < 0 || q > b) q = b; long x = s.substring(p, q).toInt(); shadeRing[r++] = x < 0 ? 0 : (x > 200 ? 200 : x); p = q + 1; } } }
+  k = s.indexOf("\"shade\""); if (k >= 0) { int o = s.indexOf("\"on\"", k); if (o > 0) { int c = s.indexOf(':', o); shadeOn = s.substring(c + 1).toInt() != 0; } }
+  buildShade(); saveShade();
+  // live test state — reuse the "set" handler on the state object
+  k = s.indexOf("\"state\""); if (k >= 0) { int a = s.indexOf('{', k), b = s.indexOf('}', a); if (a > 0 && b > a) handleText("{\"t\":\"set\"," + s.substring(a + 1, b) + "}"); }
+  Serial.println("[cfg] config imported");
 }
 
 // ---------------- OTA (over the same AP; laptop joins SUN-DISC and uploads to 192.168.4.1:3232) ----------------
@@ -644,6 +684,15 @@ void setup() {
     j += "]}";
     AsyncWebServerResponse *res = r->beginResponse(200, "application/json", j); res->addHeader("Cache-Control", "max-age=86400"); r->send(res);
   });
+  server.on("/config.json", HTTP_GET, [](AsyncWebServerRequest *r) {   // everything worth keeping — download from the page, re-import later
+    AsyncWebServerResponse *res = r->beginResponse(200, "application/json", configJson());
+    res->addHeader("Content-Disposition", "attachment; filename=\"sun-gateway-config.json\""); r->send(res);
+  });
+  server.on("/config", HTTP_POST, [](AsyncWebServerRequest *r) { r->send(200, "text/plain", "ok"); }, nullptr,
+    [](AsyncWebServerRequest *r, uint8_t *data, size_t len, size_t index, size_t total) {
+      static String body; if (index == 0) body = ""; body.concat((const char *)data, len);
+      if (index + len >= total) { applyConfig(body); body = ""; }
+    });
   server.onNotFound([](AsyncWebServerRequest *r) { r->redirect("/"); });
   server.begin();
 

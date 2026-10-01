@@ -109,7 +109,7 @@ h4{margin:10px 0 2px;font-size:11px;font-weight:600;letter-spacing:.06em;text-tr
 
 <details id="shd"><summary>Dome shading <span id="shInfo" style="font-size:12px"></span></summary>
  <div style="font-size:12px;color:var(--mute);margin:4px 0 6px">Gain per pixel ring (30 mm pitch), applied to everything sent except Board / Universe / Ends / Spot. Dim the rings where the dome is thin and the pixels show through; lift the dark ring inboard. 1.00 = no change, 0 = off. Saved on the ESP.</div>
- <div class="row"><label class="inl">apply<input id="shon" type="checkbox" checked></label><button class="sm" id="shReset">Reset to defaults</button><canvas id="shcv" width="300" height="60" style="width:300px;height:60px;border-radius:6px;border:1px solid var(--line);background:var(--cv)"></canvas></div>
+ <div class="row"><label class="inl">apply<input id="shon" type="checkbox" checked></label><label class="inl" title="while you move a slider, that ring is lit magenta on the rig">light ring being tuned<input id="shhl" type="checkbox" checked></label><button class="sm" id="shReset">Reset to defaults</button><canvas id="shcv" width="300" height="60" style="width:300px;height:60px;border-radius:6px;border:1px solid var(--line);background:var(--cv)"></canvas></div>
  <div id="shk"></div>
 </details>
 
@@ -123,6 +123,8 @@ h4{margin:10px 0 2px;font-size:11px;font-weight:600;letter-spacing:.06em;text-tr
   <label>gateway Ethernet IP (/24)<input id="eip" type="text"></label>
  </div>
  <div class="row"><button id="bSave">Save &amp; apply</button><button id="bPoll">Find Art-Net nodes</button></div>
+ <div class="row" style="margin-top:10px"><button id="bExport">Export config</button><button id="bImport">Import config…</button><input id="impFile" type="file" accept="application/json,.json" style="display:none"><span style="font-size:12px;color:var(--mute)">network · dome shading · current test state → one JSON file</span></div>
+ <div id="impInfo" style="font-size:12px;color:var(--mute)"></div>
  <div id="nodes"></div>
  <div style="font-size:12px;color:var(--mute);margin-top:6px">OTA: join SUN-DISC, then <code>pio run -e ota -t upload</code> (192.168.4.1:3232). Output pauses during the upload.</div>
 </details>
@@ -245,8 +247,11 @@ const RING_MM=i=>i*30, RING_BOARD=i=>i<=7?'A':(i<=22?'B':'C'), SH_FIRST=17;
 let shk=new Array(29).fill(100),shT=null;
 function shRow(label,id,val,onin){const row=document.createElement('div');row.className='sl';row.style.gridTemplateColumns='130px 1fr 44px';
   row.innerHTML=`<span>${label}</span><input type="range" id="${id}" min="0" max="200" value="${val}"><span id="${id}v">${(val/100).toFixed(2)}</span>`;$('shk').appendChild(row);$(id).oninput=onin;}
-shRow('inner · 0–480 mm (A, B)','shin',100,e=>{const g=+e.target.value;for(let r=0;r<SH_FIRST;r++)shk[r]=g;$('shinv').textContent=(g/100).toFixed(2);shDraw();if(ws)ws.send(JSON.stringify({t:'shade',inner:g}));});
-for(let r=28;r>=SH_FIRST;r--)shRow(`${RING_MM(r)} mm · ${RING_BOARD(r)}${r===28?' (rim)':''}`,'shr'+r,shk[r],e=>{const g=+e.target.value;shk[r]=g;$('shr'+r+'v').textContent=(g/100).toFixed(2);shDraw();if(ws)ws.send(JSON.stringify({t:'shade',ring:r,g}));});
+const hl=r=>{if(ws&&$('shhl').checked)ws.send(JSON.stringify({t:'shade',hl:r}));};
+shRow('inner · 0–480 mm (A, B)','shin',100,e=>{const g=+e.target.value;for(let r=0;r<SH_FIRST;r++)shk[r]=g;$('shinv').textContent=(g/100).toFixed(2);shDraw();if(ws)ws.send(JSON.stringify({t:'shade',inner:g,hl:$('shhl').checked?-2:-1}));});
+$('shin').addEventListener('pointerdown',()=>hl(-2));
+for(let r=28;r>=SH_FIRST;r--){shRow(`${RING_MM(r)} mm · ${RING_BOARD(r)}${r===28?' (rim)':''}`,'shr'+r,shk[r],e=>{const g=+e.target.value;shk[r]=g;$('shr'+r+'v').textContent=(g/100).toFixed(2);shDraw();if(ws)ws.send(JSON.stringify({t:'shade',ring:r,g,hl:$('shhl').checked?r:-1}));});$('shr'+r).addEventListener('pointerdown',()=>hl(r));}
+$('shhl').onchange=e=>{if(!e.target.checked&&ws)ws.send(JSON.stringify({t:'shade',hl:-1}));};
 $('shon').onchange=e=>ws&&ws.send(JSON.stringify({t:'shade',on:e.target.checked?1:0}));
 $('shReset').onclick=()=>ws&&ws.send(JSON.stringify({t:'shade',reset:1}));
 function shDraw(){const c=$('shcv').getContext('2d');c.clearRect(0,0,300,60);const cs=getComputedStyle(document.documentElement);
@@ -254,6 +259,13 @@ function shDraw(){const c=$('shcv').getContext('2d');c.clearRect(0,0,300,60);con
   c.fillStyle=cs.getPropertyValue('--acc');for(let r=0;r<29;r++){const h=60*shk[r]/200;c.fillRect(r*300/29+1,60-h,300/29-2,h);}}
 function shShow(){$('shin').value=shk[0];$('shinv').textContent=(shk[0]/100).toFixed(2);for(let r=SH_FIRST;r<29;r++){$('shr'+r).value=shk[r];$('shr'+r+'v').textContent=(shk[r]/100).toFixed(2);}shDraw();}
 shDraw();
+
+// --- config export / import
+$('bExport').onclick=async()=>{const r=await fetch('/config.json');const txt=await r.text();const d=new Date(),ts=d.toISOString().slice(0,16).replace(/[-:T]/g,'').replace(/(\d{8})(\d{4})/,'$1-$2');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=`sun-gateway-config-${ts}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);$('impInfo').textContent='exported '+a.download;};
+$('bImport').onclick=()=>$('impFile').click();
+$('impFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const txt=await f.text();try{JSON.parse(txt);}catch(err){$('impInfo').textContent='not valid JSON';return;}
+  const r=await fetch('/config',{method:'POST',headers:{'Content-Type':'application/json'},body:txt});$('impInfo').textContent=r.ok?`imported ${f.name} — network, shading and state applied`:'import failed';first=true;e.target.value='';};
 
 // --- status → UI
 function pw(id,w,lim){const e=$(id);e.textContent=`${id[2]} ${w.toFixed(0)} W`;e.className='pill '+(w>lim*0.9?'bad':(w>lim*0.7?'warn':''));}
