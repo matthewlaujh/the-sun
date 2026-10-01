@@ -20,9 +20,7 @@
 #include <ArduinoOTA.h>
 #include <Preferences.h>
 #include <ESPAsyncWebServer.h>
-#include <esp_task_wdt.h>
 #include "index_html_gz.h"   // generated from index_html.h by tools/gen_html_gz.py (platformio.ini extra_scripts)
-#include "index_html.h"      // the raw page too, served at /raw as a no-gzip fallback
 #include "sun_map.h"
 #pragma GCC optimize("O2", "fast-math")   // render path: Arduino builds -Os; the Xtensa FPU has no divide, fast-math lets GCC use reciprocals
 #include "scenes.h"          // simulator patterns + fluid shaders + palettes
@@ -86,16 +84,6 @@ static void buildShade() {
 
 static volatile float    pwrW[3]   = {0, 0, 0};  // estimated load: disc, East, West (W) of the frame being sent
 static volatile bool     otaActive = false;
-// crash-loop guard: abnormal resets (panic / WDT / brown-out) are counted in RTC memory; 3 in a row → SAFE MODE: no render helper,
-// scenes disabled, output off, page still served and says so. Counter clears after 90 s of healthy uptime. Power cycle also clears it.
-RTC_NOINIT_ATTR uint32_t crashMagic; RTC_NOINIT_ATTR uint32_t crashCount;
-static bool safeMode = false; static int bootReason = 0;
-RTC_NOINIT_ATTR uint32_t wdRestarts;             // restarts WE triggered (web server dead / heap / AP) — also feed the safe-mode count
-#define WDT_TIMEOUT_MS 12000                     // task watchdog: output task and housekeeping task must each check in every 12 s or the board reboots
-static volatile uint32_t selfOk = 0, selfFail = 0, selfFailRow = 0, serverRestarts = 0; static volatile bool selfEverOk = false;
-static const char *lastWd = "";                  // last watchdog action, for the page
-static bool abnormalReset(int r) { return r == ESP_RST_PANIC || r == ESP_RST_INT_WDT || r == ESP_RST_TASK_WDT || r == ESP_RST_WDT || r == ESP_RST_BROWNOUT; }
-static void wdRestart(const char *why) { Serial.printf("[wd] %s → restarting\n", why); wdRestarts++; Serial.flush(); delay(100); ESP.restart(); }
 
 struct Cfg { IPAddress target; uint16_t uni; IPAddress ethIp; } cfg;
 static volatile bool cfgChanged = false;
@@ -142,9 +130,6 @@ static void onNetEvent(arduino_event_id_t ev) {
     case ARDUINO_EVENT_ETH_CONNECTED:    ethLink = true;  Serial.println("[eth] link up"); break;
     case ARDUINO_EVENT_ETH_DISCONNECTED: ethLink = false; Serial.println("[eth] link down"); break;
     case ARDUINO_EVENT_ETH_STOP:         ethLink = false; break;
-    case ARDUINO_EVENT_WIFI_AP_STACONNECTED:    Serial.println("[wifi] station joined SUN-DISC"); break;
-    case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED: Serial.println("[wifi] station left SUN-DISC"); break;
-    case ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED:   Serial.println("[wifi] station got an IP"); break;
     default: break;
   }
 }
@@ -159,13 +144,9 @@ static bool sendArtDmx(uint16_t universe, const uint8_t *data, uint16_t len) {
   if (len & 1) len++;
   p[16] = len >> 8; p[17] = len & 0xFF;
   memcpy(p + 18, data, len);
-  for (int attempt = 0; attempt < 2; attempt++) {
-    if (!udp.beginPacket(cfg.target, 6454)) return false;
-    udp.write(p, 18 + len);
-    if (udp.endPacket()) return true;              // errno 12 (ENOMEM) = lwIP out of pbufs mid-burst: give it a tick and try once more
-    vTaskDelay(1);
-  }
-  return false;
+  if (!udp.beginPacket(cfg.target, 6454)) return false;
+  udp.write(p, 18 + len);
+  return udp.endPacket();
 }
 
 // ---------------- scene rendering on both cores ----------------
@@ -212,9 +193,7 @@ static void renderScene(uint8_t *out) {
 static void outputTask(void *) {
   static uint8_t out[N * 4];
   uint32_t lastMs = millis(), frameStart = 0;
-  esp_task_wdt_add(NULL);                        // a frame that never finishes reboots the board instead of freezing the rig
   for (;;) {
-    esp_task_wdt_reset();
     { uint32_t spent = millis() - frameStart; uint32_t wait = spent < FRAME_MS ? FRAME_MS - spent : 0; if (wait < MIN_YIELD_MS) wait = MIN_YIELD_MS;
       vTaskDelay(pdMS_TO_TICKS(wait)); frameStart = millis(); }
     const uint32_t nowMs = millis(); float dt = (nowMs - lastMs) * 0.001f; lastMs = nowMs; if (dt > 0.25f) dt = 0.25f;
@@ -275,7 +254,7 @@ static inline long clampl(long x, long lo, long hi) { return x < lo ? lo : (x > 
 static void handleText(const String &s) {
   String t = jsonStr(s, "t"), v;
   if (t == "set") {                                   // any subset of the state
-    v = jsonStr(s, "mode");  if (v.length()) { long n = v.toInt(); if (n >= 0 && n < M_COUNT && !(safeMode && n == M_SCENE)) mode = n; }
+    v = jsonStr(s, "mode");  if (v.length()) { long n = v.toInt(); if (n >= 0 && n < M_COUNT) mode = n; }
     v = jsonStr(s, "a");     if (v.length()) parseCol(v, colA);
     v = jsonStr(s, "master");if (v.length()) master = clampl(v.toInt(), 0, 255);
     v = jsonStr(s, "sc");    if (v.length()) { long n = v.toInt(); if (n >= 0 && n < sc::N_SCENES) { sceneId = n; sceneP1 = (uint8_t)(sc::SCENES[n].p1d * 100 + 0.5f); palId = sc::SCENES[n].noPal ? -1 : (palId < 0 ? 0 : palId); } }
@@ -308,8 +287,7 @@ static void handleText(const String &s) {
 }
 
 static void onWs(AsyncWebSocket *, AsyncWebSocketClient *, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-  if (type == WS_EVT_CONNECT) { lastWebMs = millis(); Serial.println("[ws] client connected"); return; }
-  if (type == WS_EVT_DISCONNECT) { Serial.println("[ws] client disconnected"); return; }
+  if (type == WS_EVT_CONNECT) { lastWebMs = millis(); return; }
   if (type != WS_EVT_DATA) return;
   AwsFrameInfo *info = (AwsFrameInfo *)arg;
   if (!info->final || info->index != 0 || info->len != len || len == 0) return;
@@ -330,8 +308,7 @@ static void pushStatus() {
   j += ",\"shon\":" + String(shadeOn ? 1 : 0) + ",\"shk\":[";
   for (int r = 0; r < RINGS; r++) { if (r) j += ","; j += String(shadeRing[r]); }
   j += "],\"hto\":" + String((unsigned long)helperTimeouts) + ",\"rst\":" + String((int)esp_reset_reason()) + ",\"up\":" + String(millis() / 1000);
-  j += ",\"sta\":" + String((int)WiFi.softAPgetStationNum()) + ",\"heap\":" + String((unsigned long)ESP.getFreeHeap()) + ",\"ota\":" + String(otaActive ? 1 : 0) + ",\"safe\":" + String(safeMode ? 1 : 0) + ",\"crashes\":" + String((unsigned long)(crashCount + wdRestarts)) + ",\"self\":[" + String((unsigned long)selfOk) + "," + String((unsigned long)selfFail) + "," + String((unsigned long)serverRestarts) + "],\"wd\":\"" + lastWd + "\""
-     + ",\"build\":\"" __DATE__ " " __TIME__ "\",\"dark\":" + String((int)UI_DARK) + "}";
+  j += ",\"heap\":" + String((unsigned long)ESP.getFreeHeap()) + ",\"ota\":" + String(otaActive ? 1 : 0) + ",\"build\":\"" __DATE__ " " __TIME__ "\",\"dark\":" + String((int)UI_DARK) + "}";
   ws.textAll(j);
 }
 
@@ -363,62 +340,20 @@ static void applyConfig(const String &s) {
 static uint8_t masterBeforeOta = 77;
 static void otaSetup() {
   ArduinoOTA.setPort(3232); ArduinoOTA.setHostname("sun-gateway"); ArduinoOTA.setPassword(OTA_PASS); ArduinoOTA.setMdnsEnabled(false);
-  ArduinoOTA.onStart([] { otaActive = true; masterBeforeOta = master; master = 0; vTaskDelay(pdMS_TO_TICKS(FRAME_MS * 3));
-    if (outTask) { esp_task_wdt_delete(outTask); vTaskSuspend(outTask); } esp_task_wdt_delete(NULL);   // no watchdog during the upload
-    Serial.println("[ota] start"); });
+  ArduinoOTA.onStart([] { otaActive = true; masterBeforeOta = master; master = 0; vTaskDelay(pdMS_TO_TICKS(FRAME_MS * 3)); if (outTask) vTaskSuspend(outTask); Serial.println("[ota] start"); });
   ArduinoOTA.onEnd([] { Serial.println("[ota] done → reboot"); });
-  ArduinoOTA.onError([](ota_error_t e) { Serial.printf("[ota] error %u — resuming\n", (unsigned)e); master = masterBeforeOta; otaActive = false;
-    esp_task_wdt_add(NULL); if (outTask) { vTaskResume(outTask); esp_task_wdt_add(outTask); } });
+  ArduinoOTA.onError([](ota_error_t e) { Serial.printf("[ota] error %u — resuming\n", (unsigned)e); master = masterBeforeOta; otaActive = false; if (outTask) vTaskResume(outTask); });
   ArduinoOTA.begin();
 }
 
 // ---------------- housekeeping task (core 0) ----------------
-// Self-test: fetch our own /ping over TCP (lwIP loopback). If it has ever worked and then fails 3× in a row, restart the web server;
-// if that doesn't bring it back, reboot. Never acts if loopback never worked on this build (then the test is simply unsupported).
-static bool selfTest() {
-  WiFiClient c; c.setTimeout(2);
-  if (!c.connect(IPAddress(192, 168, 4, 1), 80)) return false;
-  c.print("GET /ping HTTP/1.0\r\nHost: 192.168.4.1\r\nConnection: close\r\n\r\n");
-  uint32_t t0 = millis(); String line;
-  while (millis() - t0 < 2000) { if (c.available()) { line = c.readStringUntil('\n'); break; } vTaskDelay(pdMS_TO_TICKS(10)); }
-  c.stop();
-  return line.indexOf("200") > 0;
-}
 static void houseTask(void *) {
-  uint32_t tStatus = 0, tSelf = 20000, tBeat = 0, heapLowSince = 0, apDeadSince = 0;
-  esp_task_wdt_add(NULL);
+  uint32_t tStatus = 0;
   for (;;) {
-    esp_task_wdt_reset();
-    ArduinoOTA.handle();                            // blocks for the duration of an upload (watchdog unsubscribed in onStart)
+    ArduinoOTA.handle();                            // blocks for the duration of an upload; output task is suspended meanwhile
     uint32_t now = millis();
     if (shadeDirty && now - shadeDirtyMs > 1500) { shadeDirty = false; saveShade(); }
     if (now - tStatus >= 1000) { tStatus = now; ws.cleanupClients(); if (ws.count() && ws.availableForWriteAll()) pushStatus(); }
-    if ((crashCount || wdRestarts) && now > 90000) { crashCount = 0; wdRestarts = 0; Serial.println("[sun] 90 s healthy — reset counters cleared"); }
-
-    // heap watchdog: the web server dies quietly when lwIP can't get buffers — act before that
-    const uint32_t heap = ESP.getFreeHeap();
-    if (heap < 22000) { if (!heapLowSince) heapLowSince = now; else if (now - heapLowSince > 10000) wdRestart("heap below 22 kB for 10 s"); }
-    else heapLowSince = 0;
-
-    // AP watchdog: the access point must exist and have its address
-    const bool apUp = (WiFi.getMode() & WIFI_MODE_AP) && WiFi.softAPIP() == IPAddress(192, 168, 4, 1);
-    if (!apUp) { if (!apDeadSince) apDeadSince = now; else if (now - apDeadSince > 15000) wdRestart("access point down for 15 s"); }
-    else apDeadSince = 0;
-
-    // web-server self-test every 30 s (skipped while a client is mid-OTA)
-    if (now - tSelf >= 30000 && !otaActive) {
-      tSelf = now;
-      if (selfTest()) { selfOk++; selfFailRow = 0; selfEverOk = true; lastWd = ""; }
-      else {
-        selfFail++; selfFailRow++;
-        Serial.printf("[wd] self-test failed (%u in a row, ever ok: %d)\n", (unsigned)selfFailRow, selfEverOk ? 1 : 0);
-        if (selfEverOk) {
-          if (selfFailRow == 3) { Serial.println("[wd] restarting web server"); server.end(); vTaskDelay(pdMS_TO_TICKS(200)); server.begin(); serverRestarts++; lastWd = "web server restarted"; }
-          else if (selfFailRow >= 6) wdRestart("web server unresponsive after restart");
-        }
-      }
-    }
-    if (now - tBeat >= 60000) { tBeat = now; Serial.printf("[sun] up %lus · %d Wi-Fi client(s) · %u frames · %u send errors · heap %u · self-test ok %u / fail %u\n", now / 1000, (int)WiFi.softAPgetStationNum(), (unsigned)framesSent, (unsigned)pktErr, (unsigned)heap, (unsigned)selfOk, (unsigned)selfFail); }
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
@@ -427,15 +362,11 @@ static void houseTask(void *) {
 void setup() {
   Serial.begin(115200);
   pinMode(STATUS_LED, OUTPUT);
-  bootReason = (int)esp_reset_reason();
-  if (crashMagic != 0x50A1234u) { crashMagic = 0x50A1234u; crashCount = 0; wdRestarts = 0; }   // first boot after power-up: RTC memory is garbage
-  if (abnormalReset(bootReason)) crashCount++; else if (bootReason == ESP_RST_POWERON) { crashCount = 0; wdRestarts = 0; }
-  safeMode = crashCount + wdRestarts >= 3;
-  { esp_task_wdt_config_t wd = {}; wd.timeout_ms = WDT_TIMEOUT_MS; wd.idle_core_mask = 1; wd.trigger_panic = true;   // keep watching core 0's idle task too
-    if (esp_task_wdt_reconfigure(&wd) != ESP_OK) esp_task_wdt_init(&wd); }
-  Serial.printf("\n[sun] boot · reset reason %d · abnormal resets %u · watchdog restarts %u%s · free heap %u\n", bootReason, (unsigned)crashCount, (unsigned)wdRestarts, safeMode ? " → SAFE MODE (no scenes, no helper, output off)" : "", (unsigned)ESP.getFreeHeap());
+  sc::buildGeom();                                  // RAM copies of the pixel tables (needed by buildShade and the render loops)
   loadCfg();
   buildTables();
+  buildShade();
+  intent = (sc::ib_t *)malloc(N * 4 * sizeof(sc::ib_t));
 
   WiFi.onEvent(onNetEvent);
   WiFi.mode(WIFI_AP);
@@ -456,25 +387,13 @@ void setup() {
   ws.onEvent(onWs);
   server.addHandler(&ws);
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *r) {          // gzip'd page streamed straight from flash
-    lastWebMs = millis(); Serial.printf("[http] GET / from %s\n", r->client()->remoteIP().toString().c_str());
-    const bool gz = r->hasHeader("Accept-Encoding") && r->header("Accept-Encoding").indexOf("gzip") >= 0;
-    AsyncWebServerResponse *res = gz ? r->beginResponse(200, "text/html", INDEX_HTML_GZ, (size_t)INDEX_HTML_GZ_LEN)
-                                     : r->beginResponse(200, "text/html", (const uint8_t *)INDEX_HTML, strlen(INDEX_HTML));
-    if (gz) res->addHeader("Content-Encoding", "gzip");
-    res->addHeader("Cache-Control", "no-cache");
+    lastWebMs = millis();
+    AsyncWebServerResponse *res = r->beginResponse(200, "text/html", INDEX_HTML_GZ, (size_t)INDEX_HTML_GZ_LEN);
+    res->addHeader("Content-Encoding", "gzip"); res->addHeader("Cache-Control", "no-cache");
     r->send(res);
   });
-  server.on("/raw", HTTP_GET, [](AsyncWebServerRequest *r) {       // same page, uncompressed — fallback / diagnosis
-    lastWebMs = millis(); Serial.printf("[http] GET /raw from %s\n", r->client()->remoteIP().toString().c_str());
-    AsyncWebServerResponse *res = r->beginResponse(200, "text/html", (const uint8_t *)INDEX_HTML, strlen(INDEX_HTML));
-    res->addHeader("Cache-Control", "no-cache"); r->send(res);
-  });
-  server.on("/ping", HTTP_GET, [](AsyncWebServerRequest *r) {      // smallest possible response — proves the server answers at all
-    Serial.printf("[http] GET /ping from %s\n", r->client()->remoteIP().toString().c_str());
-    r->send(200, "text/plain", String("ok · up ") + (millis() / 1000) + " s · heap " + ESP.getFreeHeap() + " · clients " + WiFi.softAPgetStationNum());
-  });
   server.on("/scenes.json", HTTP_GET, [](AsyncWebServerRequest *r) {
-    lastWebMs = millis(); Serial.println("[http] GET /scenes.json");
+    lastWebMs = millis();
     String j = "{\"scenes\":[";
     for (int i = 0; i < sc::N_SCENES; i++) { if (i) j += ","; j += "{\"n\":\"" + String(sc::SCENES[i].name) + "\",\"g\":\"" + sc::SCENES[i].group + "\",\"p\":\"" + sc::SCENES[i].p1name + "\",\"np\":" + (sc::SCENES[i].noPal ? 1 : 0) + "}"; }
     j += "],\"pal\":[";
@@ -493,21 +412,14 @@ void setup() {
     });
   server.onNotFound([](AsyncWebServerRequest *r) { r->redirect("/"); });
   server.begin();
-  Serial.printf("[sun] network up · AP %s at %s · free heap %u\n", WiFi.softAPSSID().c_str(), WiFi.softAPIP().toString().c_str(), (unsigned)ESP.getFreeHeap());
-
-  // our big buffers come AFTER the Wi-Fi/Ethernet drivers have taken what they need (they want large contiguous DMA-capable blocks)
-  sc::buildGeom();
-  buildShade();
-  if (!safeMode) intent = (sc::ib_t *)malloc(N * 4 * sizeof(sc::ib_t));
-  Serial.printf("[sun] buffers allocated · free heap %u · largest block %u\n", (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 
   xTaskCreatePinnedToCore(outputTask, "pixout", 12288, nullptr, 3, &outTask, 1);          // core 1: render + send
 #ifndef SINGLE_CORE_RENDER
-  if (!safeMode) xTaskCreatePinnedToCore(helperTaskFn, "pixout0", 12288, nullptr, 1, &helperTask, 0);   // core 0: below Wi-Fi/lwIP and housekeeping
+  xTaskCreatePinnedToCore(helperTaskFn, "pixout0", 12288, nullptr, 1, &helperTask, 0);   // core 0: lowest real priority — below Wi-Fi/lwIP and housekeeping
 #endif
   xTaskCreatePinnedToCore(houseTask, "house", 8192, nullptr, 3, nullptr, 0);             // core 0: status, OTA, saves
 
-  Serial.printf("[sun] rig · build " __DATE__ " " __TIME__ " · %u px · %d universes\n", (unsigned)N, nUni);
+  Serial.printf("\n[sun] rig · build " __DATE__ " " __TIME__ " · %u px · %d universes · free heap %u · reset reason %d\n", (unsigned)N, nUni, (unsigned)ESP.getFreeHeap(), (int)esp_reset_reason());
   Serial.printf("[sun] AP \"%s\" / \"%s\" → http://192.168.4.1 · OTA :3232 · eth %s → %s uni %u\n", AP_SSID, AP_PASS, cfg.ethIp.toString().c_str(), cfg.target.toString().c_str(), cfg.uni);
 }
 

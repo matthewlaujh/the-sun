@@ -24,17 +24,10 @@ Kept deliberately small: three modes (**Off · Solid · Scene**), the simulator'
 ## Page (http://192.168.4.1)
 - **Header**: Ethernet link, fps + scene render time, estimated load per PSU (D disc RSP-200 · E wedges 1–6 · W wedges 7–12; amber >70 %, red >90 %), build time · theme · free heap · uptime · last reset reason if abnormal.
 - **Mode** Off / Solid / Scene. **Master** boots at 30 %; ×0.90 power cap is always applied on top (no fuses on the rig).
-- **Scene**: 10 simulator patterns (Solar surface, Breathing rings, Rotating rays, Radial pulse, Embers, Corona breath, Heartbeat, Aurora curtains, Photosphere, Spiral arms), 5 **Pixel rim** scenes written for this dome (Rim beads, Comet ring, Rim twinkle, Pixel rain, Dial — crisp pixel-stepped play on the outer rings where the dots show, soft answers in the blended core) + 2 shaders (Neon fluid, Black-hole sunset); palette (the website's 16 ramps or the pattern's own colours), speed, one pattern parameter, contrast, warmth. Output linear — the PixLite does gamma 2.2.
+- **Scene**: 10 patterns (Solar surface, Breathing rings, Rotating rays, Radial pulse, Embers, Corona breath, Heartbeat, Aurora curtains, Photosphere, Spiral arms) + 2 shaders (Neon fluid, Black-hole sunset); palette (the website's 16 ramps or the pattern's own colours), speed, one pattern parameter, contrast, warmth. Output linear — the PixLite does gamma 2.2.
 - **Colour**: the Solid colour, and the tint for Rotating rays / Radial pulse.
 - **Dome shading**: gain per pixel ring (29 rings at 30 mm pitch; the outer 12 have their own slider, 0–480 mm share one), 0–2.00. While you move a slider that ring lights magenta on the rig (toggle). Saved on the ESP 1.5 s after the last change. Applies to everything sent.
 - **Network / config**: PixLite IP, gateway Ethernet IP, Art-Net universe of plan universe 1 (leave 1). **Export config** downloads network + shading + current state as JSON; **Import config…** applies one.
-
-## Stays reachable once mounted — watchdogs
-- **Task watchdog (12 s)**: the output task and the housekeeping task must each check in; a hung frame or a stuck housekeeping loop reboots the board. Both are unsubscribed for the duration of an OTA upload (the output task is suspended then).
-- **Web-server self-test** every 30 s: the housekeeping task fetches its own `/ping` over TCP. Once it has worked at least once, 3 failures in a row restart the web server; 6 reboot the board. (If loopback never works on a build, the test stays passive.)
-- **Heap watchdog**: free heap under 22 kB for 10 s → reboot before lwIP starves. **AP watchdog**: access point missing for 15 s → reboot.
-- **Crash-loop safe mode**: 3 abnormal resets or watchdog restarts in a row → boots with scenes disabled, no render helper, output off, page served with a red banner. 90 s of healthy uptime or a power cycle clears the counters.
-- **OTA is independent of the web server** (ArduinoOTA on UDP/TCP 3232), so even a dead page leaves a way in. `/ping` and `/raw` (uncompressed page) exist for diagnosis; every HTTP/WS/Wi-Fi event is logged on serial and a heartbeat line prints every minute.
 
 ## Architecture
 - **Core 1**: the output task only — render → ring shading × master × cap → 23 Art-Net packets, paced to 40 fps with a guaranteed ≥5 ms sleep per frame.
