@@ -150,7 +150,7 @@ static void buildTables() {
   }
 }
 
-static inline bool selPx(uint16_t i) { return ((runMask >> SUN_RUN[i]) & 1) || ((boardMask >> SUN_BOARD[i]) & 1); }
+static inline bool selPx(uint16_t i) { return ((runMask >> sc::gRun[i]) & 1) || ((boardMask >> sc::gBoard[i]) & 1); }
 static inline bool selRun(uint8_t r) { return ((runMask >> r) & 1) || (runBoards[r] & boardMask); }
 
 // ---------------- config persistence ----------------
@@ -290,6 +290,7 @@ static SceneJob helperJob;
 static TaskHandle_t helperTask = nullptr, mainTask = nullptr;
 static volatile bool helperBusy = false;         // set when a job is posted, cleared by the helper when it is done — never two jobs in flight
 static volatile uint32_t helperTimeouts = 0;
+static volatile uint32_t lastWebMs = 0;         // last HTTP request / WebSocket connect: for a few seconds after, core 0 renders nothing so the page loads fast
 static int   sceneSplit = N / 2;
 static uint8_t hbuf[N * 4];                      // helper renders here; main copies [0,split) in only after the helper reports done
 static void helperTaskFn(void *) {
@@ -308,7 +309,7 @@ static void helperTaskFn(void *) {
 static void renderScene(uint8_t *out) {
   const float tint[3] = {colA[0] / 255.0f, colA[1] / 255.0f, colA[2] / 255.0f};
   const int scn = sceneId, pal = palId; const float t = sceneT, sp = sceneSpd * 0.1f, p1 = sceneP1 * 0.01f, con = sceneCon * 0.01f, wa = sceneWarm * 0.01f;
-  if (!helperTask || helperBusy) {               // no helper, or it is still chewing on an old job: single-core frame, never touch its buffer concurrently
+  if (!helperTask || helperBusy || millis() - lastWebMs < 4000) {   // no helper / helper busy / page just (re)loaded: single-core frame
     sc::render(out, intent, scn, t, sp, p1, tint, pal, con, wa, 0, N); return;
   }
   ulTaskNotifyTake(pdTRUE, 0);                   // drop any stale "done" notification before posting
@@ -370,7 +371,7 @@ static void render(uint8_t *out, float pos, float phase) {
 
     case M_BOARD: {                              // one board at a time (selection ignored)
       int b = step; if (b < 0 || b >= NB) break;
-      for (int i = boardFirst[b]; i <= boardLast[b]; i++) if (SUN_BOARD[i] == b) put(out, i, colA);
+      for (int i = boardFirst[b]; i <= boardLast[b]; i++) if (sc::gBoard[i] == b) put(out, i, colA);
     } break;
 
     case M_UNI: {                                // one universe at a time (selection ignored)
@@ -389,7 +390,7 @@ static void render(uint8_t *out, float pos, float phase) {
       uint8_t c[4];
       for (int i = 0; i < N; i++) {
         if (!selPx(i)) continue;
-        hueToRgb(SUN_TH10[i] / 3600.0f + phase, c); put(out, i, c);
+        hueToRgb(sc::gTH10[i] / 3600.0f + phase, c); put(out, i, c);
       }
     } break;
 
@@ -403,7 +404,7 @@ static void render(uint8_t *out, float pos, float phase) {
       const float ring = (phase - floorf(phase)) * (SUN_RIM_R_MM + 60.0f), half = 1.5f * SUN_PITCH_MM;
       for (int i = 0; i < N; i++) {
         if (!selPx(i)) continue;
-        float d = fabsf(SUN_R10[i] * 0.1f - ring); if (d >= half) continue;
+        float d = fabsf(sc::gR10[i] * 0.1f - ring); if (d >= half) continue;
         putScaled(out, i, colA, (uint8_t)(255 * (1.0f - d / half)));
       }
     } break;
@@ -466,14 +467,14 @@ static void outputTask(void *) {
       const uint32_t kk = shade ? (k * shadeGain[i]) >> 6 : k;          // master × ring gain, 8.8 fixed point
       uint32_t v0 = (o[0] * kk) >> 8, v1 = (o[1] * kk) >> 8, v2 = (o[2] * kk) >> 8, v3 = (o[3] * kk) >> 8;
       o[0] = v0 > 255 ? 255 : v0; o[1] = v1 > 255 ? 255 : v1; o[2] = v2 > 255 ? 255 : v2; o[3] = v3 > 255 ? 255 : v3;
-      const uint8_t z = sun_zone(i);             // 0 disc · 1–3 East (wedges 1–6) · 4–6 West (7–12)
+      const uint8_t z = sc::gZone[i];            // 0 disc · 1–3 East (wedges 1–6) · 4–6 West (7–12)
       sum[z == 0 ? 0 : (z <= 3 ? 1 : 2)] += o[0] + o[1] + o[2] + o[3];
     }
     for (int z = 0; z < 3; z++) pwrW[z] = sum[z] * (W_PER_PX_FULL / (4.0f * 255.0f));
 
     if (hlRing != -1 && millis() - hlMs < 2500) {                     // light the ring being tuned (page sends it while a slider moves)
       const int hr = hlRing; const uint32_t hk = (uint32_t)(master * BRIGHTNESS_CAP * 256.0f / 255.0f);
-      for (int i = 0; i < N; i++) { int ring = (SUN_R10[i] + 150) / 300; if (ring == hr || (hr == -2 && ring <= 16)) { uint8_t *o = out + i * 4; for (int c = 0; c < 4; c++) o[c] = (HL_COL[c] * hk) >> 8; } }
+      for (int i = 0; i < N; i++) { int ring = (sc::gR10[i] + 150) / 300; if (ring == hr || (hr == -2 && ring <= 16)) { uint8_t *o = out + i * 4; for (int c = 0; c < 4; c++) o[c] = (HL_COL[c] * hk) >> 8; } }
     } else if (hlRing != -1) hlRing = -1;
 
     if ((framesSent % 10) == 0) { memcpy(mirror, out, sizeof mirror); mirrorDirty = true; }  // ~4 fps preview to the page
@@ -568,6 +569,7 @@ static void handleText(const String &s) {
 }
 
 static void onWs(AsyncWebSocket *, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+  if (type == WS_EVT_CONNECT) { lastWebMs = millis(); return; }
   if (type != WS_EVT_DATA) return;
   AwsFrameInfo *info = (AwsFrameInfo *)arg;
   if (!info->final || info->index != 0 || info->len != len || len == 0) return;   // our messages are single-frame
@@ -707,10 +709,12 @@ void setup() {
   ws.onEvent(onWs);
   server.addHandler(&ws);
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *r) {          // stream the page straight from flash — no 20 kB heap copy
+    lastWebMs = millis();
     r->send(r->beginResponse_P(200, "text/html", (const uint8_t *)INDEX_HTML, strlen_P(INDEX_HTML)));
   });
   // Pixel map for the page, straight from sun_map.h: N × { int16 x·10, int16 y·10, uint8 board, uint8 run } little-endian
   server.on("/map.bin", HTTP_GET, [](AsyncWebServerRequest *r) {
+    lastWebMs = millis();
     AsyncWebServerResponse *res = r->beginChunkedResponse("application/octet-stream", [](uint8_t *buf, size_t maxLen, size_t index) -> size_t {
       size_t i = index / 6; if (i >= N) return 0;
       size_t n = min<size_t>(maxLen / 6, N - i), o = 0;
@@ -748,9 +752,9 @@ void setup() {
   xTaskCreatePinnedToCore(outputTask, "pixout", 12288, nullptr, 3, &outTask, 1);
   mainTask = outTask;
 #ifndef SINGLE_CORE_RENDER                       // build with -DSINGLE_CORE_RENDER to keep core 0 free of rendering (one core of compute → heavy scenes ~18 fps)
-  xTaskCreatePinnedToCore(helperTaskFn, "pixout0", 12288, nullptr, 2, &helperTask, 0);   // core 0: below Wi-Fi/lwIP, above the housekeeping task
+  xTaskCreatePinnedToCore(helperTaskFn, "pixout0", 12288, nullptr, 1, &helperTask, 0);   // core 0: lowest real priority — below Wi-Fi/lwIP AND the housekeeping task
 #endif
-  xTaskCreatePinnedToCore(houseTask, "house", 8192, nullptr, 1, nullptr, 0);             // core 0: status, mirror, OTA, saves
+  xTaskCreatePinnedToCore(houseTask, "house", 8192, nullptr, 3, nullptr, 0);             // core 0: status, mirror, OTA, saves — above the render helper
 
   Serial.printf("[sun] free heap after setup: %u bytes · reset reason %d (1 power-on, 3 software, 4 panic, 5/6 WDT, 7 task-WDT, 8 deep-sleep, 9 brown-out)\n", (unsigned)ESP.getFreeHeap(), (int)esp_reset_reason());
   Serial.printf("\n[sun] rig test · build " __DATE__ " " __TIME__ " · %u px · %d runs · %d universes\n", (unsigned)N, SUN_RUNS, nUni);

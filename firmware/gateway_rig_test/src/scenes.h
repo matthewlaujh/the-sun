@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 #include "sun_map.h"
 #include "fluid.h"        // FluidParams, shaderPixel() — neon fluid / black-hole sunset (RGBW bytes)
 
@@ -56,13 +57,26 @@ static inline float DEPTH(float r) { return 8 + 200 * powf(maxf(0, cosf(PI_ * mi
 static inline float FEAT(float r) { return 30 + 1.8f * DEPTH(r); }                                              // smallest legible feature at r, mm
 
 // ---------------- per-pixel geometry — straight from the int16 tables in flash (no RAM copies; heap is precious) ----------------
-#define X(i)  (SUN_X10[i] * 0.1f)
-#define Y(i)  (SUN_Y10[i] * 0.1f)
-#define R(i)  (SUN_R10[i] * 0.1f)
-#define TH(i) (SUN_TH10[i] * 0.1f)
-static uint16_t *FE10 = nullptr;                                     // FEAT(R) × 10, 4.8 kB
+// The sun_map.h tables live in flash. Flash is read through ONE cache shared by both cores and also holds the Wi-Fi stack's code,
+// so two cores streaming 70 kB of tables every frame starved Wi-Fi/web of instruction fetches. Copy the hot tables to RAM once (~34 kB).
+static int16_t  *gX10 = nullptr, *gY10 = nullptr;
+static uint16_t *gR10 = nullptr, *gTH10 = nullptr, *gRI = nullptr;
+static uint8_t  *gBoard = nullptr, *gRun = nullptr, *gZone = nullptr;
+static uint16_t *FE10 = nullptr;                                     // FEAT(R) × 10
+#define X(i)  (gX10[i] * 0.1f)
+#define Y(i)  (gY10[i] * 0.1f)
+#define R(i)  (gR10[i] * 0.1f)
+#define TH(i) (gTH10[i] * 0.1f)
 #define FE(i) (FE10[i] * 0.1f)
 static void buildGeom() {
+  gX10 = (int16_t *)malloc(SUN_N * 2);  memcpy(gX10, SUN_X10, SUN_N * 2);
+  gY10 = (int16_t *)malloc(SUN_N * 2);  memcpy(gY10, SUN_Y10, SUN_N * 2);
+  gR10 = (uint16_t *)malloc(SUN_N * 2); memcpy(gR10, SUN_R10, SUN_N * 2);
+  gTH10 = (uint16_t *)malloc(SUN_N * 2); memcpy(gTH10, SUN_TH10, SUN_N * 2);
+  gRI = (uint16_t *)malloc(SUN_N * 2);  memcpy(gRI, SUN_RI, SUN_N * 2);
+  gBoard = (uint8_t *)malloc(SUN_N);    memcpy(gBoard, SUN_BOARD, SUN_N);
+  gRun = (uint8_t *)malloc(SUN_N);      memcpy(gRun, SUN_RUN, SUN_N);
+  gZone = (uint8_t *)malloc(SUN_N);     for (int i = 0; i < SUN_N; i++) gZone[i] = sun_zone(i);
   FE10 = (uint16_t *)malloc(SUN_N * 2);
   for (int i = 0; i < SUN_N; i++) FE10[i] = (uint16_t)(FEAT(R(i)) * 10 + 0.5f);
 }
