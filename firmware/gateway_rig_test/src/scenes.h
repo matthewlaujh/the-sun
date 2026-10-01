@@ -260,8 +260,14 @@ static void render(uint8_t *out, ib_t *intent, int scene, float t, float speed, 
   Ctx c; c.t = t; c.speed = speed; c.p1 = p1; c.tint[0] = tint[0]; c.tint[1] = tint[1]; c.tint[2] = tint[2];
   SCENES[scene].fn(intent, c, i0, i1);
   if (pal >= 0 && pal < N_PAL) sunify(intent, pal, contrast, warmth, i0, i1);
-  else if (contrast != 1) { if (contrast != clutCon) buildCLUT(contrast / 0.85f); for (int k = i0 * 4; k < i1 * 4; k++) out[k] = CLUT[(intent[k] + 128) >> 8]; return; }
-  for (int k = i0 * 4; k < i1 * 4; k++) out[k] = (uint8_t)((intent[k] + 128) >> 8);
+  else if (contrast != 1) {                                          // pattern's own colours + contrast: per-channel pow via a 256-entry table
+    static uint8_t *CLUT2 = nullptr; static float clut2Con = -1;
+    if (!CLUT2) CLUT2 = (uint8_t *)malloc(256);
+    if (contrast != clut2Con) { for (int k = 0; k < 256; k++) CLUT2[k] = (uint8_t)(powf(k / 255.0f, contrast) * 255 + 0.5f); clut2Con = contrast; }
+    for (int k = i0 * 4; k < i1 * 4; k++) out[k] = CLUT2[intent[k] >> 8];
+    return;
+  }
+  for (int k = i0 * 4; k < i1 * 4; k++) out[k] = (uint8_t)(intent[k] >> 8);   // 65535 → 255 (NOT (v+128)>>8, which wraps 65535 to 0)
 }
 
 } // namespace sc
