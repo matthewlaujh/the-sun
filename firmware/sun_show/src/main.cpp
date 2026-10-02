@@ -77,13 +77,13 @@ static const sc::Palette SUN_SAT = {"Sun saturated", 6, {
 #define WARMTH           -0.25f    // negative = redder (trims G/B/W), positive = whiter
 
 // Dome shading — brightness per pixel ring, ×100 (29 rings at 30 mm pitch, ring 0 = centre, ring 28 = rim). 100 = full, up to 200.
-// Centre full, the first five rings taper to very low, then hot / dark / warm / dark all the way out — literal hot spots and dark spots.
+// Your tuned curve from the rig-test page (the one in the video): the whole diffused core (rings 0–16, 0–480 mm, boards A + inner B) at
+// 2.00 so it saturates white-hot, a smooth taper through the outer B rings, then the pixelated C rings barely lit with a faint alternation.
 static const uint8_t SHADE[29] = {
-  100,                                            // ring 0  centre
-   70,  45,  25,  12,   5,                        // rings 1–5  taper
-   80,   6,  55,   4,  80,   6,  55,   4,         // rings 6–13 hot · dark · warm · dark
-   80,   6,  55,   4,  80,   6,  55,   4,         // rings 14–21
-   80,   6,  55,   4,  80,   6,  55 };            // rings 22–28 (rim)
+  200, 200, 200, 200, 200, 200, 200, 200, 200,    // rings 0–8   core (A)
+  200, 200, 200, 200, 200, 200, 200, 200,         // rings 9–16  inner B · 270–480 mm
+  164, 141, 112,  85,  54,  28,                   // rings 17–22 taper · 510–660 mm
+    6,  15,   6,  14,   6,  15 };                 // rings 23–28 C · 690–840 mm, faint alternation
 #define SHADE_USE_SAVED   0        // 1 = ignore SHADE[] and use the ring curve saved on this board by gateway_rig_test (NVS sunrig/shr)
 
 #define ETH_IP            "10.10.0.10"
