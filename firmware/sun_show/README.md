@@ -24,6 +24,8 @@ OTA pauses the output (PixLite holds the last frame), flashes, reboots into the 
 ## SETTINGS block (top of `src/main.cpp`)
 - `MASTER_PCT` (100), `POWER_CAP` (1.00) — full brightness, no power cap. Safe for this show: with the red/orange palette, the W ceiling and the dark rings the whole dome peaks around 110 W (host measurement over the preview clip; worst case with every pixel at the palette's top is ~90 W per wedge PSU, each a 500 W RSP-500). Put the cap back to 0.90 if you ever switch to a white-heavy palette or a flat curve.
 - `W_MAX` (140) — hard ceiling on the W channel so the white die never blows out; R/G/B run to 255.
+- `TEST_MODE` (0) — set to 1 for bench testing: 30 s scenes, wander every 5–10 s eased over 3 s, exactly the preview page's timing, so a full cycle fits in a couple of minutes. Serial prints a `*** TEST MODE ***` line so you can't forget it. Back to 0 for the event.
+- `FOCUS_CORE_MM` (240) / `FOCUS_RIM` (0.30) — core focus: scene energy is scaled by a radial envelope before the palette, full inside 240 mm and easing to 0.30 at the rim, so the hot white-tinged activity lives in the diffused centre and the pixelated outer rings sit calmer and deeper red. `FOCUS_RIM 1.0` switches it off.
 - `SCENE_MIN_MINUTES` / `SCENE_MAX_MINUTES` (5 / 10), `FADE_SECONDS` (8).
 - `WANDER_MIN_S` / `WANDER_MAX_S` (20 / 60), `WANDER_EASE_S` (15) — how often and how quickly things drift.
 - `SHOW[]` — scenes by name (full table at the bottom of `src/scenes.h`: 10 simulator patterns, 5 Pixel-rim scenes, 2 shaders) with speed and parameter ranges. Add a third line for a three-scene loop.
@@ -32,7 +34,7 @@ OTA pauses the output (PixLite holds the last frame), flashes, reboots into the 
 - `ETH_IP`, `PIXLITE_IP`, `ARTNET_UNI0`, AP name/password, `OTA_PASS` (must match `platformio.ini`).
 
 ## How it runs
-Core 1: output task — render → ring gain × master × cap → W ceiling → 23 Art-Net packets, paced to 40 fps. Core 0: Wi-Fi + OTA/housekeeping task, and a lowest-priority render helper that takes an adaptive share of every frame. Task watchdog 12 s on the output and housekeeping tasks (unsubscribed during an OTA upload); AP missing for 15 s → reboot, so there is always a way in once mounted. Output is linear — the PixLite does gamma 2.2.
+Core 1: output task — render → core focus → palette → ring gain × master × cap → W ceiling → 23 Art-Net packets, paced to 40 fps. Core 0: Wi-Fi + OTA/housekeeping task, and a lowest-priority render helper that takes an adaptive share of every frame. Task watchdog 12 s on the output and housekeeping tasks (unsubscribed during an OTA upload); AP missing for 15 s → reboot, so there is always a way in once mounted. Output is linear — the PixLite does gamma 2.2.
 
 ## Files
 `platformio.ini` · `src/main.cpp` · `src/scenes.h` (patterns, palettes, sunify) · `src/fluid.h` (the two shaders) · `src/sun_map.h` (generated copy of `simulator/firmware/sun_map.h`, do not edit).

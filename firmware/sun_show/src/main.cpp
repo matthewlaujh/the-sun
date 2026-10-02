@@ -2,7 +2,8 @@
 // No web page. It boots and plays: the scenes in SHOW[] take turns, each for a random SCENE_MIN..MAX minutes, with a FADE_SECONDS
 // crossfade, all coloured through one saturated red/orange "sun" palette. Each scene's speed and main parameter wander smoothly
 // between the limits in SHOW[] (new target every WANDER_MIN..MAX s, eased over WANDER_EASE_S), so it never looks the same twice.
-// Dome shading = the fixed per-ring brightness curve SHADE[] (centre full → taper → hot/dark alternating rings). W is capped at W_MAX.
+// Core focus pulls the scene energy into the diffused centre (FOCUS_*); dome shading = the fixed per-ring brightness curve SHADE[]
+// (centre full → taper → hot/dark alternating rings); W is capped at W_MAX. TEST_MODE 1 compresses all timing for bench testing.
 // OTA stays: the board hosts Wi-Fi "SUN-DISC" purely for `pio run -e ota -t upload` (ArduinoOTA, 192.168.4.1:3232).
 // Everything you might want to touch is in the SETTINGS block.
 //
@@ -30,11 +31,31 @@
 #define SCENE_MAX_MINUTES 10
 #define FADE_SECONDS      8        // …then crossfades to the next
 
+// Test mode: 1 = compressed timing, the same as the Sun Show Preview page (30 s per scene, wander every 5–10 s eased over 3 s), so a
+// whole cycle — both scenes, both crossfades, several wander changes — fits in a couple of minutes. Set back to 0 for the event.
+#define TEST_MODE         0
+
+// Core focus: scene energy is scaled by a radial envelope BEFORE the palette — full inside FOCUS_CORE_MM, easing down to FOCUS_RIM at the
+// rim — so the hot, busy, white-tinged activity lives in the diffused core and the pixelated outer rings sit calmer and deeper red.
+// (Ring shading below then sets brightness on top of that.) 1.0 at FOCUS_RIM switches it off.
+#define FOCUS_CORE_MM     240
+#define FOCUS_RIM         0.30f
+
 // Wander: speed and the main parameter glide between the limits below. A new random target is picked every WANDER_MIN..MAX seconds
 // and approached with a time constant of WANDER_EASE_S (so a change takes ~3× that to fully arrive — never a visible step).
+#if TEST_MODE
+#define SCENE_MIN_SEC     30
+#define SCENE_MAX_SEC     30
+#define WANDER_MIN_S      5
+#define WANDER_MAX_S      10
+#define WANDER_EASE_S     3.0f
+#else
+#define SCENE_MIN_SEC     (SCENE_MIN_MINUTES * 60)
+#define SCENE_MAX_SEC     (SCENE_MAX_MINUTES * 60)
 #define WANDER_MIN_S      20
 #define WANDER_MAX_S      60
 #define WANDER_EASE_S     15.0f
+#endif
 
 // The scenes, by name (see the table at the bottom of scenes.h), with their speed and parameter ranges
 struct Show { const char *name; float spMin, spMax, p1Min, p1Max; int scene; };
@@ -90,6 +111,7 @@ static const char *OTA_PASS = "sunshine26-ota";    // must match upload_flags --
 static volatile bool ethLink = false, otaActive = false;
 static uint32_t pktErr = 0, framesSent = 0;
 static uint8_t  shadeRing[RINGS], shadeGain[N];
+static uint16_t focus[N];                                                 // radial energy envelope ×256
 static sc::ib_t *intent = nullptr;
 static IPAddress pixlite;
 static TaskHandle_t outTask = nullptr, helperTask = nullptr;
@@ -107,6 +129,11 @@ static void buildTables() {
 }
 static void buildShade() {
   for (int i = 0; i < N; i++) { int ring = (sc::gR10[i] + 150) / 300; if (ring >= RINGS) ring = RINGS - 1; shadeGain[i] = (uint8_t)((shadeRing[ring] * 64 + 50) / 100); }
+}
+static void buildFocus() {
+  const float rim = 8400.0f, core = FOCUS_CORE_MM * 10.0f;
+  for (int i = 0; i < N; i++) { float t = (sc::gR10[i] - core) / (rim - core); t = t < 0 ? 0 : t > 1 ? 1 : t; t = t * t * (3 - 2 * t);
+    focus[i] = (uint16_t)((1.0f - (1.0f - FOCUS_RIM) * t) * 256.0f + 0.5f); }
 }
 static void loadShade() {
   memcpy(shadeRing, SHADE, RINGS);
@@ -151,6 +178,7 @@ static const float TINT[3] = {1.0f, 0.45f, 0.08f};
 static void renderRange(uint8_t *out, int scene, float t, float p1, int i0, int i1) {
   sc::Ctx c; c.t = t; c.speed = 1.0f; c.p1 = p1; c.tint[0] = TINT[0]; c.tint[1] = TINT[1]; c.tint[2] = TINT[2];   // speed is integrated into t
   sc::SCENES[scene].fn(intent, c, i0, i1);
+  for (int i = i0; i < i1; i++) { const uint32_t f = focus[i]; sc::ib_t *k = intent + 4 * i; k[0] = (k[0] * f) >> 8; k[1] = (k[1] * f) >> 8; k[2] = (k[2] * f) >> 8; k[3] = (k[3] * f) >> 8; }   // core focus
   sc::sunifyWith(intent, SUN_SAT, CONTRAST, WARMTH, i0, i1);
   for (int k = i0 * 4; k < i1 * 4; k++) out[k] = (uint8_t)(intent[k] >> 8);
 }
@@ -195,7 +223,7 @@ static void wanderStep(int k, uint32_t now, float dt) {
   w.sp += (w.spT - w.sp) * a; w.p1 += (w.p1T - w.p1) * a;
   w.ph += dt * w.sp;                                        // speed is integrated so a speed change never jumps the picture
 }
-static uint32_t pickSceneMs() { return (uint32_t)(frange(SCENE_MIN_MINUTES, SCENE_MAX_MINUTES) * 60000.0f); }
+static uint32_t pickSceneMs() { return (uint32_t)(frange(SCENE_MIN_SEC, SCENE_MAX_SEC) * 1000.0f); }
 
 // ---------------- the show (output task, core 1) ----------------
 static void outputTask(void *) {
@@ -284,7 +312,10 @@ void setup() {
   udp.begin(6454);
   otaSetup();
 
-  sc::buildGeom(); buildTables(); loadShade(); buildShade();
+  sc::buildGeom(); buildTables(); loadShade(); buildShade(); buildFocus();
+#if TEST_MODE
+  Serial.println("[sun] *** TEST MODE — compressed timing (30 s scenes, fast wander). Set TEST_MODE 0 for the event. ***");
+#endif
   for (int k = 0; k < N_SHOW; k++) { SHOW[k].scene = 0; for (int i = 0; i < sc::N_SCENES; i++) if (!strcmp(sc::SCENES[i].name, SHOW[k].name)) SHOW[k].scene = i;
     Serial.printf("[show] slot %d: %s → scene %d%s · speed %.2f–%.2f · p1 %.2f–%.2f\n", k, SHOW[k].name, SHOW[k].scene, strcmp(sc::SCENES[SHOW[k].scene].name, SHOW[k].name) ? "  (NOT FOUND — using Solar surface)" : "", SHOW[k].spMin, SHOW[k].spMax, SHOW[k].p1Min, SHOW[k].p1Max); }
   intent = (sc::ib_t *)malloc(N * 4 * sizeof(sc::ib_t));
@@ -294,7 +325,7 @@ void setup() {
   xTaskCreatePinnedToCore(outputTask, "show", 16384, nullptr, 3, &outTask, 1);          // core 1: the show
   xTaskCreatePinnedToCore(houseTask, "house", 6144, nullptr, 2, nullptr, 0);             // core 0: OTA, AP watchdog
   xTaskCreatePinnedToCore(helperTaskFn, "show0", 12288, nullptr, 1, &helperTask, 0);     // core 0: render helper, lowest priority
-  Serial.printf("[sun] %u px · %d universes · master %d %% · cap %.2f · W ≤ %d · %d–%d min per scene · %d s fade · eth %s → %s · AP \"%s\"/\"%s\" OTA :3232 · free heap %u\n",
-                (unsigned)N, nUni, MASTER_PCT, (double)POWER_CAP, W_MAX, SCENE_MIN_MINUTES, SCENE_MAX_MINUTES, FADE_SECONDS, ETH_IP, PIXLITE_IP, AP_SSID, AP_PASS, (unsigned)ESP.getFreeHeap());
+  Serial.printf("[sun] %u px · %d universes · master %d %% · cap %.2f · W ≤ %d · focus %d mm→%.2f · %d–%d s per scene · %d s fade · eth %s → %s · AP \"%s\"/\"%s\" OTA :3232 · free heap %u\n",
+                (unsigned)N, nUni, MASTER_PCT, (double)POWER_CAP, W_MAX, FOCUS_CORE_MM, (double)FOCUS_RIM, SCENE_MIN_SEC, SCENE_MAX_SEC, FADE_SECONDS, ETH_IP, PIXLITE_IP, AP_SSID, AP_PASS, (unsigned)ESP.getFreeHeap());
 }
 void loop() { vTaskDelay(pdMS_TO_TICKS(1000)); }
