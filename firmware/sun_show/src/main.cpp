@@ -2,7 +2,7 @@
 // No web page. It boots and plays: the scenes in SHOW[] take turns, each for a random SCENE_MIN..MAX minutes, with a FADE_SECONDS
 // crossfade, all coloured through one saturated red/orange "sun" palette. Each scene's speed and main parameter wander smoothly
 // between the limits in SHOW[] (new target every WANDER_MIN..MAX s, eased over WANDER_EASE_S), so it never looks the same twice.
-// Dome shading = the fixed per-ring brightness curve SHADE[] (centre full → taper → alternating rings).
+// Dome shading = the fixed per-ring brightness curve SHADE[] (centre full → taper → hot/dark alternating rings). W is capped at W_MAX.
 // OTA stays: the board hosts Wi-Fi "SUN-DISC" purely for `pio run -e ota -t upload` (ArduinoOTA, 192.168.4.1:3232).
 // Everything you might want to touch is in the SETTINGS block.
 //
@@ -22,7 +22,10 @@
 #include "scenes.h"
 
 // ============================================================ SETTINGS ============================================================
-#define MASTER_PCT        70       // overall brightness 0–100 (the ×0.90 power cap is applied on top — the rig has no fuses)
+#define MASTER_PCT        100      // overall brightness 0–100
+#define POWER_CAP         1.00f    // extra multiplier on everything sent. 1.00 is safe for THIS show: red/orange palette + W_MAX + the dark rings keep
+                                   // each wedge PSU well under its 500 W even if every pixel hit the palette's top (see README); the old rig test used 0.90
+#define W_MAX             140      // hard ceiling on the W channel (0–255) so the white die never blows out — R/G/B are free to go to 255
 #define SCENE_MIN_MINUTES 5        // each scene plays for a random length between these two…
 #define SCENE_MAX_MINUTES 10
 #define FADE_SECONDS      8        // …then crossfades to the next
@@ -41,25 +44,25 @@ static Show SHOW[] = {
 };
 static const int N_SHOW = sizeof(SHOW) / sizeof(SHOW[0]);
 
-// One palette for both: deep red → red → red-orange → orange, with only a touch of W on the very brightest energy so it stays saturated
+// One palette for both: deep red → red → red-orange → orange; R is at 255 from mid-energy up, W joins only at the very top (then W_MAX)
 static const sc::Palette SUN_SAT = {"Sun saturated", 6, {
   {0.00f, 0.00f, 0.00f, 0.00f, 0.00f},
   {0.25f, 0.55f, 0.00f, 0.00f, 0.00f},
   {0.50f, 1.00f, 0.08f, 0.00f, 0.00f},
   {0.70f, 1.00f, 0.22f, 0.00f, 0.00f},
-  {0.88f, 1.00f, 0.40f, 0.00f, 0.04f},
-  {1.00f, 1.00f, 0.55f, 0.03f, 0.14f}}};
+  {0.88f, 1.00f, 0.40f, 0.00f, 0.22f},
+  {1.00f, 1.00f, 0.55f, 0.03f, 0.50f}}};     // W climbs only on the hottest energy and is capped by W_MAX on the way out
 #define CONTRAST          1.10f    // >1 darkens the mid-tones, keeps the hot spots hot
 #define WARMTH           -0.25f    // negative = redder (trims G/B/W), positive = whiter
 
 // Dome shading — brightness per pixel ring, ×100 (29 rings at 30 mm pitch, ring 0 = centre, ring 28 = rim). 100 = full, up to 200.
-// Centre full, the first five rings taper to very low, then the rest alternate so not every ring is lit alike.
+// Centre full, the first five rings taper to very low, then hot / dark / warm / dark all the way out — literal hot spots and dark spots.
 static const uint8_t SHADE[29] = {
   100,                                            // ring 0  centre
-   80,  60,  40,  22,  10,                        // rings 1–5  taper
-   50,  25,  40,  20,  50,  25,  40,  20,         // rings 6–13 alternate
-   50,  25,  40,  20,  50,  25,  40,  20,         // rings 14–21
-   50,  25,  40,  20,  50,  25,  40 };            // rings 22–28 (rim)
+   70,  45,  25,  12,   5,                        // rings 1–5  taper
+   80,   6,  55,   4,  80,   6,  55,   4,         // rings 6–13 hot · dark · warm · dark
+   80,   6,  55,   4,  80,   6,  55,   4,         // rings 14–21
+   80,   6,  55,   4,  80,   6,  55 };            // rings 22–28 (rim)
 #define SHADE_USE_SAVED   0        // 1 = ignore SHADE[] and use the ring curve saved on this board by gateway_rig_test (NVS sunrig/shr)
 
 #define ETH_IP            "10.10.0.10"
@@ -73,7 +76,7 @@ static const char *OTA_PASS = "sunshine26-ota";    // must match upload_flags --
 // ==================================================================================================================================
 
 #define N               SUN_N
-#define BRIGHTNESS_CAP  SUN_BRIGHTNESS_CAP
+#define BRIGHTNESS_CAP  POWER_CAP
 #define FRAME_MS        25
 #define MIN_YIELD_MS    5
 #define STATUS_LED      33
@@ -229,7 +232,7 @@ static void outputTask(void *) {
     for (int i = 0; i < N; i++) {                                          // ring gain × master × cap
       uint8_t *o = out + i * 4; const uint32_t kk = (k * shadeGain[i]) >> 6;
       uint32_t v0 = (o[0] * kk) >> 8, v1 = (o[1] * kk) >> 8, v2 = (o[2] * kk) >> 8, v3 = (o[3] * kk) >> 8;
-      o[0] = v0 > 255 ? 255 : v0; o[1] = v1 > 255 ? 255 : v1; o[2] = v2 > 255 ? 255 : v2; o[3] = v3 > 255 ? 255 : v3;
+      o[0] = v0 > 255 ? 255 : v0; o[1] = v1 > 255 ? 255 : v1; o[2] = v2 > 255 ? 255 : v2; o[3] = v3 > W_MAX ? W_MAX : v3;   // W ceiling
     }
     if (ethLink) { bool ok = true; for (int u = 0; u < nUni; u++) ok &= sendArtDmx(ARTNET_UNI0 - 1 + unis[u].num, out + unis[u].first * 4, unis[u].cnt * 4); if (++artSeq == 0) artSeq = 1; if (!ok) pktErr++; }
     framesSent++; digitalWrite(STATUS_LED, (framesSent >> 3) & 1);
@@ -291,7 +294,7 @@ void setup() {
   xTaskCreatePinnedToCore(outputTask, "show", 16384, nullptr, 3, &outTask, 1);          // core 1: the show
   xTaskCreatePinnedToCore(houseTask, "house", 6144, nullptr, 2, nullptr, 0);             // core 0: OTA, AP watchdog
   xTaskCreatePinnedToCore(helperTaskFn, "show0", 12288, nullptr, 1, &helperTask, 0);     // core 0: render helper, lowest priority
-  Serial.printf("[sun] %u px · %d universes · master %d %% · %d–%d min per scene · %d s fade · eth %s → %s · AP \"%s\"/\"%s\" OTA :3232 · free heap %u\n",
-                (unsigned)N, nUni, MASTER_PCT, SCENE_MIN_MINUTES, SCENE_MAX_MINUTES, FADE_SECONDS, ETH_IP, PIXLITE_IP, AP_SSID, AP_PASS, (unsigned)ESP.getFreeHeap());
+  Serial.printf("[sun] %u px · %d universes · master %d %% · cap %.2f · W ≤ %d · %d–%d min per scene · %d s fade · eth %s → %s · AP \"%s\"/\"%s\" OTA :3232 · free heap %u\n",
+                (unsigned)N, nUni, MASTER_PCT, (double)POWER_CAP, W_MAX, SCENE_MIN_MINUTES, SCENE_MAX_MINUTES, FADE_SECONDS, ETH_IP, PIXLITE_IP, AP_SSID, AP_PASS, (unsigned)ESP.getFreeHeap());
 }
 void loop() { vTaskDelay(pdMS_TO_TICKS(1000)); }

@@ -22,16 +22,17 @@ OTA pauses the output (PixLite holds the last frame), flashes, reboots into the 
 **Wander**: every 20–60 s each scene picks a new random speed and parameter inside its range and glides there (time constant 15 s). Speed is integrated into the scene's phase, so a speed change never jumps the picture. **Scene length**: random 5–10 min, then an 8 s crossfade (both scenes render during the fade). The scene that just left gets a fresh random start for next time.
 
 ## SETTINGS block (top of `src/main.cpp`)
-- `MASTER_PCT` (70) — overall brightness; the ×0.90 power cap still applies on top.
+- `MASTER_PCT` (100), `POWER_CAP` (1.00) — full brightness, no power cap. Safe for this show: with the red/orange palette, the W ceiling and the dark rings the whole dome peaks around 110 W (host measurement over the preview clip; worst case with every pixel at the palette's top is ~90 W per wedge PSU, each a 500 W RSP-500). Put the cap back to 0.90 if you ever switch to a white-heavy palette or a flat curve.
+- `W_MAX` (140) — hard ceiling on the W channel so the white die never blows out; R/G/B run to 255.
 - `SCENE_MIN_MINUTES` / `SCENE_MAX_MINUTES` (5 / 10), `FADE_SECONDS` (8).
 - `WANDER_MIN_S` / `WANDER_MAX_S` (20 / 60), `WANDER_EASE_S` (15) — how often and how quickly things drift.
 - `SHOW[]` — scenes by name (full table at the bottom of `src/scenes.h`: 10 simulator patterns, 5 Pixel-rim scenes, 2 shaders) with speed and parameter ranges. Add a third line for a three-scene loop.
-- `SUN_SAT` palette + `CONTRAST` (1.10) + `WARMTH` (−0.25) — the colour. More negative warmth = redder; raise the G values in the last palette stops for more orange/amber.
-- `SHADE[29]` — brightness per pixel ring ×100 (ring 0 centre … ring 28 rim): `100` centre → `80 60 40 22 10` taper → `50 25 40 20 …` alternating to the rim. `SHADE_USE_SAVED 1` ignores it and uses the curve saved on the board by gateway_rig_test instead.
+- `SUN_SAT` palette + `CONTRAST` (1.10) + `WARMTH` (−0.25) — the colour. R sits at 255 from mid-energy up; W joins only on the hottest energy (0.22 → 0.50 in the top two stops) and is then clipped by `W_MAX`. More negative warmth = redder; raise the G values in the last stops for more orange/amber.
+- `SHADE[29]` — brightness per pixel ring ×100 (ring 0 centre … ring 28 rim): `100` centre → `70 45 25 12 5` taper → `80 6 55 4 …` hot / dark / warm / dark to the rim, so the dome reads as literal hot spots and dark spots. `SHADE_USE_SAVED 1` ignores it and uses the curve saved on the board by gateway_rig_test instead. The **Sun Show Preview** page (firmware-rendered frames, live curve editor) gives you the `MASTER_PCT` / `W_MAX` / `SHADE[]` lines to paste here.
 - `ETH_IP`, `PIXLITE_IP`, `ARTNET_UNI0`, AP name/password, `OTA_PASS` (must match `platformio.ini`).
 
 ## How it runs
-Core 1: output task — render → ring gain × master × cap → 23 Art-Net packets, paced to 40 fps. Core 0: Wi-Fi + OTA/housekeeping task, and a lowest-priority render helper that takes an adaptive share of every frame. Task watchdog 12 s on the output and housekeeping tasks (unsubscribed during an OTA upload); AP missing for 15 s → reboot, so there is always a way in once mounted. Output is linear — the PixLite does gamma 2.2.
+Core 1: output task — render → ring gain × master × cap → W ceiling → 23 Art-Net packets, paced to 40 fps. Core 0: Wi-Fi + OTA/housekeeping task, and a lowest-priority render helper that takes an adaptive share of every frame. Task watchdog 12 s on the output and housekeeping tasks (unsubscribed during an OTA upload); AP missing for 15 s → reboot, so there is always a way in once mounted. Output is linear — the PixLite does gamma 2.2.
 
 ## Files
 `platformio.ini` · `src/main.cpp` · `src/scenes.h` (patterns, palettes, sunify) · `src/fluid.h` (the two shaders) · `src/sun_map.h` (generated copy of `simulator/firmware/sun_map.h`, do not edit).
