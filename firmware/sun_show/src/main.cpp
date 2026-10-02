@@ -51,6 +51,10 @@
 #define BREAK_HI          0.85f
 #define BREAK_GAIN        1.00f    // ×100 → gain a fully-lifted pixel gets on a dark ring (1.00 = as if the ring were at 100)
 
+// No pink: white on top of pure red reads pink. W is never allowed above W_PER_G × the pixel's green, so white only appears where the
+// colour is already orange/yellow (a red pixel gets no white at all). Applied last, to everything — palette and relief alike.
+#define W_PER_G           0.75f
+
 // Relief: the W die paints 3D shading. The scene's own energy is treated as a height map; each pixel's slope (from its 6 nearest
 // neighbours) is lit by a light that slowly circles the dome. Slopes facing the light get W (up to RELIEF_W) in proportion to how
 // lit the pixel already is; slopes facing away are shaded (RGB × (1 − RELIEF_SHADOW)). Every pixel ends up with its own W value.
@@ -267,7 +271,9 @@ static void applyRelief(uint8_t *out, const uint8_t *e, uint32_t now) {
     const float s = tanhf(-(gx * lx + gy * ly) * kk);                   // slope facing the light = height falling toward it: −1 away … +1 toward
     uint8_t *o = out + i * 4;
     if (s > 0) { float lit = (o[0] + o[1] + o[2]) * (1.0f / 200.0f); if (lit > 1) lit = 1;
-      uint32_t w = o[3] + (uint32_t)(RELIEF_W * s * lit); o[3] = w > 255 ? 255 : w; }
+      const float add = RELIEF_W * s * lit;                              // highlight warms toward amber first (G), then white (W) —
+      uint32_t g = o[1] + (uint32_t)(add * 0.5f), w = o[3] + (uint32_t)add; // the no-pink clamp below keeps W ≤ W_PER_G × G
+      o[1] = g > 255 ? 255 : g; o[3] = w > 255 ? 255 : w; }
     else { const uint32_t m = (uint32_t)((1.0f + RELIEF_SHADOW * s) * 256.0f); o[0] = (o[0] * m) >> 8; o[1] = (o[1] * m) >> 8; o[2] = (o[2] * m) >> 8; }
   }
 }
@@ -315,6 +321,7 @@ static void outputTask(void *) {
   uint32_t lastMs = millis(), frameStart = 0, showStart = millis(), lastLog = 0, sceneMs = pickSceneMs();
   const uint32_t fadeMs = (uint32_t)FADE_SECONDS * 1000UL;
   const uint32_t k = (uint32_t)(MASTER_PCT * 2.55f * BRIGHTNESS_CAP * 256.0f / 255.0f);
+  const uint32_t wPerG = (uint32_t)(W_PER_G * 256 + 0.5f);
   int cur = (int)(esp_random() % N_SHOW);                                   // start on a random scene so every power-up shows both soon-ish
   for (int i = 0; i < N_SHOW; i++) wanderInit(i, lastMs);
   esp_task_wdt_add(NULL);
@@ -349,7 +356,9 @@ static void outputTask(void *) {
     for (int i = 0; i < N; i++) {                                          // master × cap (ring gain, focus and breakthrough already applied before the palette)
       uint8_t *o = out + i * 4;
       uint32_t v0 = (o[0] * k) >> 8, v1 = (o[1] * k) >> 8, v2 = (o[2] * k) >> 8, v3 = (o[3] * k) >> 8;
-      o[0] = v0 > 255 ? 255 : v0; o[1] = v1 > 255 ? 255 : v1; o[2] = v2 > 255 ? 255 : v2; o[3] = v3 > W_MAX ? W_MAX : v3;   // W ceiling
+      o[0] = v0 > 255 ? 255 : v0; o[1] = v1 > 255 ? 255 : v1; o[2] = v2 > 255 ? 255 : v2;
+      const uint32_t wg = (o[1] * wPerG) >> 8; if (v3 > wg) v3 = wg;                   // no pink: W only where there's green
+      o[3] = v3 > W_MAX ? W_MAX : v3;                                                   // W ceiling
     }
     if (ethLink) { bool ok = true; for (int u = 0; u < nUni; u++) ok &= sendArtDmx(ARTNET_UNI0 - 1 + unis[u].num, out + unis[u].first * 4, unis[u].cnt * 4); if (++artSeq == 0) artSeq = 1; if (!ok) pktErr++; }
     framesSent++; digitalWrite(STATUS_LED, (framesSent >> 3) & 1);
