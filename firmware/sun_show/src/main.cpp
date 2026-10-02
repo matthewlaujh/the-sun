@@ -70,10 +70,11 @@
 #endif
 
 // The scenes, by name (see the table at the bottom of scenes.h), with their speed and parameter ranges
-struct Show { const char *name; float spMin, spMax, p1Min, p1Max, level; int scene; };   // level = energy gain so both scenes sit at the same brightness
+struct Show { const char *name; float spMin, spMax, p1Min, p1Max, level, rimLevel; int scene; };
+// level = energy gain in the core (inside FOCUS_CORE_MM), easing to rimLevel at the rim — so a scene can be lifted in the middle without lighting up the edges
 static Show SHOW[] = {
-  { "Solar surface", 0.50f, 1.60f, 0.30f, 0.85f, 1.0f },   // p1 = activity
-  { "Neon fluid",    0.40f, 1.40f, 0.35f, 0.70f, 3.6f },   // p1 = zoom (0.5 = neutral) · its raw energy is ~4× lower (blue/pink shader), so lift it
+  { "Solar surface", 0.50f, 1.60f, 0.30f, 0.85f, 1.0f, 1.0f },   // p1 = activity
+  { "Neon fluid",    0.40f, 1.40f, 0.35f, 0.70f, 3.6f, 1.0f },   // p1 = zoom (0.5 = neutral) · raw energy ~4× lower (blue/pink shader): lifted ×3.6 in the core, edges left dark as before
 };
 static const int N_SHOW = sizeof(SHOW) / sizeof(SHOW[0]);
 
@@ -127,6 +128,7 @@ static const uint8_t SHADE[29] = {
 static volatile bool ethLink = false;
 static uint32_t pktErr = 0, framesSent = 0;
 static uint8_t  shadeRing[RINGS], shadeGain[N];
+static uint8_t  coreW[N];                                                 // 256 inside FOCUS_CORE_MM → 0 at the rim (smoothstep)
 static uint16_t focus[N];                                                 // radial energy envelope ×256
 static uint8_t  brkA[N], brkB[N], brkH[N];
 static uint16_t *shoulderLUT = nullptr;                                   // soft shoulder on energy: index = (channel × gain) >> 5, 4096 entries                                // per-pixel breakthrough amount 0–255 (current scene, next scene, helper)
@@ -166,7 +168,7 @@ static void equalPower() {
 static void buildFocus() {
   const float rim = 8400.0f, core = FOCUS_CORE_MM * 10.0f;
   for (int i = 0; i < N; i++) { float t = (sc::gR10[i] - core) / (rim - core); t = t < 0 ? 0 : t > 1 ? 1 : t; t = t * t * (3 - 2 * t);
-    focus[i] = (uint16_t)((1.0f - (1.0f - FOCUS_RIM) * t) * 256.0f + 0.5f); }
+    focus[i] = (uint16_t)((1.0f - (1.0f - FOCUS_RIM) * t) * 256.0f + 0.5f); coreW[i] = (uint8_t)((1.0f - t) * 255.0f + 0.5f); }
 }
 static void loadShade() {
   memcpy(shadeRing, SHADE, RINGS);
@@ -202,14 +204,18 @@ static bool sendArtDmx(uint16_t universe, const uint8_t *data, uint16_t len) {
 }
 
 // ---------------- two-core scene rendering (helper on core 0, below Wi-Fi/OTA in priority) ----------------
-struct Job { uint8_t *out; int scene; float t, p1, lv; int i0, i1; };
+struct Job { uint8_t *out; int scene; float t, p1, lv, rlv; int i0, i1; };
 static Job helperJob;
 static volatile bool helperBusy = false; static int sceneSplit = N / 2; static uint8_t hbuf[N * 4];
 static const float TINT[3] = {1.0f, 0.45f, 0.08f};
-static void renderRange(uint8_t *out, int scene, float t, float p1, float lv, int i0, int i1) {
+static void renderRange(uint8_t *out, int scene, float t, float p1, float lv, float rlv, int i0, int i1) {
   sc::Ctx c; c.t = t; c.speed = 1.0f; c.p1 = p1; c.tint[0] = TINT[0]; c.tint[1] = TINT[1]; c.tint[2] = TINT[2];   // speed is integrated into t
   sc::SCENES[scene].fn(intent, c, i0, i1);
-  if (lv != 1.0f) { const uint32_t L = (uint32_t)(lv * 256 + 0.5f); for (int k = i0 * 4; k < i1 * 4; k++) { uint32_t v = (intent[k] * L) >> 8; intent[k] = v > 65535 ? 65535 : v; } }   // scene level
+  if (lv != 1.0f || rlv != 1.0f) {                                                     // scene level: lv in the core → rlv at the rim
+    const uint32_t Lc = (uint32_t)(lv * 256 + 0.5f), Lr = (uint32_t)(rlv * 256 + 0.5f);
+    for (int i = i0; i < i1; i++) { const uint32_t L = (Lr * (256 - coreW[i]) + Lc * coreW[i]) >> 8; sc::ib_t *k = intent + 4 * i;
+      for (int c4 = 0; c4 < 4; c4++) { uint32_t v = (k[c4] * L) >> 8; k[c4] = v > 65535 ? 65535 : v; } }
+  }
   const float inv = 1.0f / IB_ONE, invR = 1.0f / (BREAK_HI - BREAK_LO);
   const uint32_t lift = (uint32_t)(BREAK_GAIN * 64 + 0.5f);
   for (int i = i0; i < i1; i++) {
@@ -237,19 +243,19 @@ static void helperTaskFn(void *) {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     if (!helperBusy) continue;
     const Job j = helperJob; const int mid = (j.i0 + j.i1) / 2;
-    renderRange(j.out, j.scene, j.t, j.p1, j.lv, j.i0, mid);
+    renderRange(j.out, j.scene, j.t, j.p1, j.lv, j.rlv, j.i0, mid);
     vTaskDelay(1);
-    renderRange(j.out, j.scene, j.t, j.p1, j.lv, mid, j.i1);
+    renderRange(j.out, j.scene, j.t, j.p1, j.lv, j.rlv, mid, j.i1);
     helperBusy = false; xTaskNotifyGive(outTask);
   }
 }
 static void renderScene(uint8_t *out, int slot, float t, float p1) {
-  const int scene = SHOW[slot].scene; const float lv = SHOW[slot].level;
-  if (!helperTask || helperBusy) { renderRange(out, scene, t, p1, lv, 0, N); return; }
+  const int scene = SHOW[slot].scene; const float lv = SHOW[slot].level, rlv = SHOW[slot].rimLevel;
+  if (!helperTask || helperBusy) { renderRange(out, scene, t, p1, lv, rlv, 0, N); return; }
   ulTaskNotifyTake(pdTRUE, 0);
-  helperJob = { hbuf, scene, t, p1, lv, 0, sceneSplit }; helperBusy = true;
+  helperJob = { hbuf, scene, t, p1, lv, rlv, 0, sceneSplit }; helperBusy = true;
   const int64_t a = esp_timer_get_time(); xTaskNotifyGive(helperTask);
-  renderRange(out, scene, t, p1, lv, sceneSplit, N);
+  renderRange(out, scene, t, p1, lv, rlv, sceneSplit, N);
   const int64_t b = esp_timer_get_time();
   if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(300)) == 0) { sceneSplit = N / 4; return; }
   const int64_t c = esp_timer_get_time();
