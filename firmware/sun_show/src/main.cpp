@@ -4,7 +4,7 @@
 // between the limits in SHOW[] (new target every WANDER_MIN..MAX s, eased over WANDER_EASE_S), so it never looks the same twice.
 // Per pixel, before the palette: scene energy × ring gain SHADE[] × core focus (FOCUS_*), with bright features breaking through both
 // (BREAK_*), then a soft shoulder (SHOULDER) so nothing clips flat — the palette then turns that into colour, and W is capped at W_MAX.
-// TEST_MODE 1 compresses all timing for bench testing.
+// Fast timing for a transition space: 30 s scenes, wander every 5–10 s.
 // No Wi-Fi, no OTA: the radio is off, uploads are over USB only. Everything you might want to touch is in the SETTINGS block.
 //
 // Flash over USB:  pio run -t upload && pio device monitor
@@ -30,13 +30,10 @@
                                    // e' = 1 − exp(−SHOULDER·e). Energy ×2.00 in the core lands at 0.93 instead of clipping at 1, so a
                                    // hot cluster still shades from red through orange into white instead of one flat block.
                                    // (gain 2 → 0.93 · gain 1 → 0.73 · gain 0.5 → 0.48 · gain 0.06 → 0.08). Bigger = brighter, flatter.
-#define SCENE_MIN_MINUTES 5        // each scene plays for a random length between these two…
-#define SCENE_MAX_MINUTES 10
+// Timing — fast, for a transition space where people pass through: both scenes and a few changes within a minute or two.
+#define SCENE_MIN_SEC     30       // each scene plays for a random length between these two (seconds)…
+#define SCENE_MAX_SEC     30
 #define FADE_SECONDS      8        // …then crossfades to the next
-
-// Test mode: 1 = compressed timing, the same as the Sun Show Preview page (30 s per scene, wander every 5–10 s eased over 3 s), so a
-// whole cycle — both scenes, both crossfades, several wander changes — fits in a couple of minutes. Set back to 0 for the event.
-#define TEST_MODE         0
 
 // Core focus: scene energy is scaled by a radial envelope BEFORE the palette — full inside FOCUS_CORE_MM, easing down to FOCUS_RIM at the
 // rim — so the hot, busy, white-tinged activity lives in the diffused core and the pixelated outer rings sit calmer and deeper red.
@@ -55,19 +52,10 @@
 
 // Wander: speed and the main parameter glide between the limits below. A new random target is picked every WANDER_MIN..MAX seconds
 // and approached with a time constant of WANDER_EASE_S (so a change takes ~3× that to fully arrive — never a visible step).
-#if TEST_MODE
-#define SCENE_MIN_SEC     30
-#define SCENE_MAX_SEC     30
+// (The old slow version was 5–10 min scenes, wander every 20–60 s eased over 15 s.)
 #define WANDER_MIN_S      5
 #define WANDER_MAX_S      10
 #define WANDER_EASE_S     3.0f
-#else
-#define SCENE_MIN_SEC     (SCENE_MIN_MINUTES * 60)
-#define SCENE_MAX_SEC     (SCENE_MAX_MINUTES * 60)
-#define WANDER_MIN_S      20
-#define WANDER_MAX_S      60
-#define WANDER_EASE_S     15.0f
-#endif
 
 // The scenes, by name (see the table at the bottom of scenes.h), with their speed and parameter ranges
 struct Show { const char *name; float spMin, spMax, p1Min, p1Max, level, rimLevel; int scene; };
@@ -291,7 +279,7 @@ static void outputTask(void *) {
   int cur = (int)(esp_random() % N_SHOW);                                   // start on a random scene so every power-up shows both soon-ish
   for (int i = 0; i < N_SHOW; i++) wanderInit(i, lastMs);
   esp_task_wdt_add(NULL);
-  Serial.printf("[show] scene %d (%s) for %.1f min\n", cur, sc::SCENES[SHOW[cur].scene].name, sceneMs / 60000.0f);
+  Serial.printf("[show] scene %d (%s) for %.0f s\n", cur, sc::SCENES[SHOW[cur].scene].name, sceneMs / 1000.0f);
   for (;;) {
     esp_task_wdt_reset();
     { uint32_t spent = millis() - frameStart; uint32_t wait = spent < FRAME_MS ? FRAME_MS - spent : 0; if (wait < MIN_YIELD_MS) wait = MIN_YIELD_MS; vTaskDelay(pdMS_TO_TICKS(wait)); frameStart = millis(); }
@@ -310,7 +298,7 @@ static void outputTask(void *) {
     } else {                                                               // hand over
       wanderInit(cur, now);                                                // the scene that just left gets a fresh start for next time
       cur = nxt; showStart = now; sceneMs = pickSceneMs();
-      Serial.printf("[show] scene %d (%s) for %.1f min · up %lu min\n", cur, sc::SCENES[SHOW[cur].scene].name, sceneMs / 60000.0f, now / 60000UL);
+      Serial.printf("[show] scene %d (%s) for %.0f s · up %lu min\n", cur, sc::SCENES[SHOW[cur].scene].name, sceneMs / 1000.0f, now / 60000UL);
       renderScene(out, cur, W[cur].ph, W[cur].p1);
     }
 
@@ -342,9 +330,6 @@ void setup() {
   udp.begin(6454);
 
   sc::buildGeom(); buildTables(); loadShade(); buildShade(); buildFocus(); buildShoulder();
-#if TEST_MODE
-  Serial.println("[sun] *** TEST MODE — compressed timing (30 s scenes, fast wander). Set TEST_MODE 0 for the event. ***");
-#endif
   for (int k = 0; k < N_SHOW; k++) { SHOW[k].scene = 0; for (int i = 0; i < sc::N_SCENES; i++) if (!strcmp(sc::SCENES[i].name, SHOW[k].name)) SHOW[k].scene = i;
     Serial.printf("[show] slot %d: %s → scene %d%s · speed %.2f–%.2f · p1 %.2f–%.2f\n", k, SHOW[k].name, SHOW[k].scene, strcmp(sc::SCENES[SHOW[k].scene].name, SHOW[k].name) ? "  (NOT FOUND — using Solar surface)" : "", SHOW[k].spMin, SHOW[k].spMax, SHOW[k].p1Min, SHOW[k].p1Max); }
   intent = (sc::ib_t *)malloc(N * 4 * sizeof(sc::ib_t));
