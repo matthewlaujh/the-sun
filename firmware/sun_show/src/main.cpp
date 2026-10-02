@@ -50,6 +50,16 @@
 #define BREAK_HI          0.85f
 #define BREAK_GAIN        1.00f    // ×100 → gain a fully-lifted pixel gets on a dark ring (1.00 = as if the ring were at 100)
 
+// Relief: the W die paints 3D shading. The scene's own energy is treated as a height map; each pixel's slope (from its 6 nearest
+// neighbours) is lit by a light that slowly circles the dome. Slopes facing the light get W (up to RELIEF_W) in proportion to how
+// lit the pixel already is; slopes facing away are shaded (RGB × (1 − RELIEF_SHADOW)). Every pixel ends up with its own W value.
+#define RELIEF            1
+#define RELIEF_W          90       // most W a fully lit slope gets (still capped by W_MAX)
+#define RELIEF_SHADOW     0.30f    // how much the away-facing slopes are darkened (0 = no shadows, highlights only)
+#define RELIEF_STRENGTH   6.0f     // slope sensitivity — higher = more pixels at full highlight / full shadow, crisper relief
+#define RELIEF_LIGHT_DEG  135      // light direction at power-up (0 = from the right / East, 90 = from the top, 135 = top-left)
+#define RELIEF_LIGHT_SEC  60       // the light circles once every this many seconds (0 = fixed light)
+
 // Wander: speed and the main parameter glide between the limits below. A new random target is picked every WANDER_MIN..MAX seconds
 // and approached with a time constant of WANDER_EASE_S (so a change takes ~3× that to fully arrive — never a visible step).
 // (The old slow version was 5–10 min scenes, wander every 20–60 s eased over 15 s.)
@@ -194,11 +204,11 @@ static bool sendArtDmx(uint16_t universe, const uint8_t *data, uint16_t len) {
 }
 
 // ---------------- two-core scene rendering (helper on core 0, below Wi-Fi/OTA in priority) ----------------
-struct Job { uint8_t *out; int scene; float t, p1, lv, rlv; int i0, i1; };
+struct Job { uint8_t *out, *eb; int scene; float t, p1, lv, rlv; int i0, i1; };
 static Job helperJob;
 static volatile bool helperBusy = false; static int sceneSplit = N / 2; static uint8_t hbuf[N * 4];
 static const float TINT[3] = {1.0f, 0.45f, 0.08f};
-static void renderRange(uint8_t *out, int scene, float t, float p1, float lv, float rlv, int i0, int i1) {
+static void renderRange(uint8_t *out, uint8_t *eb, int scene, float t, float p1, float lv, float rlv, int i0, int i1) {
   sc::Ctx c; c.t = t; c.speed = 1.0f; c.p1 = p1; c.tint[0] = TINT[0]; c.tint[1] = TINT[1]; c.tint[2] = TINT[2];   // speed is integrated into t
   sc::SCENES[scene].fn(intent, c, i0, i1);
   if (lv != 1.0f || rlv != 1.0f) {                                                     // scene level: lv in the core → rlv at the rim
@@ -211,8 +221,9 @@ static void renderRange(uint8_t *out, int scene, float t, float p1, float lv, fl
   for (int i = i0; i < i1; i++) {
     sc::ib_t *k = intent + 4 * i;
     uint32_t kb = 0;
-#if BREAKTHROUGH
     float e = (0.3f * k[0] + 0.5f * k[1] + 0.2f * k[2] + 0.9f * k[3]) * inv;        // the scene's own energy, same weights as sunify
+    eb[i] = (uint8_t)(e >= 1 ? 255 : e * 255.0f + 0.5f);                                // → relief height map
+#if BREAKTHROUGH
     float u = (e - BREAK_LO) * invR; u = u < 0 ? 0 : u > 1 ? 1 : u; kb = (uint32_t)(u * u * (3 - 2 * u) * 255.0f + 0.5f);
 #endif
     uint32_t g = shadeGain[i]; if (lift > g) g += ((lift - g) * kb) >> 8;             // ring gain ×64, lifted where the feature breaks through
@@ -233,23 +244,57 @@ static void helperTaskFn(void *) {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     if (!helperBusy) continue;
     const Job j = helperJob; const int mid = (j.i0 + j.i1) / 2;
-    renderRange(j.out, j.scene, j.t, j.p1, j.lv, j.rlv, j.i0, mid);
+    renderRange(j.out, j.eb, j.scene, j.t, j.p1, j.lv, j.rlv, j.i0, mid);
     vTaskDelay(1);
-    renderRange(j.out, j.scene, j.t, j.p1, j.lv, j.rlv, mid, j.i1);
+    renderRange(j.out, j.eb, j.scene, j.t, j.p1, j.lv, j.rlv, mid, j.i1);
     helperBusy = false; xTaskNotifyGive(outTask);
   }
 }
-static void renderScene(uint8_t *out, int slot, float t, float p1) {
+// ---------------- relief (W-die 3D shading) ----------------
+#define NB 6
+static uint8_t  ebA[N], ebB[N], ebH[N], hgt[N];                           // scene energy (current, next, helper) and smoothed height
+static uint16_t *nbr = nullptr; static int8_t *ncx = nullptr, *ncy = nullptr;   // 6 nearest neighbours + gradient weights ×128 (per 30 mm pitch)
+static void buildNeighbours() {
+  nbr = (uint16_t *)malloc(N * NB * 2); ncx = (int8_t *)malloc(N * NB); ncy = (int8_t *)malloc(N * NB);
+  for (int i = 0; i < N; i++) {
+    int best[NB]; float bd[NB]; for (int k = 0; k < NB; k++) { best[k] = i; bd[k] = 1e30f; }
+    const float xi = sc::gX10[i], yi = sc::gY10[i];
+    for (int j = 0; j < N; j++) { if (j == i) continue; float dx = sc::gX10[j] - xi, dy = sc::gY10[j] - yi, d = dx * dx + dy * dy;
+      if (d >= bd[NB - 1]) continue; int k = NB - 1; while (k > 0 && bd[k - 1] > d) { bd[k] = bd[k - 1]; best[k] = best[k - 1]; k--; } bd[k] = d; best[k] = j; }
+    float a = 0, b = 0, c = 0;                                              // least-squares gradient: (Σ d dᵀ)⁻¹ Σ d Δh
+    for (int k = 0; k < NB; k++) { float dx = (sc::gX10[best[k]] - xi) / 300.0f, dy = (sc::gY10[best[k]] - yi) / 300.0f; a += dx * dx; b += dx * dy; c += dy * dy; }
+    float det = a * c - b * b; if (det < 1e-6f) det = 1e-6f; const float ia = c / det, ib = -b / det, ic = a / det;
+    for (int k = 0; k < NB; k++) { float dx = (sc::gX10[best[k]] - xi) / 300.0f, dy = (sc::gY10[best[k]] - yi) / 300.0f;
+      float wx = (ia * dx + ib * dy) * 128.0f, wy = (ib * dx + ic * dy) * 128.0f;
+      nbr[i * NB + k] = best[k]; ncx[i * NB + k] = (int8_t)(wx > 127 ? 127 : wx < -127 ? -127 : wx); ncy[i * NB + k] = (int8_t)(wy > 127 ? 127 : wy < -127 ? -127 : wy); }
+  }
+}
+static void applyRelief(uint8_t *out, const uint8_t *e, uint32_t now) {
+  for (int i = 0; i < N; i++) { uint32_t s = 2u * e[i]; const uint16_t *nb = nbr + i * NB; for (int k = 0; k < NB; k++) s += e[nb[k]]; hgt[i] = s >> 3; }   // light smoothing
+  float ang = RELIEF_LIGHT_DEG * 0.0174533f; if (RELIEF_LIGHT_SEC > 0) ang += 6.2831853f * (float)(now % (RELIEF_LIGHT_SEC * 1000UL)) / (RELIEF_LIGHT_SEC * 1000.0f);
+  const float lx = cosf(ang), ly = sinf(ang), kk = RELIEF_STRENGTH / (128.0f * 255.0f);
+  for (int i = 0; i < N; i++) {
+    const uint16_t *nb = nbr + i * NB; const int8_t *cx = ncx + i * NB, *cy = ncy + i * NB; const int hi = hgt[i]; int gx = 0, gy = 0;
+    for (int k = 0; k < NB; k++) { const int d = hgt[nb[k]] - hi; gx += cx[k] * d; gy += cy[k] * d; }
+    const float s = tanhf(-(gx * lx + gy * ly) * kk);                   // slope facing the light = height falling toward it: −1 away … +1 toward
+    uint8_t *o = out + i * 4;
+    if (s > 0) { float lit = (o[0] + o[1] + o[2]) * (1.0f / 200.0f); if (lit > 1) lit = 1;
+      uint32_t w = o[3] + (uint32_t)(RELIEF_W * s * lit); o[3] = w > 255 ? 255 : w; }
+    else { const uint32_t m = (uint32_t)((1.0f + RELIEF_SHADOW * s) * 256.0f); o[0] = (o[0] * m) >> 8; o[1] = (o[1] * m) >> 8; o[2] = (o[2] * m) >> 8; }
+  }
+}
+
+static void renderScene(uint8_t *out, uint8_t *eb, int slot, float t, float p1) {
   const int scene = SHOW[slot].scene; const float lv = SHOW[slot].level, rlv = SHOW[slot].rimLevel;
-  if (!helperTask || helperBusy) { renderRange(out, scene, t, p1, lv, rlv, 0, N); return; }
+  if (!helperTask || helperBusy) { renderRange(out, eb, scene, t, p1, lv, rlv, 0, N); return; }
   ulTaskNotifyTake(pdTRUE, 0);
-  helperJob = { hbuf, scene, t, p1, lv, rlv, 0, sceneSplit }; helperBusy = true;
+  helperJob = { hbuf, ebH, scene, t, p1, lv, rlv, 0, sceneSplit }; helperBusy = true;
   const int64_t a = esp_timer_get_time(); xTaskNotifyGive(helperTask);
-  renderRange(out, scene, t, p1, lv, rlv, sceneSplit, N);
+  renderRange(out, eb, scene, t, p1, lv, rlv, sceneSplit, N);
   const int64_t b = esp_timer_get_time();
   if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(300)) == 0) { sceneSplit = N / 4; return; }
   const int64_t c = esp_timer_get_time();
-  memcpy(out, hbuf, sceneSplit * 4);
+  memcpy(out, hbuf, sceneSplit * 4); memcpy(eb, ebH, sceneSplit);
   const int64_t mine = b - a, waited = c - b;
   if (waited > 1500) sceneSplit -= 40; else if (waited < 300 && mine > 2000) sceneSplit += 40;
   if (sceneSplit < N / 8) sceneSplit = N / 8; if (sceneSplit > N * 3 / 5) sceneSplit = N * 3 / 5;
@@ -294,19 +339,24 @@ static void outputTask(void *) {
 
     const uint32_t el = now - showStart; const int nxt = (cur + 1) % N_SHOW;
     if (el < sceneMs) {
-      renderScene(out, cur, W[cur].ph, W[cur].p1);
+      renderScene(out, ebA, cur, W[cur].ph, W[cur].p1);
     } else if (el < sceneMs + fadeMs) {                                   // crossfade: render both, blend
       float f = (float)(el - sceneMs) / fadeMs; f = f * f * (3 - 2 * f);
-      renderScene(out,  cur, W[cur].ph, W[cur].p1);
-      renderScene(out2, nxt, W[nxt].ph, W[nxt].p1);
+      renderScene(out,  ebA, cur, W[cur].ph, W[cur].p1);
+      renderScene(out2, ebB, nxt, W[nxt].ph, W[nxt].p1);
       const uint32_t fb = (uint32_t)(f * 256), fa = 256 - fb;
       for (int i = 0; i < N * 4; i++) out[i] = (out[i] * fa + out2[i] * fb) >> 8;
+      for (int i = 0; i < N; i++) ebA[i] = (ebA[i] * fa + ebB[i] * fb) >> 8;
     } else {                                                               // hand over
       wanderInit(cur, now);                                                // the scene that just left gets a fresh start for next time
       cur = nxt; showStart = now; sceneMs = pickSceneMs();
       Serial.printf("[show] scene %d (%s) for %.0f s · up %lu min\n", cur, sc::SCENES[SHOW[cur].scene].name, sceneMs / 1000.0f, now / 60000UL);
-      renderScene(out, cur, W[cur].ph, W[cur].p1);
+      renderScene(out, ebA, cur, W[cur].ph, W[cur].p1);
     }
+
+#if RELIEF
+    applyRelief(out, ebA, now);
+#endif
 
     for (int i = 0; i < N; i++) {                                          // master × cap (ring gain, focus and breakthrough already applied before the palette)
       uint8_t *o = out + i * 4;
@@ -336,6 +386,9 @@ void setup() {
   udp.begin(6454);
 
   sc::buildGeom(); buildTables(); loadShade(); buildShade(); buildFocus(); buildShoulder();
+#if RELIEF
+  { uint32_t t0 = millis(); buildNeighbours(); Serial.printf("[relief] neighbour table built in %lu ms\n", millis() - t0); }
+#endif
   for (int k = 0; k < N_SHOW; k++) { SHOW[k].scene = 0; for (int i = 0; i < sc::N_SCENES; i++) if (!strcmp(sc::SCENES[i].name, SHOW[k].name)) SHOW[k].scene = i;
     Serial.printf("[show] slot %d: %s → scene %d%s · speed %.2f–%.2f · p1 %.2f–%.2f\n", k, SHOW[k].name, SHOW[k].scene, strcmp(sc::SCENES[SHOW[k].scene].name, SHOW[k].name) ? "  (NOT FOUND — using Solar surface)" : "", SHOW[k].spMin, SHOW[k].spMax, SHOW[k].p1Min, SHOW[k].p1Max); }
   intent = (sc::ib_t *)malloc(N * 4 * sizeof(sc::ib_t));
