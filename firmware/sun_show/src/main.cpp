@@ -70,10 +70,10 @@
 #endif
 
 // The scenes, by name (see the table at the bottom of scenes.h), with their speed and parameter ranges
-struct Show { const char *name; float spMin, spMax, p1Min, p1Max; int scene; };
+struct Show { const char *name; float spMin, spMax, p1Min, p1Max, level; int scene; };   // level = energy gain so both scenes sit at the same brightness
 static Show SHOW[] = {
-  { "Solar surface", 0.50f, 1.60f, 0.30f, 0.85f },   // p1 = activity
-  { "Neon fluid",    0.40f, 1.40f, 0.35f, 0.70f },   // p1 = zoom (0.5 = neutral)
+  { "Solar surface", 0.50f, 1.60f, 0.30f, 0.85f, 1.0f },   // p1 = activity
+  { "Neon fluid",    0.40f, 1.40f, 0.35f, 0.70f, 3.6f },   // p1 = zoom (0.5 = neutral) · its raw energy is ~4× lower (blue/pink shader), so lift it
 };
 static const int N_SHOW = sizeof(SHOW) / sizeof(SHOW[0]);
 
@@ -89,6 +89,12 @@ static const sc::Palette SUN_SAT = {"Sun saturated", 7, {
                                               // stays coloured on camera instead of blowing out to a cold white
 #define CONTRAST          0.95f    // <1 lifts the mid-tones a little → longer, softer tails on flares; >1 isolates the hot spots
 #define WARMTH           -0.10f    // negative = redder (trims G/B/W), positive = whiter
+// Equal-power palette: every palette entry is rescaled so the total drive across R+G+B+W depends only on energy, never on hue —
+// a yellow (R+G) or white-tinged (R+G+W) pixel is no brighter than a red one at the same energy. Drive follows POWER_PEAK·e^POWER_GAMMA
+// (×255 per channel-unit), so brightness also keeps varying inside the hot core instead of every hot pixel sitting at the same level.
+#define EQUAL_POWER       1
+#define POWER_PEAK        1.20f    // total drive at the very top, in channel units (1.0 = one channel at 255)
+#define POWER_GAMMA       1.3f     // >1 = more contrast between warm and hot, <1 = flatter
 
 // Dome shading — brightness per pixel ring, ×100 (29 rings at 30 mm pitch, ring 0 = centre, ring 28 = rim). 100 = full, up to 200.
 // Your tuned curve from the rig-test page (the one in the video): the whole diffused core (rings 0–16, 0–480 mm, boards A + inner B) at
@@ -146,6 +152,17 @@ static void buildShoulder() {
   shoulderLUT = (uint16_t *)malloc(4096 * sizeof(uint16_t));
   for (int i = 0; i < 4096; i++) { float x = (i << 5) / 65535.0f; shoulderLUT[i] = (uint16_t)((1.0f - expf(-SHOULDER * x)) * 65535.0f + 0.5f); }
 }
+static void equalPower() {
+#if EQUAL_POWER
+  for (int k = 0; k < 256; k++) {
+    float *q = sc::RLUT + 4 * k, e = k / 255.0f, sum = q[0] + q[1] + q[2] + q[3];
+    if (sum < 1e-4f) continue;
+    float target = POWER_PEAK * powf(e, POWER_GAMMA);                  // total drive allowed at this energy
+    float s = target / sum; if (s > 1) s = 1;                           // only ever pulls multi-dye colours down
+    q[0] *= s; q[1] *= s; q[2] *= s; q[3] *= s;
+  }
+#endif
+}
 static void buildFocus() {
   const float rim = 8400.0f, core = FOCUS_CORE_MM * 10.0f;
   for (int i = 0; i < N; i++) { float t = (sc::gR10[i] - core) / (rim - core); t = t < 0 ? 0 : t > 1 ? 1 : t; t = t * t * (3 - 2 * t);
@@ -185,13 +202,14 @@ static bool sendArtDmx(uint16_t universe, const uint8_t *data, uint16_t len) {
 }
 
 // ---------------- two-core scene rendering (helper on core 0, below Wi-Fi/OTA in priority) ----------------
-struct Job { uint8_t *out; int scene; float t, p1; int i0, i1; };
+struct Job { uint8_t *out; int scene; float t, p1, lv; int i0, i1; };
 static Job helperJob;
 static volatile bool helperBusy = false; static int sceneSplit = N / 2; static uint8_t hbuf[N * 4];
 static const float TINT[3] = {1.0f, 0.45f, 0.08f};
-static void renderRange(uint8_t *out, int scene, float t, float p1, int i0, int i1) {
+static void renderRange(uint8_t *out, int scene, float t, float p1, float lv, int i0, int i1) {
   sc::Ctx c; c.t = t; c.speed = 1.0f; c.p1 = p1; c.tint[0] = TINT[0]; c.tint[1] = TINT[1]; c.tint[2] = TINT[2];   // speed is integrated into t
   sc::SCENES[scene].fn(intent, c, i0, i1);
+  if (lv != 1.0f) { const uint32_t L = (uint32_t)(lv * 256 + 0.5f); for (int k = i0 * 4; k < i1 * 4; k++) { uint32_t v = (intent[k] * L) >> 8; intent[k] = v > 65535 ? 65535 : v; } }   // scene level
   const float inv = 1.0f / IB_ONE, invR = 1.0f / (BREAK_HI - BREAK_LO);
   const uint32_t lift = (uint32_t)(BREAK_GAIN * 64 + 0.5f);
   for (int i = i0; i < i1; i++) {
@@ -219,18 +237,19 @@ static void helperTaskFn(void *) {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     if (!helperBusy) continue;
     const Job j = helperJob; const int mid = (j.i0 + j.i1) / 2;
-    renderRange(j.out, j.scene, j.t, j.p1, j.i0, mid);
+    renderRange(j.out, j.scene, j.t, j.p1, j.lv, j.i0, mid);
     vTaskDelay(1);
-    renderRange(j.out, j.scene, j.t, j.p1, mid, j.i1);
+    renderRange(j.out, j.scene, j.t, j.p1, j.lv, mid, j.i1);
     helperBusy = false; xTaskNotifyGive(outTask);
   }
 }
-static void renderScene(uint8_t *out, int scene, float t, float p1) {
-  if (!helperTask || helperBusy) { renderRange(out, scene, t, p1, 0, N); return; }
+static void renderScene(uint8_t *out, int slot, float t, float p1) {
+  const int scene = SHOW[slot].scene; const float lv = SHOW[slot].level;
+  if (!helperTask || helperBusy) { renderRange(out, scene, t, p1, lv, 0, N); return; }
   ulTaskNotifyTake(pdTRUE, 0);
-  helperJob = { hbuf, scene, t, p1, 0, sceneSplit }; helperBusy = true;
+  helperJob = { hbuf, scene, t, p1, lv, 0, sceneSplit }; helperBusy = true;
   const int64_t a = esp_timer_get_time(); xTaskNotifyGive(helperTask);
-  renderRange(out, scene, t, p1, sceneSplit, N);
+  renderRange(out, scene, t, p1, lv, sceneSplit, N);
   const int64_t b = esp_timer_get_time();
   if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(300)) == 0) { sceneSplit = N / 4; return; }
   const int64_t c = esp_timer_get_time();
@@ -263,7 +282,7 @@ static void outputTask(void *) {
   uint32_t lastMs = millis(), frameStart = 0, showStart = millis(), lastLog = 0, sceneMs = pickSceneMs();
   const uint32_t fadeMs = (uint32_t)FADE_SECONDS * 1000UL;
   const uint32_t k = (uint32_t)(MASTER_PCT * 2.55f * BRIGHTNESS_CAP * 256.0f / 255.0f);
-  int cur = 0;
+  int cur = (int)(esp_random() % N_SHOW);                                   // start on a random scene so every power-up shows both soon-ish
   for (int i = 0; i < N_SHOW; i++) wanderInit(i, lastMs);
   esp_task_wdt_add(NULL);
   Serial.printf("[show] scene %d (%s) for %.1f min\n", cur, sc::SCENES[SHOW[cur].scene].name, sceneMs / 60000.0f);
@@ -275,18 +294,18 @@ static void outputTask(void *) {
 
     const uint32_t el = now - showStart; const int nxt = (cur + 1) % N_SHOW;
     if (el < sceneMs) {
-      renderScene(out, SHOW[cur].scene, W[cur].ph, W[cur].p1);
+      renderScene(out, cur, W[cur].ph, W[cur].p1);
     } else if (el < sceneMs + fadeMs) {                                   // crossfade: render both, blend
       float f = (float)(el - sceneMs) / fadeMs; f = f * f * (3 - 2 * f);
-      renderScene(out,  SHOW[cur].scene, W[cur].ph, W[cur].p1);
-      renderScene(out2, SHOW[nxt].scene, W[nxt].ph, W[nxt].p1);
+      renderScene(out,  cur, W[cur].ph, W[cur].p1);
+      renderScene(out2, nxt, W[nxt].ph, W[nxt].p1);
       const uint32_t fb = (uint32_t)(f * 256), fa = 256 - fb;
       for (int i = 0; i < N * 4; i++) out[i] = (out[i] * fa + out2[i] * fb) >> 8;
     } else {                                                               // hand over
       wanderInit(cur, now);                                                // the scene that just left gets a fresh start for next time
       cur = nxt; showStart = now; sceneMs = pickSceneMs();
       Serial.printf("[show] scene %d (%s) for %.1f min · up %lu min\n", cur, sc::SCENES[SHOW[cur].scene].name, sceneMs / 60000.0f, now / 60000UL);
-      renderScene(out, SHOW[cur].scene, W[cur].ph, W[cur].p1);
+      renderScene(out, cur, W[cur].ph, W[cur].p1);
     }
 
     for (int i = 0; i < N; i++) {                                          // master × cap (ring gain, focus and breakthrough already applied before the palette)
@@ -323,7 +342,7 @@ void setup() {
   for (int k = 0; k < N_SHOW; k++) { SHOW[k].scene = 0; for (int i = 0; i < sc::N_SCENES; i++) if (!strcmp(sc::SCENES[i].name, SHOW[k].name)) SHOW[k].scene = i;
     Serial.printf("[show] slot %d: %s → scene %d%s · speed %.2f–%.2f · p1 %.2f–%.2f\n", k, SHOW[k].name, SHOW[k].scene, strcmp(sc::SCENES[SHOW[k].scene].name, SHOW[k].name) ? "  (NOT FOUND — using Solar surface)" : "", SHOW[k].spMin, SHOW[k].spMax, SHOW[k].p1Min, SHOW[k].p1Max); }
   intent = (sc::ib_t *)malloc(N * 4 * sizeof(sc::ib_t));
-  sc::buildLUTFrom(SUN_SAT); sc::buildCLUT(CONTRAST);                      // palette + contrast tables ready before either core renders
+  sc::buildLUTFrom(SUN_SAT); equalPower(); sc::buildCLUT(CONTRAST);                      // palette + contrast tables ready before either core renders
   { esp_task_wdt_config_t wd = {}; wd.timeout_ms = 12000; wd.idle_core_mask = 0; wd.trigger_panic = true; if (esp_task_wdt_reconfigure(&wd) != ESP_OK) esp_task_wdt_init(&wd); }
 
   xTaskCreatePinnedToCore(outputTask, "show", 16384, nullptr, 3, &outTask, 1);          // core 1: the show

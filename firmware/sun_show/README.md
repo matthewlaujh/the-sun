@@ -13,13 +13,15 @@ Standalone show firmware for the sun — **no web page, no Wi-Fi, no OTA** (USB 
 | Slot | Scene | Speed range | Param range |
 |---|---|---|---|
 | 0 | Solar surface | 0.50–1.60 | activity 0.30–0.85 — now with radial flare streaks that taper outward and a soft shoulder instead of a clamp |
-| 1 | Neon fluid | 0.40–1.40 | zoom 0.35–0.70 |
+| 1 | Neon fluid | 0.40–1.40 | zoom 0.35–0.70 · level ×3.6 (its raw energy is ~4× lower than Solar surface) |
 
 **Wander**: every 20–60 s each scene picks a new random speed and parameter inside its range and glides there (time constant 15 s). Speed is integrated into the scene's phase, so a speed change never jumps the picture. **Scene length**: random 5–10 min, then an 8 s crossfade (both scenes render during the fade). The scene that just left gets a fresh random start for next time.
 
 ## SETTINGS block (top of `src/main.cpp`)
 - `MASTER_PCT` (100), `POWER_CAP` (1.00) — full brightness, no power cap. Safe for this show: with the red/orange palette, the W ceiling and the dark rings the whole dome peaks around 220 W (host measurement over the preview clip; worst case with every pixel at the palette's top is ~150 W per wedge PSU, each a 500 W RSP-500). Put the cap back to 0.90 if you ever switch to a white-heavy palette or a flat curve.
 - `W_MAX` (90) — hard ceiling on the W channel so the white die never blows out on camera; R/G/B run to 255.
+- `EQUAL_POWER` (1), `POWER_PEAK` (1.20), `POWER_GAMMA` (1.3) — equal-power palette: each palette entry is rescaled so the total drive R+G+B+W follows `POWER_PEAK·e^POWER_GAMMA`, i.e. depends only on energy, never on hue. Yellows (R+G) and white-tinged hot spots are no brighter than reds at the same energy, and brightness still varies inside the hot core. Higher gamma = more contrast between warm and hot.
+- `SHOW[].level` — per-scene energy gain so the scenes sit at the same brightness (Neon fluid 3.6). The show starts on a random scene at power-up.
 - `SHOULDER` (1.3) — soft shoulder on scene energy after ring gain / focus / breakthrough and before the palette, `e' = 1 − exp(−SHOULDER·e)`. The ×2.00 core lands at 0.93 instead of clipping flat at 1, so a hot cluster shades red → orange → white instead of being one block. Bigger = brighter and flatter.
 - `TEST_MODE` (0) — set to 1 for bench testing: 30 s scenes, wander every 5–10 s eased over 3 s, exactly the preview page's timing, so a full cycle fits in a couple of minutes. Serial prints a `*** TEST MODE ***` line so you can't forget it. Back to 0 for the event.
 - `FOCUS_CORE_MM` (240) / `FOCUS_RIM` (0.30) — core focus: scene energy is scaled by a radial envelope before the palette, full inside 240 mm and easing to 0.30 at the rim, so the hot white-tinged activity lives in the diffused centre and the pixelated outer rings sit calmer and deeper red. `FOCUS_RIM 1.0` switches it off.
