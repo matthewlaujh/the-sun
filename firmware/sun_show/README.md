@@ -13,9 +13,9 @@ Standalone show firmware for the sun — **no web page, no Wi-Fi, no OTA** (USB 
 | Slot | Scene | Speed range | Param range |
 |---|---|---|---|
 | 0 | Solar surface | 0.50–1.60 | activity 0.30–0.85 — now with radial flare streaks that taper outward and a soft shoulder instead of a clamp |
-| 1 | Neon fluid | 0.40–1.40 | zoom 0.35–0.70 · level ×3.6 in the core easing to ×1.0 at the rim (edges stay dark) |
+| 1 | Neon fluid | shared (pace 0.25) | zoom 0.35–0.70 · level ×3.6 in the core easing to ×1.0 at the rim (edges stay dark) |
 
-**Wander**: every 5–10 s each scene picks a new random speed and parameter inside its range and glides there (time constant 3 s). Speed is integrated into the scene's phase, so a speed change never jumps the picture. **Scene length**: 30 s, then an 8 s crossfade (both scenes render during the fade). The scene that just left gets a fresh random start for next time.
+**Wander**: both scenes share one speed (slot 0's range), each with a `pace` that calibrates its clock so speed 1.0 looks equally fast everywhere (Neon fluid's pixels change ~4× faster than Solar surface's, so its pace is 0.25). Every 5–10 s a new random speed and parameter is picked inside the ranges and glides there (time constant 3 s). Speed is integrated into the scene's phase, so a speed change never jumps the picture. **Scene length**: 30 s, then an 8 s crossfade (both scenes render during the fade). The scene that just left gets a fresh random start for next time.
 
 ## SETTINGS block (top of `src/main.cpp`)
 - `MASTER_PCT` (100), `POWER_CAP` (1.00) — full brightness, no power cap. Safe for this show: with the red/orange palette, the W ceiling and the dark rings the whole dome peaks around 220 W (host measurement over the preview clip; worst case with every pixel at the palette's top is ~150 W per wedge PSU, each a 500 W RSP-500). Put the cap back to 0.90 if you ever switch to a white-heavy palette or a flat curve.

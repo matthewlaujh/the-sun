@@ -58,11 +58,13 @@
 #define WANDER_EASE_S     3.0f
 
 // The scenes, by name (see the table at the bottom of scenes.h), with their speed and parameter ranges
-struct Show { const char *name; float spMin, spMax, p1Min, p1Max, level, rimLevel; int scene; };
+struct Show { const char *name; float spMin, spMax, p1Min, p1Max, level, rimLevel, pace; int scene; };
+// All scenes share ONE wandering speed (slot 0's range); `pace` calibrates each scene's own clock so speed 1.0 looks equally fast in
+// every scene (measured: Neon fluid's pixels change ~4× faster than Solar surface's at the same speed, hence 0.25).
 // level = energy gain in the core (inside FOCUS_CORE_MM), easing to rimLevel at the rim — so a scene can be lifted in the middle without lighting up the edges
 static Show SHOW[] = {
-  { "Solar surface", 0.50f, 1.60f, 0.30f, 0.85f, 1.0f, 1.0f },   // p1 = activity
-  { "Neon fluid",    0.40f, 1.40f, 0.35f, 0.70f, 3.6f, 1.0f },   // p1 = zoom (0.5 = neutral) · raw energy ~4× lower (blue/pink shader): lifted ×3.6 in the core, edges left dark as before
+  { "Solar surface", 0.50f, 1.60f, 0.30f, 0.85f, 1.0f, 1.0f, 1.00f },   // p1 = activity
+  { "Neon fluid",    0.50f, 1.60f, 0.35f, 0.70f, 3.6f, 1.0f, 0.25f },   // p1 = zoom (0.5 = neutral) · raw energy ~4× lower (blue/pink shader): lifted ×3.6 in the core, edges left dark as before
 };
 static const int N_SHOW = sizeof(SHOW) / sizeof(SHOW[0]);
 
@@ -258,7 +260,10 @@ struct Wander { float ph, sp, p1, spT, p1T; uint32_t nextPick; };
 static Wander W[N_SHOW];
 static void wanderInit(int k, uint32_t now) {
   const Show &s = SHOW[k];
-  W[k].ph = frange(0, 1000); W[k].sp = W[k].spT = frange(s.spMin, s.spMax); W[k].p1 = W[k].p1T = frange(s.p1Min, s.p1Max);
+  static bool speedSet = false;
+  W[k].ph = frange(0, 1000); W[k].p1 = W[k].p1T = frange(s.p1Min, s.p1Max);
+  if (k == 0 && !speedSet) { W[0].sp = W[0].spT = frange(s.spMin, s.spMax); speedSet = true; }   // the shared speed is never reset mid-show
+  if (k > 0) { W[k].sp = W[0].sp; W[k].spT = W[0].spT; }
   W[k].nextPick = now + (uint32_t)frange(WANDER_MIN_S, WANDER_MAX_S) * 1000;
 }
 static void wanderStep(int k, uint32_t now, float dt) {
@@ -266,7 +271,8 @@ static void wanderStep(int k, uint32_t now, float dt) {
   if ((int32_t)(now - w.nextPick) >= 0) { w.spT = frange(s.spMin, s.spMax); w.p1T = frange(s.p1Min, s.p1Max); w.nextPick = now + (uint32_t)frange(WANDER_MIN_S, WANDER_MAX_S) * 1000; }
   const float a = dt / WANDER_EASE_S;                       // first-order glide toward the targets
   w.sp += (w.spT - w.sp) * a; w.p1 += (w.p1T - w.p1) * a;
-  w.ph += dt * w.sp;                                        // speed is integrated so a speed change never jumps the picture
+  if (k > 0) { w.sp = W[0].sp; w.spT = W[0].spT; }          // one shared speed: every scene follows slot 0's
+  w.ph += dt * w.sp * s.pace;                               // speed is integrated so a speed change never jumps the picture
 }
 static uint32_t pickSceneMs() { return (uint32_t)(frange(SCENE_MIN_SEC, SCENE_MAX_SEC) * 1000.0f); }
 
