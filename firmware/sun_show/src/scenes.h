@@ -89,7 +89,7 @@ static inline ib_t q16(float v) { return (ib_t)(clamp01(v) * IB_ONE + 0.5f); }
 
 // ---------------- palettes (verbatim from the simulator) — stops of [pos, r, g, b, w] ----------------
 struct Stop { float p, r, g, b, w; };
-struct Palette { const char *name; uint8_t n; Stop s[6]; };
+struct Palette { const char *name; uint8_t n; Stop s[8]; };
 static const Palette PALETTES[] = {
   {"Sun",         6, {{0,0,0,0,0},{0.2f,0.55f,0.04f,0,0},{0.4f,1,0.22f,0,0},{0.6f,1,0.45f,0.02f,0.12f},{0.8f,1,0.62f,0.10f,0.45f},{1,1,0.78f,0.30f,1}}},
   {"Ember",       4, {{0,0,0,0,0},{0.35f,0.45f,0.02f,0,0},{0.7f,1,0.18f,0,0},{1,1,0.5f,0.05f,0.25f}}},
@@ -164,11 +164,17 @@ static inline void E(ib_t *o, int i, float v) { set(o, i, v, v * 0.6f, v * 0.2f,
 static void p_solar(ib_t *o, const Ctx &c, int i0, int i1) {                        // Solar surface · p1 = Activity (0.55)
   const float t = c.t * c.speed * 0.25f, act = c.p1;
   for (int i = i0; i < i1; i++) {
-    float rr = R(i) / RIM, limb = sqrtf(maxf(0, 1 - rr * rr * 0.92f));
+    const float r = R(i), rr = r / RIM, limb = sqrtf(maxf(0, 1 - rr * rr * 0.92f));
+    const float ux = r > 1 ? X(i) / r : 1.0f, uy = r > 1 ? Y(i) / r : 0.0f;              // unit direction from the centre
     float n1 = vnoise(X(i) / 110 + t, Y(i) / 110 - t * 0.6f, t * 0.7f);
     float n2 = vnoise(X(i) / 38 - t * 1.7f, Y(i) / 38 + t, 7 + t * 1.3f);
     float flare = p6(vnoise(X(i) / 260 + 30, Y(i) / 260 + 30, t * 0.45f)) * 4 * act;
-    float v = clamp01(limb * (0.35f + 0.65f * (0.55f * n1 + 0.45f * n2 - 0.15f + act * 0.25f)) + flare);
+    // Flares: noise sampled on a circle whose size grows with radius, so streaks get finer the further out they reach (they taper),
+    // amplitude falls with radius, and the z drift makes them run outward from the core.
+    const float A = 2.2f + 3.5f * rr;
+    float streak = p6(vnoise(ux * A + 50, uy * A + 50, rr * 2.5f - t * 1.1f)) * (2.2f * act) * (1.0f - 0.55f * rr);
+    float raw = limb * (0.22f + 0.78f * (0.55f * n1 + 0.45f * n2 - 0.15f + act * 0.25f)) + flare + streak;   // lower floor → real gaps between clusters
+    float v = 1.0f - expf(-1.5f * maxf(0, raw));                                          // soft shoulder — brighter keeps getting brighter, no plateau
     float heat = clamp01(v * 1.3f - 0.25f);
     set(o, i, v, v * (0.28f + 0.5f * heat), v * 0.08f * heat, heat * heat * 0.9f);
   }

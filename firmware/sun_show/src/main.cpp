@@ -2,19 +2,18 @@
 // No web page. It boots and plays: the scenes in SHOW[] take turns, each for a random SCENE_MIN..MAX minutes, with a FADE_SECONDS
 // crossfade, all coloured through one saturated red/orange "sun" palette. Each scene's speed and main parameter wander smoothly
 // between the limits in SHOW[] (new target every WANDER_MIN..MAX s, eased over WANDER_EASE_S), so it never looks the same twice.
-// Core focus pulls the scene energy into the diffused centre (FOCUS_*); bright features break through the dark rings (BREAK_*); dome shading = the fixed per-ring brightness curve SHADE[]
-// (centre full → taper → hot/dark alternating rings); W is capped at W_MAX. TEST_MODE 1 compresses all timing for bench testing.
-// OTA stays: the board hosts Wi-Fi "SUN-DISC" purely for `pio run -e ota -t upload` (ArduinoOTA, 192.168.4.1:3232).
-// Everything you might want to touch is in the SETTINGS block.
+// Per pixel, before the palette: scene energy × ring gain SHADE[] × core focus (FOCUS_*), with bright features breaking through both
+// (BREAK_*), then a soft shoulder (SHOULDER) so nothing clips flat — the palette then turns that into colour, and W is capped at W_MAX.
+// TEST_MODE 1 compresses all timing for bench testing.
+// No Wi-Fi, no OTA: the radio is off, uploads are over USB only. Everything you might want to touch is in the SETTINGS block.
 //
-// Flash over USB:  pio run -e usb -t upload && pio device monitor       OTA: pio run -e ota -t upload (laptop joined to SUN-DISC)
+// Flash over USB:  pio run -t upload && pio device monitor
 
 #include <Arduino.h>
 #include <esp_arduino_version.h>
 #include <ETH.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
-#include <ArduinoOTA.h>
 #include <Preferences.h>
 #include <esp_task_wdt.h>
 #include <esp_random.h>
@@ -27,6 +26,10 @@
 #define POWER_CAP         1.00f    // extra multiplier on everything sent. 1.00 is safe for THIS show: red/orange palette + W_MAX + the dark rings keep
                                    // each wedge PSU well under its 500 W even if every pixel hit the palette's top (see README); the old rig test used 0.90
 #define W_MAX             140      // hard ceiling on the W channel (0–255) so the white die never blows out — R/G/B are free to go to 255
+#define SHOULDER          1.3f     // soft shoulder on scene energy AFTER ring gain / focus / breakthrough and BEFORE the palette:
+                                   // e' = 1 − exp(−SHOULDER·e). Energy ×2.00 in the core lands at 0.93 instead of clipping at 1, so a
+                                   // hot cluster still shades from red through orange into white instead of one flat block.
+                                   // (gain 2 → 0.93 · gain 1 → 0.73 · gain 0.5 → 0.48 · gain 0.06 → 0.08). Bigger = brighter, flatter.
 #define SCENE_MIN_MINUTES 5        // each scene plays for a random length between these two…
 #define SCENE_MAX_MINUTES 10
 #define FADE_SECONDS      8        // …then crossfades to the next
@@ -75,14 +78,15 @@ static Show SHOW[] = {
 static const int N_SHOW = sizeof(SHOW) / sizeof(SHOW[0]);
 
 // One palette for both: deep red → red → red-orange → orange; R is at 255 from mid-energy up, W joins only at the very top (then W_MAX)
-static const sc::Palette SUN_SAT = {"Sun saturated", 6, {
+static const sc::Palette SUN_SAT = {"Sun saturated", 7, {
   {0.00f, 0.00f, 0.00f, 0.00f, 0.00f},
-  {0.25f, 0.55f, 0.00f, 0.00f, 0.00f},
-  {0.50f, 1.00f, 0.08f, 0.00f, 0.00f},
-  {0.70f, 1.00f, 0.22f, 0.00f, 0.00f},
-  {0.88f, 1.00f, 0.40f, 0.00f, 0.22f},
-  {1.00f, 1.00f, 0.55f, 0.03f, 0.50f}}};     // W climbs only on the hottest energy and is capped by W_MAX on the way out
-#define CONTRAST          1.10f    // >1 darkens the mid-tones, keeps the hot spots hot
+  {0.20f, 0.30f, 0.00f, 0.00f, 0.00f},
+  {0.42f, 0.60f, 0.01f, 0.00f, 0.00f},
+  {0.62f, 0.85f, 0.07f, 0.00f, 0.00f},
+  {0.78f, 0.97f, 0.17f, 0.00f, 0.06f},
+  {0.90f, 1.00f, 0.32f, 0.01f, 0.20f},
+  {1.00f, 1.00f, 0.52f, 0.03f, 0.45f}}};     // brightness keeps climbing to the very top (R only saturates near 0.9) so clusters shade instead of blocking
+#define CONTRAST          0.95f    // <1 lifts the mid-tones a little → longer, softer tails on flares; >1 isolates the hot spots
 #define WARMTH           -0.25f    // negative = redder (trims G/B/W), positive = whiter
 
 // Dome shading — brightness per pixel ring, ×100 (29 rings at 30 mm pitch, ring 0 = centre, ring 28 = rim). 100 = full, up to 200.
@@ -99,10 +103,6 @@ static const uint8_t SHADE[29] = {
 #define PIXLITE_IP        "10.10.0.50"
 #define ARTNET_UNI0       1        // Art-Net universe of the plan's universe 1
 
-static const char *AP_SSID  = "SUN-DISC";          // OTA only — nothing is served on it
-static const char *AP_PASS  = "sunshine26";
-static const uint8_t AP_CHANNEL = 6;
-static const char *OTA_PASS = "sunshine26-ota";    // must match upload_flags --auth in platformio.ini
 // ==================================================================================================================================
 
 #define N               SUN_N
@@ -117,11 +117,12 @@ static const char *OTA_PASS = "sunshine26-ota";    // must match upload_flags --
 #define ETH_MDIO_PIN_   18
 #define ETH_CLK_MODE_   ETH_CLOCK_GPIO17_OUT
 
-static volatile bool ethLink = false, otaActive = false;
+static volatile bool ethLink = false;
 static uint32_t pktErr = 0, framesSent = 0;
 static uint8_t  shadeRing[RINGS], shadeGain[N];
 static uint16_t focus[N];                                                 // radial energy envelope ×256
-static uint8_t  brkA[N], brkB[N], brkH[N];                                // per-pixel breakthrough amount 0–255 (current scene, next scene, helper)
+static uint8_t  brkA[N], brkB[N], brkH[N];
+static uint16_t *shoulderLUT = nullptr;                                   // soft shoulder on energy: index = (channel × gain) >> 5, 4096 entries                                // per-pixel breakthrough amount 0–255 (current scene, next scene, helper)
 static sc::ib_t *intent = nullptr;
 static IPAddress pixlite;
 static TaskHandle_t outTask = nullptr, helperTask = nullptr;
@@ -139,6 +140,10 @@ static void buildTables() {
 }
 static void buildShade() {
   for (int i = 0; i < N; i++) { int ring = (sc::gR10[i] + 150) / 300; if (ring >= RINGS) ring = RINGS - 1; shadeGain[i] = (uint8_t)((shadeRing[ring] * 64 + 50) / 100); }
+}
+static void buildShoulder() {
+  shoulderLUT = (uint16_t *)malloc(4096 * sizeof(uint16_t));
+  for (int i = 0; i < 4096; i++) { float x = (i << 5) / 65535.0f; shoulderLUT[i] = (uint16_t)((1.0f - expf(-SHOULDER * x)) * 65535.0f + 0.5f); }
 }
 static void buildFocus() {
   const float rim = 8400.0f, core = FOCUS_CORE_MM * 10.0f;
@@ -158,8 +163,6 @@ static void onNetEvent(arduino_event_id_t ev) {
     case ARDUINO_EVENT_ETH_CONNECTED:    ethLink = true;  Serial.println("[eth] link up"); break;
     case ARDUINO_EVENT_ETH_DISCONNECTED: ethLink = false; Serial.println("[eth] link down"); break;
     case ARDUINO_EVENT_ETH_STOP:         ethLink = false; break;
-    case ARDUINO_EVENT_WIFI_AP_STACONNECTED:    Serial.println("[wifi] laptop joined SUN-DISC"); break;
-    case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED: Serial.println("[wifi] laptop left SUN-DISC"); break;
     default: break;
   }
 }
@@ -181,14 +184,15 @@ static bool sendArtDmx(uint16_t universe, const uint8_t *data, uint16_t len) {
 }
 
 // ---------------- two-core scene rendering (helper on core 0, below Wi-Fi/OTA in priority) ----------------
-struct Job { uint8_t *out, *brk; int scene; float t, p1; int i0, i1; };
+struct Job { uint8_t *out; int scene; float t, p1; int i0, i1; };
 static Job helperJob;
 static volatile bool helperBusy = false; static int sceneSplit = N / 2; static uint8_t hbuf[N * 4];
 static const float TINT[3] = {1.0f, 0.45f, 0.08f};
-static void renderRange(uint8_t *out, uint8_t *brk, int scene, float t, float p1, int i0, int i1) {
+static void renderRange(uint8_t *out, int scene, float t, float p1, int i0, int i1) {
   sc::Ctx c; c.t = t; c.speed = 1.0f; c.p1 = p1; c.tint[0] = TINT[0]; c.tint[1] = TINT[1]; c.tint[2] = TINT[2];   // speed is integrated into t
   sc::SCENES[scene].fn(intent, c, i0, i1);
   const float inv = 1.0f / IB_ONE, invR = 1.0f / (BREAK_HI - BREAK_LO);
+  const uint32_t lift = (uint32_t)(BREAK_GAIN * 64 + 0.5f);
   for (int i = i0; i < i1; i++) {
     sc::ib_t *k = intent + 4 * i;
     uint32_t kb = 0;
@@ -196,9 +200,15 @@ static void renderRange(uint8_t *out, uint8_t *brk, int scene, float t, float p1
     float e = (0.3f * k[0] + 0.5f * k[1] + 0.2f * k[2] + 0.9f * k[3]) * inv;        // the scene's own energy, same weights as sunify
     float u = (e - BREAK_LO) * invR; u = u < 0 ? 0 : u > 1 ? 1 : u; kb = (uint32_t)(u * u * (3 - 2 * u) * 255.0f + 0.5f);
 #endif
-    brk[i] = (uint8_t)kb;
-    const uint32_t f = focus[i] + (((256 - focus[i]) * kb) >> 8);                       // core focus, bypassed where the feature breaks through
-    k[0] = (k[0] * f) >> 8; k[1] = (k[1] * f) >> 8; k[2] = (k[2] * f) >> 8; k[3] = (k[3] * f) >> 8;
+    uint32_t g = shadeGain[i]; if (lift > g) g += ((lift - g) * kb) >> 8;             // ring gain ×64, lifted where the feature breaks through
+    const uint32_t f = focus[i] + (((256 - focus[i]) * kb) >> 8);                       // core focus ×256, bypassed the same way
+    const uint32_t m = (g * f) >> 3;                                                    // combined multiplier ×2048
+    // channel × m >> 11 would be the scaled energy (0..~2×65535); >> 5 more indexes the 4096-entry shoulder table
+    uint32_t v;
+    v = (k[0] * m) >> 16; k[0] = shoulderLUT[v > 4095 ? 4095 : v];
+    v = (k[1] * m) >> 16; k[1] = shoulderLUT[v > 4095 ? 4095 : v];
+    v = (k[2] * m) >> 16; k[2] = shoulderLUT[v > 4095 ? 4095 : v];
+    v = (k[3] * m) >> 16; k[3] = shoulderLUT[v > 4095 ? 4095 : v];
   }
   sc::sunifyWith(intent, SUN_SAT, CONTRAST, WARMTH, i0, i1);
   for (int k = i0 * 4; k < i1 * 4; k++) out[k] = (uint8_t)(intent[k] >> 8);
@@ -208,22 +218,22 @@ static void helperTaskFn(void *) {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     if (!helperBusy) continue;
     const Job j = helperJob; const int mid = (j.i0 + j.i1) / 2;
-    renderRange(j.out, j.brk, j.scene, j.t, j.p1, j.i0, mid);
+    renderRange(j.out, j.scene, j.t, j.p1, j.i0, mid);
     vTaskDelay(1);
-    renderRange(j.out, j.brk, j.scene, j.t, j.p1, mid, j.i1);
+    renderRange(j.out, j.scene, j.t, j.p1, mid, j.i1);
     helperBusy = false; xTaskNotifyGive(outTask);
   }
 }
-static void renderScene(uint8_t *out, uint8_t *brk, int scene, float t, float p1) {
-  if (!helperTask || helperBusy) { renderRange(out, brk, scene, t, p1, 0, N); return; }
+static void renderScene(uint8_t *out, int scene, float t, float p1) {
+  if (!helperTask || helperBusy) { renderRange(out, scene, t, p1, 0, N); return; }
   ulTaskNotifyTake(pdTRUE, 0);
-  helperJob = { hbuf, brkH, scene, t, p1, 0, sceneSplit }; helperBusy = true;
+  helperJob = { hbuf, scene, t, p1, 0, sceneSplit }; helperBusy = true;
   const int64_t a = esp_timer_get_time(); xTaskNotifyGive(helperTask);
-  renderRange(out, brk, scene, t, p1, sceneSplit, N);
+  renderRange(out, scene, t, p1, sceneSplit, N);
   const int64_t b = esp_timer_get_time();
   if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(300)) == 0) { sceneSplit = N / 4; return; }
   const int64_t c = esp_timer_get_time();
-  memcpy(out, hbuf, sceneSplit * 4); memcpy(brk, brkH, sceneSplit);
+  memcpy(out, hbuf, sceneSplit * 4);
   const int64_t mine = b - a, waited = c - b;
   if (waited > 1500) sceneSplit -= 40; else if (waited < 300 && mine > 2000) sceneSplit += 40;
   if (sceneSplit < N / 8) sceneSplit = N / 8; if (sceneSplit > N * 3 / 5) sceneSplit = N * 3 / 5;
@@ -264,27 +274,23 @@ static void outputTask(void *) {
 
     const uint32_t el = now - showStart; const int nxt = (cur + 1) % N_SHOW;
     if (el < sceneMs) {
-      renderScene(out, brkA, SHOW[cur].scene, W[cur].ph, W[cur].p1);
+      renderScene(out, SHOW[cur].scene, W[cur].ph, W[cur].p1);
     } else if (el < sceneMs + fadeMs) {                                   // crossfade: render both, blend
       float f = (float)(el - sceneMs) / fadeMs; f = f * f * (3 - 2 * f);
-      renderScene(out,  brkA, SHOW[cur].scene, W[cur].ph, W[cur].p1);
-      renderScene(out2, brkB, SHOW[nxt].scene, W[nxt].ph, W[nxt].p1);
+      renderScene(out,  SHOW[cur].scene, W[cur].ph, W[cur].p1);
+      renderScene(out2, SHOW[nxt].scene, W[nxt].ph, W[nxt].p1);
       const uint32_t fb = (uint32_t)(f * 256), fa = 256 - fb;
       for (int i = 0; i < N * 4; i++) out[i] = (out[i] * fa + out2[i] * fb) >> 8;
-      for (int i = 0; i < N; i++) brkA[i] = (brkA[i] * fa + brkB[i] * fb) >> 8;
     } else {                                                               // hand over
       wanderInit(cur, now);                                                // the scene that just left gets a fresh start for next time
       cur = nxt; showStart = now; sceneMs = pickSceneMs();
       Serial.printf("[show] scene %d (%s) for %.1f min · up %lu min\n", cur, sc::SCENES[SHOW[cur].scene].name, sceneMs / 60000.0f, now / 60000UL);
-      renderScene(out, brkA, SHOW[cur].scene, W[cur].ph, W[cur].p1);
+      renderScene(out, SHOW[cur].scene, W[cur].ph, W[cur].p1);
     }
 
-    const uint32_t lift = (uint32_t)(BREAK_GAIN * 64 + 0.5f);
-    for (int i = 0; i < N; i++) {                                          // ring gain (lifted where a feature breaks through) × master × cap
-      uint8_t *o = out + i * 4; uint32_t g = shadeGain[i];
-      if (BREAKTHROUGH && lift > g) g += ((lift - g) * brkA[i]) >> 8;
-      const uint32_t kk = (k * g) >> 6;
-      uint32_t v0 = (o[0] * kk) >> 8, v1 = (o[1] * kk) >> 8, v2 = (o[2] * kk) >> 8, v3 = (o[3] * kk) >> 8;
+    for (int i = 0; i < N; i++) {                                          // master × cap (ring gain, focus and breakthrough already applied before the palette)
+      uint8_t *o = out + i * 4;
+      uint32_t v0 = (o[0] * k) >> 8, v1 = (o[1] * k) >> 8, v2 = (o[2] * k) >> 8, v3 = (o[3] * k) >> 8;
       o[0] = v0 > 255 ? 255 : v0; o[1] = v1 > 255 ? 255 : v1; o[2] = v2 > 255 ? 255 : v2; o[3] = v3 > W_MAX ? W_MAX : v3;   // W ceiling
     }
     if (ethLink) { bool ok = true; for (int u = 0; u < nUni; u++) ok &= sendArtDmx(ARTNET_UNI0 - 1 + unis[u].num, out + unis[u].first * 4, unis[u].cnt * 4); if (++artSeq == 0) artSeq = 1; if (!ok) pktErr++; }
@@ -294,39 +300,12 @@ static void outputTask(void *) {
   }
 }
 
-// ---------------- OTA + housekeeping (core 0) ----------------
-static void otaSetup() {
-  ArduinoOTA.setPort(3232); ArduinoOTA.setHostname("sun"); ArduinoOTA.setPassword(OTA_PASS); ArduinoOTA.setMdnsEnabled(false);
-  ArduinoOTA.onStart([] { otaActive = true; Serial.println("[ota] start — output paused");
-    if (outTask) { esp_task_wdt_delete(outTask); vTaskSuspend(outTask); } esp_task_wdt_delete(NULL); });   // no watchdog during the upload
-  ArduinoOTA.onEnd([] { Serial.println("[ota] done → reboot"); });
-  ArduinoOTA.onError([](ota_error_t e) { Serial.printf("[ota] error %u — resuming the show\n", (unsigned)e); otaActive = false;
-    esp_task_wdt_add(NULL); if (outTask) { vTaskResume(outTask); esp_task_wdt_add(outTask); } });
-  ArduinoOTA.begin();
-}
-static void houseTask(void *) {
-  uint32_t apDeadSince = 0;
-  esp_task_wdt_add(NULL);
-  for (;;) {
-    esp_task_wdt_reset();
-    ArduinoOTA.handle();                                                   // blocks for the duration of an upload (watchdog unsubscribed in onStart)
-    const uint32_t now = millis();
-    const bool apUp = (WiFi.getMode() & WIFI_MODE_AP) && WiFi.softAPIP() == IPAddress(192, 168, 4, 1);   // the AP is the only way in once mounted
-    if (!apUp) { if (!apDeadSince) apDeadSince = now; else if (now - apDeadSince > 15000) { Serial.println("[wifi] access point gone for 15 s → reboot"); delay(50); ESP.restart(); } }
-    else apDeadSince = 0;
-    vTaskDelay(pdMS_TO_TICKS(50));
-  }
-}
-
 void setup() {
   Serial.begin(115200);
   pinMode(STATUS_LED, OUTPUT);
   Serial.printf("\n[sun] show · build " __DATE__ " " __TIME__ " · reset reason %d\n", (int)esp_reset_reason());
   WiFi.onEvent(onNetEvent);
-  WiFi.mode(WIFI_AP);                                                      // OTA only
-  WiFi.softAP(AP_SSID, AP_PASS, AP_CHANNEL, 0, 2);
-  WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
-  WiFi.setSleep(false);
+  WiFi.mode(WIFI_OFF);                                                     // no radio — USB uploads only
 #if ESP_ARDUINO_VERSION_MAJOR >= 3
   ETH.begin(ETH_PHY_LAN8720, ETH_PHY_ADDR_, ETH_MDC_PIN_, ETH_MDIO_PIN_, ETH_POWER_PIN_, ETH_CLK_MODE_);
 #else
@@ -335,9 +314,8 @@ void setup() {
   IPAddress ip; ip.fromString(ETH_IP); ETH.config(ip, IPAddress(0, 0, 0, 0), IPAddress(255, 255, 255, 0));
   pixlite.fromString(PIXLITE_IP);
   udp.begin(6454);
-  otaSetup();
 
-  sc::buildGeom(); buildTables(); loadShade(); buildShade(); buildFocus();
+  sc::buildGeom(); buildTables(); loadShade(); buildShade(); buildFocus(); buildShoulder();
 #if TEST_MODE
   Serial.println("[sun] *** TEST MODE — compressed timing (30 s scenes, fast wander). Set TEST_MODE 0 for the event. ***");
 #endif
@@ -348,9 +326,8 @@ void setup() {
   { esp_task_wdt_config_t wd = {}; wd.timeout_ms = 12000; wd.idle_core_mask = 0; wd.trigger_panic = true; if (esp_task_wdt_reconfigure(&wd) != ESP_OK) esp_task_wdt_init(&wd); }
 
   xTaskCreatePinnedToCore(outputTask, "show", 16384, nullptr, 3, &outTask, 1);          // core 1: the show
-  xTaskCreatePinnedToCore(houseTask, "house", 6144, nullptr, 2, nullptr, 0);             // core 0: OTA, AP watchdog
   xTaskCreatePinnedToCore(helperTaskFn, "show0", 12288, nullptr, 1, &helperTask, 0);     // core 0: render helper, lowest priority
-  Serial.printf("[sun] %u px · %d universes · master %d %% · cap %.2f · W ≤ %d · focus %d mm→%.2f · breakthrough %s %.2f–%.2f→%.2f · %d–%d s per scene · %d s fade · eth %s → %s · AP \"%s\"/\"%s\" OTA :3232 · free heap %u\n",
-                (unsigned)N, nUni, MASTER_PCT, (double)POWER_CAP, W_MAX, FOCUS_CORE_MM, (double)FOCUS_RIM, BREAKTHROUGH ? "on" : "off", (double)BREAK_LO, (double)BREAK_HI, (double)BREAK_GAIN, SCENE_MIN_SEC, SCENE_MAX_SEC, FADE_SECONDS, ETH_IP, PIXLITE_IP, AP_SSID, AP_PASS, (unsigned)ESP.getFreeHeap());
+  Serial.printf("[sun] %u px · %d universes · master %d %% · cap %.2f · W ≤ %d · focus %d mm→%.2f · breakthrough %s %.2f–%.2f→%.2f · %d–%d s per scene · %d s fade · eth %s → %s · free heap %u\n",
+                (unsigned)N, nUni, MASTER_PCT, (double)POWER_CAP, W_MAX, FOCUS_CORE_MM, (double)FOCUS_RIM, BREAKTHROUGH ? "on" : "off", (double)BREAK_LO, (double)BREAK_HI, (double)BREAK_GAIN, SCENE_MIN_SEC, SCENE_MAX_SEC, FADE_SECONDS, ETH_IP, PIXLITE_IP, (unsigned)ESP.getFreeHeap());
 }
 void loop() { vTaskDelay(pdMS_TO_TICKS(1000)); }
