@@ -25,7 +25,7 @@
 #define MASTER_PCT        100      // overall brightness 0–100
 #define POWER_CAP         1.00f    // extra multiplier on everything sent. 1.00 is safe for THIS show: red/orange palette + W_MAX + the dark rings keep
                                    // each wedge PSU well under its 500 W even if every pixel hit the palette's top (see README); the old rig test used 0.90
-#define W_MAX             140      // hard ceiling on the W channel (0–255) so the white die never blows out — R/G/B are free to go to 255
+#define W_MAX             90       // hard ceiling on the W channel (0–255) so the white die never blows out — R/G/B are free to go to 255
 #define SHOULDER          1.3f     // soft shoulder on scene energy AFTER ring gain / focus / breakthrough and BEFORE the palette:
                                    // e' = 1 − exp(−SHOULDER·e). Energy ×2.00 in the core lands at 0.93 instead of clipping at 1, so a
                                    // hot cluster still shades from red through orange into white instead of one flat block.
@@ -80,14 +80,15 @@ static const int N_SHOW = sizeof(SHOW) / sizeof(SHOW[0]);
 // One palette for both: deep red → red → red-orange → orange; R is at 255 from mid-energy up, W joins only at the very top (then W_MAX)
 static const sc::Palette SUN_SAT = {"Sun saturated", 7, {
   {0.00f, 0.00f, 0.00f, 0.00f, 0.00f},
-  {0.20f, 0.30f, 0.00f, 0.00f, 0.00f},
-  {0.42f, 0.60f, 0.01f, 0.00f, 0.00f},
-  {0.62f, 0.85f, 0.07f, 0.00f, 0.00f},
-  {0.78f, 0.97f, 0.17f, 0.00f, 0.06f},
-  {0.90f, 1.00f, 0.32f, 0.01f, 0.20f},
-  {1.00f, 1.00f, 0.52f, 0.03f, 0.45f}}};     // brightness keeps climbing to the very top (R only saturates near 0.9) so clusters shade instead of blocking
+  {0.20f, 0.30f, 0.02f, 0.00f, 0.00f},
+  {0.42f, 0.60f, 0.08f, 0.00f, 0.00f},
+  {0.62f, 0.85f, 0.20f, 0.00f, 0.00f},
+  {0.78f, 0.97f, 0.36f, 0.00f, 0.03f},
+  {0.90f, 1.00f, 0.52f, 0.01f, 0.10f},
+  {1.00f, 1.00f, 0.70f, 0.04f, 0.22f}}};     // red → orange → amber → yellow: the hot end is carried by G, with only a little W, so it
+                                              // stays coloured on camera instead of blowing out to a cold white
 #define CONTRAST          0.95f    // <1 lifts the mid-tones a little → longer, softer tails on flares; >1 isolates the hot spots
-#define WARMTH           -0.25f    // negative = redder (trims G/B/W), positive = whiter
+#define WARMTH           -0.10f    // negative = redder (trims G/B/W), positive = whiter
 
 // Dome shading — brightness per pixel ring, ×100 (29 rings at 30 mm pitch, ring 0 = centre, ring 28 = rim). 100 = full, up to 200.
 // Your tuned curve from the rig-test page (the one in the video): the whole diffused core (rings 0–16, 0–480 mm, boards A + inner B) at
