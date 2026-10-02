@@ -17,6 +17,7 @@
 #include <Preferences.h>
 #include <esp_task_wdt.h>
 #include <esp_random.h>
+#include <esp_heap_caps.h>
 #include "sun_map.h"
 #pragma GCC optimize("O2", "fast-math")
 #include "scenes.h"
@@ -70,11 +71,12 @@
 // The scenes, by name (see the table at the bottom of scenes.h), with their speed and parameter ranges
 struct Show { const char *name; float spMin, spMax, p1Min, p1Max, level, rimLevel, pace; int scene; };
 // All scenes share ONE wandering speed (slot 0's range); `pace` calibrates each scene's own clock so speed 1.0 looks equally fast in
-// every scene (measured: Neon fluid's pixels change ~4× faster than Solar surface's at the same speed, hence 0.25).
+// every scene (measured relative to each scene's own contrast, large-scale motion: Neon fluid moves ~2.2× faster than Solar surface
+// at the same speed, hence 0.45).
 // level = energy gain in the core (inside FOCUS_CORE_MM), easing to rimLevel at the rim — so a scene can be lifted in the middle without lighting up the edges
 static Show SHOW[] = {
   { "Solar surface", 0.50f, 1.60f, 0.30f, 0.85f, 1.0f, 1.0f, 1.00f },   // p1 = activity
-  { "Neon fluid",    0.50f, 1.60f, 0.35f, 0.70f, 3.6f, 1.0f, 0.25f },   // p1 = zoom (0.5 = neutral) · raw energy ~4× lower (blue/pink shader): lifted ×3.6 in the core, edges left dark as before
+  { "Neon fluid",    0.50f, 1.60f, 0.35f, 0.70f, 3.6f, 1.0f, 0.45f },   // p1 = zoom (0.5 = neutral) · raw energy ~4× lower (blue/pink shader): lifted ×3.6 in the core, edges left dark as before
 };
 static const int N_SHOW = sizeof(SHOW) / sizeof(SHOW[0]);
 
@@ -251,24 +253,10 @@ static void helperTaskFn(void *) {
   }
 }
 // ---------------- relief (W-die 3D shading) ----------------
-#define NB 6
+#include "relief_nb.h"                                                       // neighbour table, generated offline, lives in flash
+#define NB RELIEF_NB
 static uint8_t  ebA[N], ebB[N], ebH[N], hgt[N];                           // scene energy (current, next, helper) and smoothed height
-static uint16_t *nbr = nullptr; static int8_t *ncx = nullptr, *ncy = nullptr;   // 6 nearest neighbours + gradient weights ×128 (per 30 mm pitch)
-static void buildNeighbours() {
-  nbr = (uint16_t *)malloc(N * NB * 2); ncx = (int8_t *)malloc(N * NB); ncy = (int8_t *)malloc(N * NB);
-  for (int i = 0; i < N; i++) {
-    int best[NB]; float bd[NB]; for (int k = 0; k < NB; k++) { best[k] = i; bd[k] = 1e30f; }
-    const float xi = sc::gX10[i], yi = sc::gY10[i];
-    for (int j = 0; j < N; j++) { if (j == i) continue; float dx = sc::gX10[j] - xi, dy = sc::gY10[j] - yi, d = dx * dx + dy * dy;
-      if (d >= bd[NB - 1]) continue; int k = NB - 1; while (k > 0 && bd[k - 1] > d) { bd[k] = bd[k - 1]; best[k] = best[k - 1]; k--; } bd[k] = d; best[k] = j; }
-    float a = 0, b = 0, c = 0;                                              // least-squares gradient: (Σ d dᵀ)⁻¹ Σ d Δh
-    for (int k = 0; k < NB; k++) { float dx = (sc::gX10[best[k]] - xi) / 300.0f, dy = (sc::gY10[best[k]] - yi) / 300.0f; a += dx * dx; b += dx * dy; c += dy * dy; }
-    float det = a * c - b * b; if (det < 1e-6f) det = 1e-6f; const float ia = c / det, ib = -b / det, ic = a / det;
-    for (int k = 0; k < NB; k++) { float dx = (sc::gX10[best[k]] - xi) / 300.0f, dy = (sc::gY10[best[k]] - yi) / 300.0f;
-      float wx = (ia * dx + ib * dy) * 128.0f, wy = (ib * dx + ic * dy) * 128.0f;
-      nbr[i * NB + k] = best[k]; ncx[i * NB + k] = (int8_t)(wx > 127 ? 127 : wx < -127 ? -127 : wx); ncy[i * NB + k] = (int8_t)(wy > 127 ? 127 : wy < -127 ? -127 : wy); }
-  }
-}
+static const uint16_t *nbr = RELIEF_NBR; static const int8_t *ncx = RELIEF_CX, *ncy = RELIEF_CY;
 static void applyRelief(uint8_t *out, const uint8_t *e, uint32_t now) {
   for (int i = 0; i < N; i++) { uint32_t s = 2u * e[i]; const uint16_t *nb = nbr + i * NB; for (int k = 0; k < NB; k++) s += e[nb[k]]; hgt[i] = s >> 3; }   // light smoothing
   float ang = RELIEF_LIGHT_DEG * 0.0174533f; if (RELIEF_LIGHT_SEC > 0) ang += 6.2831853f * (float)(now % (RELIEF_LIGHT_SEC * 1000UL)) / (RELIEF_LIGHT_SEC * 1000.0f);
@@ -386,13 +374,12 @@ void setup() {
   udp.begin(6454);
 
   sc::buildGeom(); buildTables(); loadShade(); buildShade(); buildFocus(); buildShoulder();
-#if RELIEF
-  { uint32_t t0 = millis(); buildNeighbours(); Serial.printf("[relief] neighbour table built in %lu ms\n", millis() - t0); }
-#endif
+  Serial.printf("[sun] tables built · free heap %u · largest block %u\n", (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
   for (int k = 0; k < N_SHOW; k++) { SHOW[k].scene = 0; for (int i = 0; i < sc::N_SCENES; i++) if (!strcmp(sc::SCENES[i].name, SHOW[k].name)) SHOW[k].scene = i;
     Serial.printf("[show] slot %d: %s → scene %d%s · speed %.2f–%.2f · p1 %.2f–%.2f\n", k, SHOW[k].name, SHOW[k].scene, strcmp(sc::SCENES[SHOW[k].scene].name, SHOW[k].name) ? "  (NOT FOUND — using Solar surface)" : "", SHOW[k].spMin, SHOW[k].spMax, SHOW[k].p1Min, SHOW[k].p1Max); }
   intent = (sc::ib_t *)malloc(N * 4 * sizeof(sc::ib_t));
   sc::buildLUTFrom(SUN_SAT); equalPower(); sc::buildCLUT(CONTRAST);                      // palette + contrast tables ready before either core renders
+  if (!intent || !shoulderLUT || !sc::gX10 || !sc::RLUT) { Serial.printf("[sun] OUT OF MEMORY (heap %u) — halting\n", (unsigned)ESP.getFreeHeap()); for (;;) { digitalWrite(STATUS_LED, !digitalRead(STATUS_LED)); delay(100); } }
   { esp_task_wdt_config_t wd = {}; wd.timeout_ms = 12000; wd.idle_core_mask = 0; wd.trigger_panic = true; if (esp_task_wdt_reconfigure(&wd) != ESP_OK) esp_task_wdt_init(&wd); }
 
   xTaskCreatePinnedToCore(outputTask, "show", 16384, nullptr, 3, &outTask, 1);          // core 1: the show
