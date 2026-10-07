@@ -1,0 +1,1 @@
+c018073 gateway_rig_test: fix full-scale channels wrapping to 0 in the 16-bit → byte conversion

@@ -1,0 +1,1 @@
+02d70eb gateway_rig_test: light the ring being tuned; config export/import

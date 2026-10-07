@@ -1,0 +1,1 @@
+b82bf2d gateway_rig_test: cut heap use by ~35 kB and gzip the page (blank-page fix)

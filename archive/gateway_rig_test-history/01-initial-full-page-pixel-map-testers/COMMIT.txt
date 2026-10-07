@@ -1,0 +1,1 @@
+560d487 Firmware: ESP32-GATEWAY projects — disc bring-up test and full-rig test with OTA + scenes

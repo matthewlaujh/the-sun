@@ -1,0 +1,4 @@
+.pio/
+.vscode/
+lib/
+src/index_html_gz.h

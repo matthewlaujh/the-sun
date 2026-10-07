@@ -1,0 +1,1 @@
+1478d9b gateway_rig_test: Pixel-rim scenes back, with watchdogs so the board stays reachable once mounted
