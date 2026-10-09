@@ -31,11 +31,13 @@ the-sun/
 │   │   ├── README.md                # read this; every tunable is documented there
 │   │   ├── platformio.ini
 │   │   └── src/{main.cpp, scenes.h, fluid.h, sun_map.h, relief_nb.h}
-│   ├── gateway_rig_test/            # interactive firmware — Wi-Fi AP + web page, Off/Solid/Scene, ring-shading tuner, OTA
+│   ├── gateway_rig_test/            # interactive firmware — web page over Wi-Fi AP *or* USB, Off/Solid/Scene, ring-shading tuner, OTA
 │   │   ├── README.md
 │   │   ├── tools/gen_html_gz.py     # pre-build: gzips src/index_html.h → src/index_html_gz.h (gitignored)
 │   │   └── src/{main.cpp, index_html.h, scenes.h, fluid.h, sun_map.h}
-│   └── gateway_disc_test/           # first-light firmware (disc only) — known-good fallback, has the disc paint tool
+│   ├── gateway_disc_test/           # first-light firmware (disc only) — known-good fallback, has the disc paint tool (Wi-Fi or USB)
+│   ├── shared/SunUsbLink/           # library: the page's WebSocket/HTTP traffic over the USB cable (used by both gateway_* builds)
+│   └── tools/usb_bridge.py          # laptop side: serves the plugged-in ESP's page at http://localhost:8080 over USB
 ├── server/                          # Node/Express + SQLite preset server (Docker + Caddy) — not deployed yet
 ├── kicad/, sun-pcb-kicad-pack/, sun-led-design-pack-test01/, sample/   # PCB / hardware — not needed for animation work
 └── README.md

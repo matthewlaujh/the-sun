@@ -1,0 +1,7 @@
+{
+  "name": "SunUsbLink",
+  "version": "1.0.0",
+  "description": "The rig page's WebSocket/HTTP traffic carried over the USB serial port, so a laptop can drive the ESP32-GATEWAY over the cable (see firmware/tools/usb_bridge.py).",
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}

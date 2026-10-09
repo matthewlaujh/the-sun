@@ -10,6 +10,8 @@
 // • Output is linear; the PixLite does gamma 2.2 + dither. Master boots at 30 %, ×0.90 power cap always applied.
 // • px i → universe cfg.uni − 1 + SUN_RUN_UNI0[run] + RI/128, channel 1 + 4·(RI mod 128), RGBW (PixLite set to GRBW).
 // • OTA: ArduinoOTA on the AP (192.168.4.1:3232). `pio run -e ota -t upload` from a laptop joined to SUN-DISC.
+// • The page also works over the USB cable (SunUsbLink + firmware/tools/usb_bridge.py → http://localhost:8080), at the same
+//   time as Wi-Fi: both feed the same handlers.
 
 #include <Arduino.h>
 #include <esp_arduino_version.h>
@@ -20,6 +22,7 @@
 #include <ArduinoOTA.h>
 #include <Preferences.h>
 #include <ESPAsyncWebServer.h>
+#include <SunUsbLink.h>      // firmware/shared/SunUsbLink — the page over USB
 #include "index_html_gz.h"   // generated from index_html.h by tools/gen_html_gz.py (platformio.ini extra_scripts)
 #include "sun_map.h"
 #pragma GCC optimize("O2", "fast-math")   // render path: Arduino builds -Os; the Xtensa FPU has no divide, fast-math lets GCC use reciprocals
@@ -240,8 +243,11 @@ static void outputTask(void *) {
 static String jsonStr(const String &s, const char *key) {   // tiny extractor — enough for our own page
   int k = s.indexOf(String("\"") + key + "\""); if (k < 0) return "";
   int c = s.indexOf(':', k); if (c < 0) return "";
-  int a = c + 1; while (a < (int)s.length() && (s[a] == ' ' || s[a] == '"')) a++;
-  int b = a; while (b < (int)s.length() && s[b] != '"' && s[b] != ',' && s[b] != '}') b++;
+  int a = c + 1; while (a < (int)s.length() && s[a] == ' ') a++;
+  if (a < (int)s.length() && s[a] == '"') {             // quoted value: read to the closing quote (colours are "r,g,b,w")
+    int b = s.indexOf('"', a + 1); return b < 0 ? "" : s.substring(a + 1, b);
+  }
+  int b = a; while (b < (int)s.length() && s[b] != ',' && s[b] != '}') b++;
   return s.substring(a, b);
 }
 static void parseCol(const String &v, uint8_t *c) {     // "r,g,b,w"
@@ -294,7 +300,7 @@ static void onWs(AsyncWebSocket *, AsyncWebSocketClient *, AwsEventType type, vo
   if (info->opcode == WS_TEXT) handleText(String((const char *)data, len));
 }
 
-static void pushStatus() {
+static String statusJson() {
   static uint32_t lastFrames = 0, lastMs = 0;
   uint32_t now = millis();
   float fps = lastMs ? (framesSent - lastFrames) * 1000.0f / (now - lastMs) : 0;
@@ -309,7 +315,15 @@ static void pushStatus() {
   for (int r = 0; r < RINGS; r++) { if (r) j += ","; j += String(shadeRing[r]); }
   j += "],\"hto\":" + String((unsigned long)helperTimeouts) + ",\"rst\":" + String((int)esp_reset_reason()) + ",\"up\":" + String(millis() / 1000);
   j += ",\"heap\":" + String((unsigned long)ESP.getFreeHeap()) + ",\"ota\":" + String(otaActive ? 1 : 0) + ",\"build\":\"" __DATE__ " " __TIME__ "\",\"dark\":" + String((int)UI_DARK) + "}";
-  ws.textAll(j);
+  return j;
+}
+static String scenesJson() {
+  String j = "{\"scenes\":[";
+  for (int i = 0; i < sc::N_SCENES; i++) { if (i) j += ","; j += "{\"n\":\"" + String(sc::SCENES[i].name) + "\",\"g\":\"" + sc::SCENES[i].group + "\",\"p\":\"" + sc::SCENES[i].p1name + "\",\"np\":" + (sc::SCENES[i].noPal ? 1 : 0) + "}"; }
+  j += "],\"pal\":[";
+  for (int i = 0; i < sc::N_PAL; i++) { if (i) j += ","; j += "\"" + String(sc::PALETTES[i].name) + "\""; }
+  j += "]}";
+  return j;
 }
 
 // ---------------- config export / import ----------------
@@ -351,16 +365,25 @@ static void houseTask(void *) {
   uint32_t tStatus = 0;
   for (;;) {
     ArduinoOTA.handle();                            // blocks for the duration of an upload; output task is suspended meanwhile
+    usblink::poll();                                // page over USB (SunUsbLink) — same handlers as the WebSocket
     uint32_t now = millis();
     if (shadeDirty && now - shadeDirtyMs > 1500) { shadeDirty = false; saveShade(); }
-    if (now - tStatus >= 1000) { tStatus = now; ws.cleanupClients(); if (ws.count() && ws.availableForWriteAll()) pushStatus(); }
+    if (now - tStatus >= 1000) {
+      tStatus = now; ws.cleanupClients();
+      const bool toWs = ws.count() && ws.availableForWriteAll(), toUsb = usblink::active();
+      if (toWs || toUsb) { String j = statusJson(); if (toWs) ws.textAll(j); usblink::text(j); }
+    }
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 
 // ---------------- setup ----------------
 void setup() {
-  Serial.begin(115200);
+  usblink::begin("gateway_rig_test");               // Serial at 115200 + the page over USB (firmware/tools/usb_bridge.py)
+  usblink::onText(handleText);
+  usblink::onGet("/scenes.json", scenesJson);
+  usblink::onGet("/config.json", configJson);
+  usblink::onPost("/config", applyConfig);
   pinMode(STATUS_LED, OUTPUT);
   sc::buildGeom();                                  // RAM copies of the pixel tables (needed by buildShade and the render loops)
   loadCfg();
@@ -394,12 +417,7 @@ void setup() {
   });
   server.on("/scenes.json", HTTP_GET, [](AsyncWebServerRequest *r) {
     lastWebMs = millis();
-    String j = "{\"scenes\":[";
-    for (int i = 0; i < sc::N_SCENES; i++) { if (i) j += ","; j += "{\"n\":\"" + String(sc::SCENES[i].name) + "\",\"g\":\"" + sc::SCENES[i].group + "\",\"p\":\"" + sc::SCENES[i].p1name + "\",\"np\":" + (sc::SCENES[i].noPal ? 1 : 0) + "}"; }
-    j += "],\"pal\":[";
-    for (int i = 0; i < sc::N_PAL; i++) { if (i) j += ","; j += "\"" + String(sc::PALETTES[i].name) + "\""; }
-    j += "]}";
-    AsyncWebServerResponse *res = r->beginResponse(200, "application/json", j); res->addHeader("Cache-Control", "max-age=86400"); r->send(res);
+    AsyncWebServerResponse *res = r->beginResponse(200, "application/json", scenesJson()); res->addHeader("Cache-Control", "max-age=86400"); r->send(res);
   });
   server.on("/config.json", HTTP_GET, [](AsyncWebServerRequest *r) {
     AsyncWebServerResponse *res = r->beginResponse(200, "application/json", configJson());

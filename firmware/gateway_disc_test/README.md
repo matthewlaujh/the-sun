@@ -15,8 +15,16 @@ Platform is **pioarduino** (arduino-esp32 core 3.x — the stock `espressif32` p
 
 Verified: compiles clean on 2026-09-24 (core 3.3.12, ESPAsyncWebServer 3.12, AsyncTCP 3.5) — 1.09 MB flash / 53 kB RAM.
 
+## Page over USB instead of Wi-Fi
+Same page, over the USB cable, while the laptop stays on its normal Wi-Fi. Both links are always on — pick by which address you open.
+
+    ~/.platformio/penv/Scripts/python.exe ../tools/usb_bridge.py     # from this folder (macOS/Linux: penv/bin/python)
+    → http://localhost:8080                                          # header pill shows "usb ok"
+
+Painting, fill, chase, fluid sliders and network settings all work; the live fluid mirror is capped at ~5 fps over USB (115200 baud). Ctrl+C the bridge before `pio run -t upload`. Details: `../gateway_rig_test/README.md`, protocol in `../shared/SunUsbLink/src/SunUsbLink.h`.
+
 ## Use
-1. Join Wi-Fi **SUN-DISC** / password **sunshine26**, open **http://192.168.4.1** (or http://sun.local).
+1. Join Wi-Fi **SUN-DISC** / password **sunshine26**, open **http://192.168.4.1** (or http://sun.local) — or use it over USB (above).
 2. The header shows `eth 100M · 10.10.0.10` when the cable to the PixLite is live, and the output fps.
 3. Paint / Erase / Pick, Fill all, Clear. ☀ is the master (boots at 30 %; ×0.90 power cap always applied).
 4. **Chase test** walks one pixel through index order 0→172 — check it spirals out from the centre as in the map.

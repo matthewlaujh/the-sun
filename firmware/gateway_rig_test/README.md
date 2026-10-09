@@ -21,7 +21,15 @@ Kept deliberately small: three modes (**Off · Solid · Scene**), the simulator'
 - `-DUI_DARK=1` in `build_flags` → dark page theme (handy to see that an OTA landed; the header pill also shows the build time).
 - `-DSINGLE_CORE_RENDER` → no render helper on core 0 (heavy scenes ~18 fps, Wi-Fi core untouched).
 
-## Page (http://192.168.4.1)
+## Page over USB instead of Wi-Fi
+The same page also works over the USB cable, so the laptop can stay on its normal Wi-Fi (internet) while you tune. Both links are always on — pick by which address you open.
+
+    ~/.platformio/penv/Scripts/python.exe ../tools/usb_bridge.py     # from this folder (macOS/Linux: penv/bin/python)
+    → http://localhost:8080                                          # header pill shows "usb ok"
+
+The bridge (`firmware/tools/usb_bridge.py`) finds the CH340, asks the ESP which firmware it runs and serves that project's `src/index_html.h` — re-read on every page load, so page edits show on refresh without flashing. ESP log lines print in the bridge's terminal. Flashing over USB needs the port: Ctrl+C the bridge, `pio run -e usb -t upload`, start it again. Firmware side: `firmware/shared/SunUsbLink` (protocol in its header).
+
+## Page (http://192.168.4.1, or http://localhost:8080 over USB)
 - **Header**: Ethernet link, fps + scene render time, estimated load per PSU (D disc RSP-200 · E wedges 1–6 · W wedges 7–12; amber >70 %, red >90 %), build time · theme · free heap · uptime · last reset reason if abnormal.
 - **Mode** Off / Solid / Scene. **Master** boots at 30 %; ×0.90 power cap is always applied on top (no fuses on the rig).
 - **Scene**: 10 patterns (Solar surface, Breathing rings, Rotating rays, Radial pulse, Embers, Corona breath, Heartbeat, Aurora curtains, Photosphere, Spiral arms) + 2 shaders (Neon fluid, Black-hole sunset); palette (the website's 16 ramps or the pattern's own colours), speed, one pattern parameter, contrast, warmth. Output linear — the PixLite does gamma 2.2.
@@ -31,7 +39,7 @@ Kept deliberately small: three modes (**Off · Solid · Scene**), the simulator'
 
 ## Architecture
 - **Core 1**: the output task only — render → ring shading × master × cap → 23 Art-Net packets, paced to 40 fps with a guaranteed ≥5 ms sleep per frame.
-- **Core 0**: Wi-Fi/lwIP, the housekeeping task (status every 1 s, OTA, deferred NVS saves), and a low-priority render helper that takes an adaptive share of each scene frame into its own buffer (one job in flight, late = skip; yields a tick mid-job for the task WDT). For 4 s after any page request the scene renders single-core so the page loads fast.
+- **Core 0**: Wi-Fi/lwIP, the housekeeping task (status every 1 s, OTA, USB page link, deferred NVS saves), and a low-priority render helper that takes an adaptive share of each scene frame into its own buffer (one job in flight, late = skip; yields a tick mid-job for the task WDT). For 4 s after any page request the scene renders single-core so the page loads fast.
 - Memory: pixel tables copied to RAM (~29 kB) so two cores don't stream flash through the single shared cache that also feeds Wi-Fi code; scene intent buffer is 16-bit fixed point (19 kB); page served gzipped (~6 kB) from flash.
 
 ## PixLite (Advatek Assistant 3) — unchanged

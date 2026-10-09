@@ -254,9 +254,10 @@ cv.addEventListener('wheel',e=>{e.preventDefault();const z=Math.max(-3,Math.min(
 
 // --- socket
 function connect(){
-  ws=new WebSocket(`ws://${location.host}/ws`);ws.binaryType='arraybuffer';
-  ws.onopen=()=>{$('ws').textContent='ws ok';$('ws').className='pill ok';};
-  ws.onclose=()=>{$('ws').textContent='ws —';$('ws').className='pill bad';setTimeout(connect,1000);};
+  ws=new WebSocket(`ws://${location.host}/ws`);ws.binaryType='arraybuffer';   // over USB, usb_bridge.py swaps in its own WebSocket and sets SUN_LINK
+  const L=window.SUN_LINK||'ws';
+  ws.onopen=()=>{$('ws').textContent=L+' ok';$('ws').className='pill ok';};
+  ws.onclose=()=>{$('ws').textContent=L+' —';$('ws').className='pill bad';setTimeout(connect,1000);};
   ws.onmessage=e=>{
     if(typeof e.data!=='string'){const d=new Uint8Array(e.data);
       if(d[0]===0x4c&&d.length===1+N*4){for(let i=0;i<N;i++){const o=1+i*4;circ[i].setAttribute('fill',(d[o]|d[o+1]|d[o+2]|d[o+3])?css(d[o],d[o+1],d[o+2],d[o+3]):'#050505');}return;}

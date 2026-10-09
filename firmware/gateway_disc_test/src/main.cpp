@@ -8,6 +8,8 @@
 //   and the pixel stream never wait on each other (the web side only writes into a locked frame buffer).
 // • Pixel order / universes follow simulator/sun-map.csv: px i → universe 1 + i/128, channel 1 + (i%128)*4, RGBW.
 // • Settings (protocol, target IP, universe, gateway Ethernet IP) are editable on the page and kept in flash.
+// • The page also works over the USB cable (SunUsbLink + firmware/tools/usb_bridge.py → http://localhost:8080), at the same
+//   time as Wi-Fi: both feed the same handlers. Over USB the live mirror is capped at ~5 fps (115200 baud).
 //
 // Toolchain: arduino-esp32 core 3.x (2.0.x also handled below). Libraries: ESPAsyncWebServer + AsyncTCP (ESP32Async).
 // PlatformIO project: `pio run -t upload && pio device monitor` (board esp32-gateway, pioarduino platform).
@@ -20,6 +22,7 @@
 #include <ESPmDNS.h>
 #include <Preferences.h>
 #include <ESPAsyncWebServer.h>
+#include <SunUsbLink.h>      // firmware/shared/SunUsbLink — the page over USB
 #include "index_html.h"
 #include "sun_map.h"
 #include "fluid.h"
@@ -249,8 +252,11 @@ static void handleBinary(const uint8_t *d, size_t len) {
 static String jsonStr(const String &s, const char *key) {   // tiny extractor — enough for our own page
   int k = s.indexOf(String("\"") + key + "\""); if (k < 0) return "";
   int c = s.indexOf(':', k); if (c < 0) return "";
-  int a = c + 1; while (a < (int)s.length() && (s[a] == ' ' || s[a] == '"')) a++;
-  int b = a; while (b < (int)s.length() && s[b] != '"' && s[b] != ',' && s[b] != '}') b++;
+  int a = c + 1; while (a < (int)s.length() && s[a] == ' ') a++;
+  if (a < (int)s.length() && s[a] == '"') {             // quoted value: read to the closing quote (may contain commas)
+    int b = s.indexOf('"', a + 1); return b < 0 ? "" : s.substring(a + 1, b);
+  }
+  int b = a; while (b < (int)s.length() && s[b] != ',' && s[b] != '}') b++;
   return s.substring(a, b);
 }
 
@@ -295,6 +301,7 @@ static void pushFrame() {
   msg[0] = 'S';
   portENTER_CRITICAL(&pxLock); memcpy(msg + 1, px, DISC_N * 4); portEXIT_CRITICAL(&pxLock);
   ws.binaryAll(msg, sizeof msg);
+  usblink::binary(msg, sizeof msg);
 }
 
 static void pushStatus() {
@@ -324,11 +331,15 @@ static void pushStatus() {
   }
   j += "]}";
   ws.textAll(j);
+  usblink::text(j);
 }
 
 // ---------------- setup / loop ----------------
 void setup() {
-  Serial.begin(115200);
+  usblink::begin("gateway_disc_test");              // Serial at 115200 + the page over USB (firmware/tools/usb_bridge.py)
+  usblink::onText(handleText);
+  usblink::onBinary(handleBinary);
+  usblink::onConnect([] { frameDirty = true; });   // like a new WebSocket client: send the full paint buffer
   pinMode(STATUS_LED, OUTPUT);
   loadCfg();
 
@@ -366,12 +377,15 @@ void setup() {
 }
 
 void loop() {
-  static uint32_t tFrame = 0, tStatus = 0;
+  static uint32_t tFrame = 0, tStatus = 0, tUsbMirror = 0;
+  usblink::poll();
   uint32_t now = millis();
   if (frameDirty && now - tFrame >= 60) { frameDirty = false; tFrame = now; pushFrame(); }
-  if (fluid && mirrorDirty && ws.count()) {         // live preview of the computed frame ('L' = live, not the paint buffer)
+  if (fluid && mirrorDirty && (ws.count() || usblink::active())) {   // live preview of the computed frame ('L' = live, not the paint buffer)
     static uint8_t msg[1 + DISC_N * 4]; msg[0] = 'L'; mirrorDirty = false;
-    memcpy(msg + 1, mirror, DISC_N * 4); ws.binaryAll(msg, sizeof msg);
+    memcpy(msg + 1, mirror, DISC_N * 4);
+    if (ws.count()) ws.binaryAll(msg, sizeof msg);
+    if (now - tUsbMirror >= 200 && usblink::binary(msg, sizeof msg)) tUsbMirror = now;   // ~5 fps fits 115200 baud
   }
   if (now - tStatus >= 1000) { tStatus = now; ws.cleanupClients(); pushStatus(); }
   delay(5);

@@ -165,9 +165,10 @@ function applyStatus(s){
   if(first){$('tip').value=s.tip;$('uni').value=s.uni;$('eip').value=s.eip;first=false;}
 }
 function connect(){
-  ws=new WebSocket(`ws://${location.host}/ws`);
-  ws.onopen=()=>{$('ws').textContent='ws ok';$('ws').className='pill ok';};
-  ws.onclose=()=>{$('ws').textContent='ws —';$('ws').className='pill bad';setTimeout(connect,1500);};
+  ws=new WebSocket(`ws://${location.host}/ws`);   // over USB, usb_bridge.py swaps in its own WebSocket and sets SUN_LINK
+  const L=window.SUN_LINK||'ws';
+  ws.onopen=()=>{$('ws').textContent=L+' ok';$('ws').className='pill ok';};
+  ws.onclose=()=>{$('ws').textContent=L+' —';$('ws').className='pill bad';setTimeout(connect,1500);};
   ws.onmessage=e=>{const s=JSON.parse(e.data);if(s.t==='st')applyStatus(s);};
 }
 connect();
